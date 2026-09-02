@@ -4,7 +4,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useState,
   type ReactNode,
 } from "react";
 
@@ -24,6 +26,13 @@ type VerificationProviderProps = {
 const VerificationContext =
   createContext<VerificationContextValue | null>(null);
 
+const VERIFICATION_DURATION_MS =
+  24 * 60 * 60 * 1000;
+
+function getStorageKey(address: string): string {
+  return `predarc-onchain-verification-${address.toLowerCase()}`;
+}
+
 export function VerificationProvider({
   children,
 }: VerificationProviderProps) {
@@ -33,26 +42,191 @@ export function VerificationProvider({
     isConnected,
   } = useAccount();
 
-  const isVerified =
-    isConnected &&
-    Boolean(address) &&
-    chainId === arcTestnet.id;
+  const [isVerified, setIsVerified] =
+    useState(false);
 
+  /*
+   * Load saved verification whenever:
+   * - wallet connects
+   * - wallet changes
+   * - network changes
+   */
+  useEffect(() => {
+    if (
+      !isConnected ||
+      !address ||
+      chainId !== arcTestnet.id
+    ) {
+      setIsVerified(false);
+      return;
+    }
+
+    const storageKey =
+      getStorageKey(address);
+
+    try {
+      const savedVerification =
+        window.localStorage.getItem(
+          storageKey
+        );
+
+      if (!savedVerification) {
+        setIsVerified(false);
+        return;
+      }
+
+      const verifiedAt =
+        Number(savedVerification);
+
+      if (
+        !Number.isFinite(verifiedAt)
+      ) {
+        window.localStorage.removeItem(
+          storageKey
+        );
+
+        setIsVerified(false);
+        return;
+      }
+
+      const expiresAt =
+        verifiedAt +
+        VERIFICATION_DURATION_MS;
+
+      const now = Date.now();
+
+      if (now >= expiresAt) {
+        window.localStorage.removeItem(
+          storageKey
+        );
+
+        setIsVerified(false);
+        return;
+      }
+
+      setIsVerified(true);
+
+      /*
+       * Automatically expire verification
+       * exactly when 24 hours are complete.
+       */
+      const remainingTime =
+        expiresAt - now;
+
+      const timeoutId =
+        window.setTimeout(() => {
+          window.localStorage.removeItem(
+            storageKey
+          );
+
+          setIsVerified(false);
+        }, remainingTime);
+
+      return () => {
+        window.clearTimeout(timeoutId);
+      };
+    } catch (error) {
+      console.error(
+        "Could not load wallet verification:",
+        error
+      );
+
+      setIsVerified(false);
+    }
+  }, [
+    address,
+    chainId,
+    isConnected,
+  ]);
+
+  /*
+   * Called after the Arc Testnet
+   * verification transaction succeeds.
+   */
   const setVerified = useCallback(
-    (_value: boolean): void => {
-      // Verification is derived automatically from
-      // wallet connection and Arc Testnet network.
+    (value: boolean): void => {
+      if (!address) {
+        setIsVerified(false);
+        return;
+      }
+
+      const storageKey =
+        getStorageKey(address);
+
+      if (!value) {
+        try {
+          window.localStorage.removeItem(
+            storageKey
+          );
+        } catch (error) {
+          console.error(
+            "Could not remove wallet verification:",
+            error
+          );
+        }
+
+        setIsVerified(false);
+        return;
+      }
+
+      if (
+        !isConnected ||
+        chainId !== arcTestnet.id
+      ) {
+        setIsVerified(false);
+        return;
+      }
+
+      const verifiedAt =
+        Date.now();
+
+      try {
+        window.localStorage.setItem(
+          storageKey,
+          String(verifiedAt)
+        );
+
+        setIsVerified(true);
+      } catch (error) {
+        console.error(
+          "Could not save wallet verification:",
+          error
+        );
+
+        setIsVerified(false);
+      }
     },
-    []
+    [
+      address,
+      chainId,
+      isConnected,
+    ]
   );
 
-  const clearVerification = useCallback(
-    (): void => {
-      // Disconnecting or switching networks automatically
-      // removes verification.
-    },
-    []
-  );
+  /*
+   * Completely removes verification
+   * for the currently connected wallet.
+   */
+  const clearVerification =
+    useCallback((): void => {
+      if (address) {
+        const storageKey =
+          getStorageKey(address);
+
+        try {
+          window.localStorage.removeItem(
+            storageKey
+          );
+        } catch (error) {
+          console.error(
+            "Could not clear wallet verification:",
+            error
+          );
+        }
+      }
+
+      setIsVerified(false);
+    }, [address]);
 
   const value = useMemo(
     () => ({
@@ -68,13 +242,16 @@ export function VerificationProvider({
   );
 
   return (
-    <VerificationContext.Provider value={value}>
+    <VerificationContext.Provider
+      value={value}
+    >
       {children}
     </VerificationContext.Provider>
   );
 }
 
-export function useVerification(): VerificationContextValue {
+export function useVerification():
+  VerificationContextValue {
   const context = useContext(
     VerificationContext
   );

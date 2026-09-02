@@ -1,14 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
 
-export const dynamic = "force-dynamic";
+export const dynamic =
+  "force-dynamic";
+
 export const revalidate = 0;
 
-const ALLOWED_INTERVALS = new Set([
-  "1m",
-  "5m",
-  "15m",
-  "1h",
-]);
+const ALLOWED_INTERVALS =
+  new Set([
+    "1m",
+    "5m",
+    "15m",
+    "1h",
+  ]);
+
+const ALLOWED_SYMBOLS =
+  new Set([
+    "BTC",
+    "ETH",
+    "SOL",
+    "BNB",
+    "XRP",
+  ]);
 
 const BINANCE_ENDPOINTS = [
   "https://data-api.binance.vision",
@@ -31,35 +46,83 @@ type BinanceKline = [
   string
 ];
 
+type MarketSymbol =
+  | "BTC"
+  | "ETH"
+  | "SOL"
+  | "BNB"
+  | "XRP";
+
+function isMarketSymbol(
+  value: string
+): value is MarketSymbol {
+  return ALLOWED_SYMBOLS.has(
+    value
+  );
+}
+
+function getBinancePair(
+  symbol: MarketSymbol
+): string {
+  return `${symbol}USDT`;
+}
+
 async function fetchKlines(
+  symbol: MarketSymbol,
   interval: string
 ): Promise<BinanceKline[]> {
-  let lastError: Error | null = null;
+  let lastError:
+    Error | null = null;
 
-  for (const baseUrl of BINANCE_ENDPOINTS) {
-    const controller = new AbortController();
+  const binancePair =
+    getBinancePair(symbol);
 
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, 8000);
+  for (
+    const baseUrl
+    of BINANCE_ENDPOINTS
+  ) {
+    const controller =
+      new AbortController();
+
+    const timeout =
+      setTimeout(() => {
+        controller.abort();
+      }, 8000);
 
     try {
-      const url = new URL(
-        "/api/v3/klines",
-        baseUrl
+      const url =
+        new URL(
+          "/api/v3/klines",
+          baseUrl
+        );
+
+      url.searchParams.set(
+        "symbol",
+        binancePair
       );
 
-      url.searchParams.set("symbol", "BTCUSDT");
-      url.searchParams.set("interval", interval);
-      url.searchParams.set("limit", "120");
+      url.searchParams.set(
+        "interval",
+        interval
+      );
 
-      const response = await fetch(url, {
-        cache: "no-store",
-        signal: controller.signal,
-        headers: {
-          Accept: "application/json",
-        },
-      });
+      url.searchParams.set(
+        "limit",
+        "120"
+      );
+
+      const response =
+        await fetch(url, {
+          cache: "no-store",
+
+          signal:
+            controller.signal,
+
+          headers: {
+            Accept:
+              "application/json",
+          },
+        });
 
       if (!response.ok) {
         throw new Error(
@@ -67,7 +130,8 @@ async function fetchKlines(
         );
       }
 
-      const result = await response.json();
+      const result =
+        await response.json();
 
       if (!Array.isArray(result)) {
         throw new Error(
@@ -96,55 +160,128 @@ async function fetchKlines(
   );
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest
+) {
   try {
     const interval =
-      request.nextUrl.searchParams.get("interval") ??
-      "1m";
+      request.nextUrl.searchParams.get(
+        "interval"
+      ) ?? "1m";
 
-    if (!ALLOWED_INTERVALS.has(interval)) {
+    const requestedSymbol =
+      (
+        request.nextUrl.searchParams.get(
+          "symbol"
+        ) ?? "BTC"
+      ).toUpperCase();
+
+    if (
+      !ALLOWED_INTERVALS.has(
+        interval
+      )
+    ) {
       return NextResponse.json(
         {
-          error: "Unsupported candle interval.",
+          error:
+            "Unsupported candle interval.",
         },
         {
           status: 400,
+
           headers: {
-            "Cache-Control": "no-store",
+            "Cache-Control":
+              "no-store",
           },
         }
       );
     }
 
-    const result = await fetchKlines(interval);
+    if (
+      !isMarketSymbol(
+        requestedSymbol
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Unsupported market symbol.",
+        },
+        {
+          status: 400,
 
-    const candles = result
-      .map((kline) => ({
-        time: Math.floor(Number(kline[0]) / 1000),
-        open: Number(kline[1]),
-        high: Number(kline[2]),
-        low: Number(kline[3]),
-        close: Number(kline[4]),
-      }))
-      .filter((candle) =>
-        Object.values(candle).every((value) =>
-          Number.isFinite(value)
-        )
+          headers: {
+            "Cache-Control":
+              "no-store",
+          },
+        }
+      );
+    }
+
+    const result =
+      await fetchKlines(
+        requestedSymbol,
+        interval
       );
 
-    if (candles.length === 0) {
+    const candles =
+      result
+        .map((kline) => ({
+          time: Math.floor(
+            Number(kline[0]) /
+              1000
+          ),
+
+          open: Number(
+            kline[1]
+          ),
+
+          high: Number(
+            kline[2]
+          ),
+
+          low: Number(
+            kline[3]
+          ),
+
+          close: Number(
+            kline[4]
+          ),
+        }))
+        .filter(
+          (candle) =>
+            Object.values(
+              candle
+            ).every((value) =>
+              Number.isFinite(
+                value
+              )
+            )
+        );
+
+    if (
+      candles.length === 0
+    ) {
       throw new Error(
-        "No valid BTC candles were returned."
+        `No valid ${requestedSymbol} candles were returned.`
       );
     }
 
     return NextResponse.json(
       {
+        symbol:
+          requestedSymbol,
+
         interval,
+
+        pair:
+          `${requestedSymbol}/USDT`,
+
         candles,
       },
       {
         status: 200,
+
         headers: {
           "Cache-Control":
             "no-store, no-cache, must-revalidate",
@@ -153,19 +290,21 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error(
-      "BTC kline route error:",
+      "Market kline route error:",
       error
     );
 
     return NextResponse.json(
       {
         error:
-          "Unable to load BTC candle history.",
+          "Unable to load market candle history.",
       },
       {
         status: 503,
+
         headers: {
-          "Cache-Control": "no-store",
+          "Cache-Control":
+            "no-store",
         },
       }
     );

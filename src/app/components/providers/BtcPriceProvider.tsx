@@ -10,7 +10,18 @@ import {
   type ReactNode,
 } from "react";
 
-export type BtcTimeframe = "1m" | "5m" | "15m" | "1h";
+export type MarketSymbol =
+  | "BTC"
+  | "ETH"
+  | "SOL"
+  | "BNB"
+  | "XRP";
+
+export type BtcTimeframe =
+  | "1m"
+  | "5m"
+  | "15m"
+  | "1h";
 
 export type BtcCandle = {
   time: number;
@@ -20,29 +31,84 @@ export type BtcCandle = {
   close: number;
 };
 
-type BtcPriceData = {
+export type MarketOption = {
+  symbol: MarketSymbol;
+  name: string;
+  pair: string;
+};
+
+export const MARKET_OPTIONS: MarketOption[] = [
+  {
+    symbol: "BTC",
+    name: "Bitcoin",
+    pair: "BTC/USDT",
+  },
+  {
+    symbol: "ETH",
+    name: "Ethereum",
+    pair: "ETH/USDT",
+  },
+  {
+    symbol: "SOL",
+    name: "Solana",
+    pair: "SOL/USDT",
+  },
+  {
+    symbol: "BNB",
+    name: "BNB",
+    pair: "BNB/USDT",
+  },
+  {
+    symbol: "XRP",
+    name: "XRP",
+    pair: "XRP/USDT",
+  },
+];
+
+type MarketPriceData = {
   price: number;
   change24h: number;
   updatedAt: number;
 };
 
 type BtcPriceContextValue = {
-  data: BtcPriceData | null;
+  data: MarketPriceData | null;
+
   candles: BtcCandle[];
+
   timeframe: BtcTimeframe;
-  setTimeframe: (timeframe: BtcTimeframe) => void;
+
+  setTimeframe: (
+    timeframe: BtcTimeframe
+  ) => void;
+
+  selectedMarket: MarketSymbol;
+
+  setSelectedMarket: (
+    market: MarketSymbol
+  ) => void;
+
+  marketOptions: MarketOption[];
+
   isLoading: boolean;
+
   error: string;
+
   isConnected: boolean;
+
   refreshPrice: () => void;
 };
 
 type BinanceStreamMessage = {
   stream?: string;
+
   data?: {
     E?: number;
+
     c?: string;
+
     o?: string;
+
     k?: {
       t: number;
       o: string;
@@ -55,35 +121,72 @@ type BinanceStreamMessage = {
 
 type HistoryResponse = {
   interval: BtcTimeframe;
+
+  symbol?: MarketSymbol;
+
   candles: BtcCandle[];
 };
 
 const BtcPriceContext =
-  createContext<BtcPriceContextValue | null>(null);
+  createContext<BtcPriceContextValue | null>(
+    null
+  );
 
 const MAX_CANDLES = 120;
+
 const RECONNECT_DELAY = 3000;
+
+const SELECTED_MARKET_STORAGE_KEY =
+  "predarc-selected-market";
+
+function isMarketSymbol(
+  value: string
+): value is MarketSymbol {
+  return MARKET_OPTIONS.some(
+    (market) => market.symbol === value
+  );
+}
+
+function getBinanceSymbol(
+  market: MarketSymbol
+): string {
+  return `${market.toLowerCase()}usdt`;
+}
 
 function mergeCandle(
   currentCandles: BtcCandle[],
   incomingCandle: BtcCandle
 ): BtcCandle[] {
-  const existingIndex = currentCandles.findIndex(
-    (candle) => candle.time === incomingCandle.time
-  );
+  const existingIndex =
+    currentCandles.findIndex(
+      (candle) =>
+        candle.time === incomingCandle.time
+    );
 
   if (existingIndex >= 0) {
-    const updatedCandles = [...currentCandles];
+    const updatedCandles = [
+      ...currentCandles,
+    ];
 
-    updatedCandles[existingIndex] = incomingCandle;
+    updatedCandles[existingIndex] =
+      incomingCandle;
 
     return updatedCandles
-      .sort((first, second) => first.time - second.time)
+      .sort(
+        (first, second) =>
+          first.time - second.time
+      )
       .slice(-MAX_CANDLES);
   }
 
-  return [...currentCandles, incomingCandle]
-    .sort((first, second) => first.time - second.time)
+  return [
+    ...currentCandles,
+    incomingCandle,
+  ]
+    .sort(
+      (first, second) =>
+        first.time - second.time
+    )
     .slice(-MAX_CANDLES);
 }
 
@@ -92,60 +195,139 @@ export function BtcPriceProvider({
 }: {
   children: ReactNode;
 }) {
-  const [data, setData] = useState<BtcPriceData | null>(
-    null
-  );
+  const [data, setData] =
+    useState<MarketPriceData | null>(
+      null
+    );
 
-  const [candles, setCandles] = useState<BtcCandle[]>(
-    []
-  );
+  const [candles, setCandles] =
+    useState<BtcCandle[]>([]);
 
   const [timeframe, setTimeframe] =
     useState<BtcTimeframe>("1m");
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [
+    selectedMarket,
+    setSelectedMarketState,
+  ] = useState<MarketSymbol>("BTC");
+
+  const [isLoading, setIsLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
   const [isConnected, setIsConnected] =
     useState(false);
 
-  const socketRef = useRef<WebSocket | null>(null);
+  const socketRef =
+    useRef<WebSocket | null>(null);
 
   const reconnectTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(
-      null
-    );
+    useRef<
+      ReturnType<typeof setTimeout> | null
+    >(null);
 
-  const requestIdRef = useRef(0);
-  const historyReadyRef = useRef(false);
+  const requestIdRef =
+    useRef(0);
+
+  const historyReadyRef =
+    useRef(false);
+
   const pendingLiveCandleRef =
     useRef<BtcCandle | null>(null);
 
+  /*
+   * Restore previously selected market.
+   */
   useEffect(() => {
-    const requestId = requestIdRef.current + 1;
+    try {
+      const savedMarket =
+        window.localStorage.getItem(
+          SELECTED_MARKET_STORAGE_KEY
+        );
 
-    requestIdRef.current = requestId;
-    historyReadyRef.current = false;
-    pendingLiveCandleRef.current = null;
+      if (
+        savedMarket &&
+        isMarketSymbol(savedMarket)
+      ) {
+        setSelectedMarketState(
+          savedMarket
+        );
+      }
+    } catch (storageError) {
+      console.error(
+        "Could not restore selected market:",
+        storageError
+      );
+    }
+  }, []);
+
+  function setSelectedMarket(
+    market: MarketSymbol
+  ): void {
+    setSelectedMarketState(market);
+
+    setData(null);
 
     setCandles([]);
-    setIsLoading(true);
+
     setError("");
 
-    const controller = new AbortController();
+    try {
+      window.localStorage.setItem(
+        SELECTED_MARKET_STORAGE_KEY,
+        market
+      );
+    } catch (storageError) {
+      console.error(
+        "Could not save selected market:",
+        storageError
+      );
+    }
+  }
 
-    async function loadHistory(): Promise<void> {
+  /*
+   * Historical candles.
+   */
+  useEffect(() => {
+    const requestId =
+      requestIdRef.current + 1;
+
+    requestIdRef.current =
+      requestId;
+
+    historyReadyRef.current =
+      false;
+
+    pendingLiveCandleRef.current =
+      null;
+
+    setCandles([]);
+
+    setIsLoading(true);
+
+    setError("");
+
+    const controller =
+      new AbortController();
+
+    async function loadHistory():
+      Promise<void> {
       try {
-        const response = await fetch(
-          `/api/btc-klines?interval=${timeframe}`,
-          {
-            cache: "no-store",
-            signal: controller.signal,
-          }
-        );
+        const response =
+          await fetch(
+            `/api/btc-klines?symbol=${selectedMarket}&interval=${timeframe}`,
+            {
+              cache: "no-store",
+              signal:
+                controller.signal,
+            }
+          );
 
         if (!response.ok) {
           throw new Error(
-            "Historical BTC data request failed."
+            `Historical ${selectedMarket} data request failed.`
           );
         }
 
@@ -153,55 +335,69 @@ export function BtcPriceProvider({
           (await response.json()) as HistoryResponse;
 
         if (
-          requestIdRef.current !== requestId ||
-          result.interval !== timeframe
+          requestIdRef.current !==
+            requestId ||
+          result.interval !==
+            timeframe
         ) {
           return;
         }
 
         let historicalCandles =
-          result.candles.slice(-MAX_CANDLES);
+          result.candles.slice(
+            -MAX_CANDLES
+          );
 
         const pendingLiveCandle =
           pendingLiveCandleRef.current;
 
         if (pendingLiveCandle) {
-          historicalCandles = mergeCandle(
-            historicalCandles,
-            pendingLiveCandle
-          );
+          historicalCandles =
+            mergeCandle(
+              historicalCandles,
+              pendingLiveCandle
+            );
         }
 
-        setCandles(historicalCandles);
-        historyReadyRef.current = true;
+        setCandles(
+          historicalCandles
+        );
+
+        historyReadyRef.current =
+          true;
       } catch (historyError) {
         if (
           controller.signal.aborted ||
-          requestIdRef.current !== requestId
+          requestIdRef.current !==
+            requestId
         ) {
           return;
         }
 
         console.error(
-          "Could not load BTC candle history:",
+          `Could not load ${selectedMarket} candle history:`,
           historyError
         );
 
         setError(
-          "BTC candle history is temporarily unavailable."
+          `${selectedMarket} candle history is temporarily unavailable.`
         );
 
         const pendingLiveCandle =
           pendingLiveCandleRef.current;
 
         if (pendingLiveCandle) {
-          setCandles([pendingLiveCandle]);
+          setCandles([
+            pendingLiveCandle,
+          ]);
         }
 
-        historyReadyRef.current = true;
+        historyReadyRef.current =
+          true;
       } finally {
         if (
-          requestIdRef.current === requestId &&
+          requestIdRef.current ===
+            requestId &&
           !controller.signal.aborted
         ) {
           setIsLoading(false);
@@ -214,10 +410,27 @@ export function BtcPriceProvider({
     return () => {
       controller.abort();
     };
-  }, [timeframe]);
+  }, [
+    selectedMarket,
+    timeframe,
+  ]);
 
+  /*
+   * Binance live WebSocket.
+   */
   useEffect(() => {
     let shouldReconnect = true;
+
+    const binanceSymbol =
+      getBinanceSymbol(
+        selectedMarket
+      );
+
+    const klineStream =
+      `${binanceSymbol}@kline_${timeframe}`;
+
+    const tickerStream =
+      `${binanceSymbol}@miniTicker`;
 
     function connect(): void {
       if (!shouldReconnect) {
@@ -225,15 +438,20 @@ export function BtcPriceProvider({
       }
 
       if (socketRef.current) {
+        socketRef.current.onclose =
+          null;
+
         socketRef.current.close();
+
         socketRef.current = null;
       }
 
       const streamUrl =
         `wss://stream.binance.com:9443/stream?streams=` +
-        `btcusdt@kline_${timeframe}/btcusdt@miniTicker`;
+        `${klineStream}/${tickerStream}`;
 
-      const socket = new WebSocket(streamUrl);
+      const socket =
+        new WebSocket(streamUrl);
 
       socketRef.current = socket;
 
@@ -243,106 +461,159 @@ export function BtcPriceProvider({
         }
 
         setIsConnected(true);
+
+        setError("");
       };
 
-      socket.onmessage = (event) => {
+      socket.onmessage = (
+        event
+      ) => {
         if (!shouldReconnect) {
           return;
         }
 
         try {
-          const message = JSON.parse(
-            event.data
-          ) as BinanceStreamMessage;
+          const message =
+            JSON.parse(
+              event.data
+            ) as BinanceStreamMessage;
 
+          /*
+           * Live candlestick update.
+           */
           if (
             message.stream ===
-              `btcusdt@kline_${timeframe}` &&
+              klineStream &&
             message.data?.k
           ) {
-            const kline = message.data.k;
+            const kline =
+              message.data.k;
 
-            const liveCandle: BtcCandle = {
-              time: Math.floor(kline.t / 1000),
-              open: Number(kline.o),
-              high: Number(kline.h),
-              low: Number(kline.l),
-              close: Number(kline.c),
+            const liveCandle:
+              BtcCandle = {
+              time: Math.floor(
+                kline.t / 1000
+              ),
+
+              open: Number(
+                kline.o
+              ),
+
+              high: Number(
+                kline.h
+              ),
+
+              low: Number(
+                kline.l
+              ),
+
+              close: Number(
+                kline.c
+              ),
             };
 
-            const isValidCandle = Object.values(
-              liveCandle
-            ).every((value) =>
-              Number.isFinite(value)
-            );
+            const isValidCandle =
+              Object.values(
+                liveCandle
+              ).every((value) =>
+                Number.isFinite(
+                  value
+                )
+              );
 
             if (!isValidCandle) {
               return;
             }
 
-            if (!historyReadyRef.current) {
+            if (
+              !historyReadyRef.current
+            ) {
               pendingLiveCandleRef.current =
                 liveCandle;
             } else {
-              setCandles((currentCandles) =>
-                mergeCandle(
-                  currentCandles,
-                  liveCandle
-                )
+              setCandles(
+                (
+                  currentCandles
+                ) =>
+                  mergeCandle(
+                    currentCandles,
+                    liveCandle
+                  )
               );
             }
 
-            setData((currentData) => ({
-              price: liveCandle.close,
-              change24h:
-                currentData?.change24h ?? 0,
-              updatedAt:
-                message.data?.E ?? Date.now(),
-            }));
+            setData(
+              (currentData) => ({
+                price:
+                  liveCandle.close,
+
+                change24h:
+                  currentData
+                    ?.change24h ??
+                  0,
+
+                updatedAt:
+                  message.data?.E ??
+                  Date.now(),
+              })
+            );
           }
 
+          /*
+           * 24-hour market ticker.
+           */
           if (
             message.stream ===
-              "btcusdt@miniTicker" &&
+              tickerStream &&
             message.data?.c &&
             message.data?.o
           ) {
-            const closePrice = Number(
-              message.data.c
-            );
+            const closePrice =
+              Number(
+                message.data.c
+              );
 
-            const openPrice = Number(
-              message.data.o
-            );
+            const openPrice =
+              Number(
+                message.data.o
+              );
 
             if (
-              !Number.isFinite(closePrice) ||
-              !Number.isFinite(openPrice) ||
+              !Number.isFinite(
+                closePrice
+              ) ||
+              !Number.isFinite(
+                openPrice
+              ) ||
               openPrice === 0
             ) {
               return;
             }
 
             const change24h =
-              ((closePrice - openPrice) /
+              ((closePrice -
+                openPrice) /
                 openPrice) *
               100;
 
             setData({
               price: closePrice,
+
               change24h,
+
               updatedAt:
-                message.data?.E ?? Date.now(),
+                message.data?.E ??
+                Date.now(),
             });
           }
         } catch (messageError) {
           console.error(
-            "Could not process BTC live data:",
+            `Could not process ${selectedMarket} live data:`,
             messageError
           );
 
           setError(
-            "BTC live data could not be processed."
+            `${selectedMarket} live data could not be processed.`
           );
         }
       };
@@ -353,7 +624,7 @@ export function BtcPriceProvider({
         }
 
         setError(
-          "BTC live connection is temporarily unavailable."
+          `${selectedMarket} live connection is temporarily unavailable.`
         );
       };
 
@@ -364,10 +635,11 @@ export function BtcPriceProvider({
           return;
         }
 
-        reconnectTimerRef.current = setTimeout(
-          connect,
-          RECONNECT_DELAY
-        );
+        reconnectTimerRef.current =
+          setTimeout(
+            connect,
+            RECONNECT_DELAY
+          );
       };
     }
 
@@ -376,60 +648,93 @@ export function BtcPriceProvider({
     return () => {
       shouldReconnect = false;
 
-      if (reconnectTimerRef.current) {
+      if (
+        reconnectTimerRef.current
+      ) {
         clearTimeout(
           reconnectTimerRef.current
         );
 
-        reconnectTimerRef.current = null;
+        reconnectTimerRef.current =
+          null;
       }
 
       if (socketRef.current) {
-        socketRef.current.onclose = null;
+        socketRef.current.onclose =
+          null;
+
         socketRef.current.close();
+
         socketRef.current = null;
       }
 
       setIsConnected(false);
     };
-  }, [timeframe]);
+  }, [
+    selectedMarket,
+    timeframe,
+  ]);
 
   function refreshPrice(): void {
+    setError("");
+
     if (socketRef.current) {
       socketRef.current.close();
     }
   }
 
-  const value = useMemo(
-    () => ({
-      data,
-      candles,
-      timeframe,
-      setTimeframe,
-      isLoading,
-      error,
-      isConnected,
-      refreshPrice,
-    }),
-    [
-      data,
-      candles,
-      timeframe,
-      isLoading,
-      error,
-      isConnected,
-    ]
-  );
+  const value =
+    useMemo(
+      () => ({
+        data,
+
+        candles,
+
+        timeframe,
+
+        setTimeframe,
+
+        selectedMarket,
+
+        setSelectedMarket,
+
+        marketOptions:
+          MARKET_OPTIONS,
+
+        isLoading,
+
+        error,
+
+        isConnected,
+
+        refreshPrice,
+      }),
+      [
+        data,
+        candles,
+        timeframe,
+        selectedMarket,
+        isLoading,
+        error,
+        isConnected,
+      ]
+    );
 
   return (
-    <BtcPriceContext.Provider value={value}>
+    <BtcPriceContext.Provider
+      value={value}
+    >
       {children}
     </BtcPriceContext.Provider>
   );
 }
 
-export function useBtcPrice(): BtcPriceContextValue {
-  const context = useContext(BtcPriceContext);
+export function useBtcPrice():
+  BtcPriceContextValue {
+  const context =
+    useContext(
+      BtcPriceContext
+    );
 
   if (!context) {
     throw new Error(

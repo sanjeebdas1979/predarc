@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -10,7 +11,9 @@ import {
   useWriteContract,
 } from "wagmi";
 
-import { arcTestnet } from "viem/chains";
+import {
+  arcTestnet,
+} from "viem/chains";
 
 import {
   FORECAST_REGISTRY_V2_ABI,
@@ -19,11 +22,29 @@ import {
 
 import {
   useDemoPoints,
+  type PredictionMarket,
   type PredictionRecord,
 } from "../providers/DemoPointsProvider";
 
+const RPC_READ_TIMEOUT_MS =
+  8000;
+
+const RECEIPT_TIMEOUT_MS =
+  45000;
+
+function getMarketDecimals(
+  market: PredictionMarket
+): number {
+  if (market === "XRP") {
+    return 4;
+  }
+
+  return 2;
+}
+
 function formatPrice(
-  price: number | null
+  price: number | null,
+  market: PredictionMarket
 ): string {
   if (
     price === null ||
@@ -32,35 +53,66 @@ function formatPrice(
     return "Not recorded";
   }
 
-  return `$${price.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  const decimals =
+    getMarketDecimals(
+      market
+    );
+
+  return `$${price.toLocaleString(
+    undefined,
+    {
+      minimumFractionDigits:
+        decimals,
+
+      maximumFractionDigits:
+        decimals,
+    }
+  )}`;
 }
 
 function formatDifference(
-  difference: number | null
+  difference: number | null,
+  market: PredictionMarket
 ): string {
   if (
     difference === null ||
-    !Number.isFinite(difference)
+    !Number.isFinite(
+      difference
+    )
   ) {
     return "Not recorded";
   }
 
   const sign =
-    difference >= 0 ? "+" : "-";
+    difference >= 0
+      ? "+"
+      : "-";
+
+  const decimals =
+    getMarketDecimals(
+      market
+    );
 
   return `${sign}$${Math.abs(
     difference
-  ).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  ).toLocaleString(
+    undefined,
+    {
+      minimumFractionDigits:
+        decimals,
+
+      maximumFractionDigits:
+        decimals,
+    }
+  )}`;
 }
 
 function formatDuration(
-  duration: 60 | 300 | 900 | null
+  duration:
+    | 60
+    | 300
+    | 900
+    | null
 ): string {
   if (duration === 60) {
     return "1 Minute";
@@ -77,65 +129,134 @@ function formatDuration(
   return "Not recorded";
 }
 
-function shortenHash(hash: string): string {
-  return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
-}
-
-function sleep(
-  milliseconds: number
-): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(
-      resolve,
-      milliseconds
-    );
-  });
+function shortenHash(
+  hash: string
+): string {
+  return `${hash.slice(
+    0,
+    10
+  )}...${hash.slice(-8)}`;
 }
 
 function getErrorText(
   error: unknown
 ): string {
-  if (!(error instanceof Error)) {
+  if (
+    !(error instanceof Error)
+  ) {
     return "";
   }
 
   return error.message.toLowerCase();
 }
 
+function withTimeout<T>(
+  promise: Promise<T>,
+  milliseconds: number,
+  timeoutMessage: string
+): Promise<T> {
+  return new Promise<T>(
+    (
+      resolve,
+      reject
+    ) => {
+      const timeoutId =
+        window.setTimeout(
+          () => {
+            reject(
+              new Error(
+                timeoutMessage
+              )
+            );
+          },
+          milliseconds
+        );
+
+      promise
+        .then(
+          (value) => {
+            window.clearTimeout(
+              timeoutId
+            );
+
+            resolve(
+              value
+            );
+          }
+        )
+        .catch(
+          (error) => {
+            window.clearTimeout(
+              timeoutId
+            );
+
+            reject(
+              error
+            );
+          }
+        );
+    }
+  );
+}
+
 export default function PredictionHistory() {
   const {
     predictions,
+
     setResolveTransaction,
+
     markResolvedOnchain,
+
     syncClaimedReward,
   } = useDemoPoints();
 
-  const publicClient = usePublicClient({
-    chainId: arcTestnet.id,
-  });
+  const publicClient =
+    usePublicClient({
+      chainId:
+        arcTestnet.id,
+    });
 
   const {
     writeContractAsync,
-    isPending: isWaitingForWallet,
+
+    isPending:
+      isWaitingForWallet,
   } = useWriteContract();
 
   const [
     processingPredictionId,
     setProcessingPredictionId,
-  ] = useState<number | null>(null);
+  ] =
+    useState<
+      number | null
+    >(null);
 
   const [
     processingAction,
     setProcessingAction,
-  ] = useState<
-    "resolve" | "claim" | "sync" | null
-  >(null);
+  ] =
+    useState<
+      | "resolve"
+      | "claim"
+      | "sync"
+      | null
+    >(null);
 
-  const [messages, setMessages] = useState<
-    Record<number, string>
-  >({});
+  const [
+    messages,
+    setMessages,
+  ] =
+    useState<
+      Record<
+        number,
+        string
+      >
+    >({});
 
-  const [latestHashes, setLatestHashes] =
+  const [
+    latestHashes,
+    setLatestHashes,
+  ] =
     useState<
       Record<
         number,
@@ -143,14 +264,28 @@ export default function PredictionHistory() {
       >
     >({});
 
+  /*
+   * Prevent automatic claim-sync
+   * from repeatedly checking the
+   * same prediction on every render.
+   */
+  const autoSyncCheckedRef =
+    useRef<
+      Set<number>
+    >(new Set());
+
   function updateMessage(
     predictionId: number,
     message: string
   ): void {
     setMessages(
-      (currentMessages) => ({
+      (
+        currentMessages
+      ) => ({
         ...currentMessages,
-        [predictionId]: message,
+
+        [predictionId]:
+          message,
       })
     );
   }
@@ -159,59 +294,61 @@ export default function PredictionHistory() {
     forecastId: string
   ): Promise<boolean> {
     if (!publicClient) {
-      return false;
+      throw new Error(
+        "Arc Testnet client unavailable."
+      );
     }
 
-    const result =
-      await publicClient.readContract({
+    const request =
+      publicClient.readContract({
         address:
           FORECAST_REGISTRY_V2_ADDRESS,
-        abi: FORECAST_REGISTRY_V2_ABI,
-        functionName: "hasClaimed",
-        args: [BigInt(forecastId)],
+
+        abi:
+          FORECAST_REGISTRY_V2_ABI,
+
+        functionName:
+          "hasClaimed",
+
+        args: [
+          BigInt(
+            forecastId
+          ),
+        ],
       });
+
+    const result =
+      await withTimeout(
+        request,
+
+        RPC_READ_TIMEOUT_MS,
+
+        "Arc claim-status read timed out."
+      );
 
     return result === true;
   }
 
-  async function waitForClaimStatus(
-    forecastId: string
-  ): Promise<boolean> {
-    const maximumAttempts = 40;
-
-    for (
-      let attempt = 1;
-      attempt <= maximumAttempts;
-      attempt += 1
-    ) {
-      try {
-        const hasClaimed =
-          await readHasClaimed(forecastId);
-
-        if (hasClaimed) {
-          return true;
-        }
-      } catch (error) {
-        console.error(
-          "Claim status read failed:",
-          error
-        );
-      }
-
-      await sleep(1500);
-    }
-
-    return false;
-  }
-
   async function syncPredictionClaim(
-    prediction: PredictionRecord
+    prediction:
+      PredictionRecord
   ): Promise<void> {
     if (
       !prediction.forecastId ||
       prediction.claimed ||
-      prediction.status !== "won"
+      prediction.status !==
+        "won"
     ) {
+      return;
+    }
+
+    if (!publicClient) {
+      updateMessage(
+        prediction.id,
+
+        "Arc Testnet client is unavailable."
+      );
+
       return;
     }
 
@@ -219,10 +356,14 @@ export default function PredictionHistory() {
       setProcessingPredictionId(
         prediction.id
       );
-      setProcessingAction("sync");
+
+      setProcessingAction(
+        "sync"
+      );
 
       updateMessage(
         prediction.id,
+
         "Checking claim status on Arc Testnet..."
       );
 
@@ -234,48 +375,100 @@ export default function PredictionHistory() {
       if (!hasClaimed) {
         updateMessage(
           prediction.id,
-          "This reward has not been claimed onchain yet."
+
+          "Reward has not been claimed onchain yet."
         );
+
         return;
       }
 
-      syncClaimedReward(
-        prediction.id,
-        latestHashes[prediction.id]
-      );
+      const synced =
+        syncClaimedReward(
+          prediction.id,
 
-      updateMessage(
-        prediction.id,
-        "Successful onchain claim detected. Arena balance updated."
-      );
+          latestHashes[
+            prediction.id
+          ]
+        );
+
+      if (synced) {
+        updateMessage(
+          prediction.id,
+
+          "Successful onchain claim detected. Arena balance updated."
+        );
+      } else {
+        updateMessage(
+          prediction.id,
+
+          "Claim is already synced locally."
+        );
+      }
     } catch (error) {
       console.error(
         "Claim sync failed:",
+
         error
       );
 
-      updateMessage(
-        prediction.id,
-        "Could not read the claim status from Arc Testnet."
-      );
+      const errorText =
+        getErrorText(
+          error
+        );
+
+      if (
+        errorText.includes(
+          "timed out"
+        )
+      ) {
+        updateMessage(
+          prediction.id,
+
+          "Arc RPC did not respond in time. Try Sync Claim Status again."
+        );
+      } else {
+        updateMessage(
+          prediction.id,
+
+          "Could not read claim status from Arc Testnet."
+        );
+      }
     } finally {
-      setProcessingPredictionId(null);
-      setProcessingAction(null);
+      setProcessingPredictionId(
+        null
+      );
+
+      setProcessingAction(
+        null
+      );
     }
   }
 
   async function resolvePredictionOnchain(
-    prediction: PredictionRecord
+    prediction:
+      PredictionRecord
   ): Promise<void> {
     if (
       !prediction.forecastId ||
-      prediction.endPrice === null ||
-      !publicClient
+      prediction.endPrice ===
+        null
     ) {
       updateMessage(
         prediction.id,
+
         "Forecast data is incomplete."
       );
+
+      return;
+    }
+
+    if (!publicClient) {
+      updateMessage(
+        prediction.id,
+
+        "Arc Testnet client is unavailable."
+      );
+
       return;
     }
 
@@ -283,44 +476,83 @@ export default function PredictionHistory() {
       setProcessingPredictionId(
         prediction.id
       );
-      setProcessingAction("resolve");
+
+      setProcessingAction(
+        "resolve"
+      );
 
       updateMessage(
         prediction.id,
+
         "Confirm forecast resolution in MetaMask."
       );
 
       const hash =
-        await writeContractAsync({
-          address:
-            FORECAST_REGISTRY_V2_ADDRESS,
-          abi: FORECAST_REGISTRY_V2_ABI,
-          functionName: "resolveForecast",
-          args: [
-            BigInt(prediction.forecastId),
-            BigInt(
-              Math.round(
-                prediction.endPrice * 100
-              )
-            ),
-          ],
-          chainId: arcTestnet.id,
-        });
+        await writeContractAsync(
+          {
+            address:
+              FORECAST_REGISTRY_V2_ADDRESS,
+
+            abi:
+              FORECAST_REGISTRY_V2_ABI,
+
+            functionName:
+              "resolveForecast",
+
+            args: [
+              BigInt(
+                prediction.forecastId
+              ),
+
+              BigInt(
+                Math.round(
+                  prediction.endPrice *
+                    100
+                )
+              ),
+            ],
+
+            chainId:
+              arcTestnet.id,
+          }
+        );
 
       setLatestHashes(
-        (currentHashes) => ({
+        (
+          currentHashes
+        ) => ({
           ...currentHashes,
-          [prediction.id]: hash,
+
+          [prediction.id]:
+            hash,
         })
       );
 
-      const receipt =
-        await publicClient.waitForTransactionReceipt({
-          hash,
-          confirmations: 1,
-        });
+      updateMessage(
+        prediction.id,
 
-      if (receipt.status !== "success") {
+        "Resolution submitted. Waiting for Arc confirmation..."
+      );
+
+      const receipt =
+        await withTimeout(
+          publicClient.waitForTransactionReceipt(
+            {
+              hash,
+
+              confirmations: 1,
+            }
+          ),
+
+          RECEIPT_TIMEOUT_MS,
+
+          "Resolution receipt timed out."
+        );
+
+      if (
+        receipt.status !==
+        "success"
+      ) {
         throw new Error(
           "Resolution failed."
         );
@@ -333,11 +565,20 @@ export default function PredictionHistory() {
 
       updateMessage(
         prediction.id,
-        "Forecast resolved. Reward is claimable."
+
+        "Forecast resolved. Reward is now claimable."
       );
     } catch (error) {
+      console.error(
+        "Forecast resolution failed:",
+
+        error
+      );
+
       const errorText =
-        getErrorText(error);
+        getErrorText(
+          error
+        );
 
       if (
         errorText.includes(
@@ -350,31 +591,83 @@ export default function PredictionHistory() {
 
         updateMessage(
           prediction.id,
-          "Forecast was already resolved onchain."
+
+          "Forecast was already resolved onchain. Reward status updated."
         );
-      } else {
+
+        return;
+      }
+
+      if (
+        errorText.includes(
+          "user rejected"
+        ) ||
+        errorText.includes(
+          "user denied"
+        )
+      ) {
         updateMessage(
           prediction.id,
-          "Forecast resolution failed."
+
+          "Resolution transaction was rejected in MetaMask."
         );
+
+        return;
       }
+
+      if (
+        errorText.includes(
+          "timed out"
+        )
+      ) {
+        updateMessage(
+          prediction.id,
+
+          "Resolution transaction is still pending or Arc RPC is delayed. Check Arc Explorer before retrying."
+        );
+
+        return;
+      }
+
+      updateMessage(
+        prediction.id,
+
+        "Forecast resolution failed."
+      );
     } finally {
-      setProcessingPredictionId(null);
-      setProcessingAction(null);
+      setProcessingPredictionId(
+        null
+      );
+
+      setProcessingAction(
+        null
+      );
     }
   }
 
   async function claimPredictionReward(
-    prediction: PredictionRecord
+    prediction:
+      PredictionRecord
   ): Promise<void> {
     if (
-      !prediction.forecastId ||
-      !publicClient
+      !prediction.forecastId
     ) {
       updateMessage(
         prediction.id,
+
         "Forecast ID is unavailable."
       );
+
+      return;
+    }
+
+    if (!publicClient) {
+      updateMessage(
+        prediction.id,
+
+        "Arc Testnet client is unavailable."
+      );
+
       return;
     }
 
@@ -382,97 +675,206 @@ export default function PredictionHistory() {
       setProcessingPredictionId(
         prediction.id
       );
-      setProcessingAction("claim");
+
+      setProcessingAction(
+        "claim"
+      );
 
       updateMessage(
         prediction.id,
+
         "Confirm reward claim in MetaMask."
       );
 
       const hash =
-        await writeContractAsync({
-          address:
-            FORECAST_REGISTRY_V2_ADDRESS,
-          abi: FORECAST_REGISTRY_V2_ABI,
-          functionName: "claimReward",
-          args: [
-            BigInt(
-              prediction.forecastId
-            ),
-          ],
-          chainId: arcTestnet.id,
-        });
+        await writeContractAsync(
+          {
+            address:
+              FORECAST_REGISTRY_V2_ADDRESS,
+
+            abi:
+              FORECAST_REGISTRY_V2_ABI,
+
+            functionName:
+              "claimReward",
+
+            args: [
+              BigInt(
+                prediction.forecastId
+              ),
+            ],
+
+            chainId:
+              arcTestnet.id,
+          }
+        );
 
       setLatestHashes(
-        (currentHashes) => ({
+        (
+          currentHashes
+        ) => ({
           ...currentHashes,
-          [prediction.id]: hash,
+
+          [prediction.id]:
+            hash,
         })
       );
 
       updateMessage(
         prediction.id,
-        "Checking claim status on Arc Testnet..."
+
+        "Claim submitted. Waiting for Arc confirmation..."
       );
 
-      const hasClaimed =
-        await waitForClaimStatus(
-          prediction.forecastId
+      /*
+       * No 60-second hasClaimed polling.
+       *
+       * A successful claimReward receipt
+       * means the contract call succeeded.
+       */
+      const receipt =
+        await withTimeout(
+          publicClient.waitForTransactionReceipt(
+            {
+              hash,
+
+              confirmations: 1,
+            }
+          ),
+
+          RECEIPT_TIMEOUT_MS,
+
+          "Claim receipt timed out."
         );
 
-      if (!hasClaimed) {
-        updateMessage(
-          prediction.id,
-          "Claim transaction submitted. Use Sync Claim Status after Explorer shows Success."
+      if (
+        receipt.status !==
+        "success"
+      ) {
+        throw new Error(
+          "Claim transaction reverted."
         );
-        return;
       }
 
-      syncClaimedReward(
-        prediction.id,
-        hash
+      const synced =
+        syncClaimedReward(
+          prediction.id,
+          hash
+        );
+
+      if (synced) {
+        updateMessage(
+          prediction.id,
+
+          "Arena Points claimed successfully."
+        );
+      } else {
+        updateMessage(
+          prediction.id,
+
+          "Claim confirmed onchain."
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Reward claim failed:",
+
+        error
       );
 
-      updateMessage(
-        prediction.id,
-        "Arena Points claimed successfully."
-      );
-    } catch (error) {
       const errorText =
-        getErrorText(error);
+        getErrorText(
+          error
+        );
 
       if (
         errorText.includes(
           "already claimed"
         )
       ) {
-        const hasClaimed =
-          await readHasClaimed(
-            prediction.forecastId
-          );
+        try {
+          const hasClaimed =
+            await readHasClaimed(
+              prediction.forecastId
+            );
 
-        if (hasClaimed) {
-          syncClaimedReward(
-            prediction.id
-          );
+          if (hasClaimed) {
+            syncClaimedReward(
+              prediction.id
+            );
 
+            updateMessage(
+              prediction.id,
+
+              "Previous successful claim detected. Arena balance updated."
+            );
+
+            return;
+          }
+        } catch {
           updateMessage(
             prediction.id,
-            "Previous successful claim detected. Arena balance updated."
+
+            "Contract reports an existing claim, but Arc RPC could not confirm its status. Try Sync Claim Status."
           );
+
+          return;
         }
-      } else {
+      }
+
+      if (
+        errorText.includes(
+          "user rejected"
+        ) ||
+        errorText.includes(
+          "user denied"
+        )
+      ) {
         updateMessage(
           prediction.id,
-          "Reward claim failed."
+
+          "Claim transaction was rejected in MetaMask."
         );
+
+        return;
       }
+
+      if (
+        errorText.includes(
+          "timed out"
+        )
+      ) {
+        updateMessage(
+          prediction.id,
+
+          "Claim transaction may still be pending. Check Arc Explorer, then use Sync Claim Status."
+        );
+
+        return;
+      }
+
+      updateMessage(
+        prediction.id,
+
+        "Reward claim failed."
+      );
     } finally {
-      setProcessingPredictionId(null);
-      setProcessingAction(null);
+      setProcessingPredictionId(
+        null
+      );
+
+      setProcessingAction(
+        null
+      );
     }
   }
 
+  /*
+   * One lightweight automatic status
+   * check per unclaimed winning record.
+   *
+   * No repeated polling.
+   */
   useEffect(() => {
     if (!publicClient) {
       return;
@@ -480,33 +882,53 @@ export default function PredictionHistory() {
 
     const predictionsToSync =
       predictions.filter(
-        (prediction) =>
-          prediction.status === "won" &&
+        (
+          prediction
+        ) =>
+          prediction.status ===
+            "won" &&
           !prediction.claimed &&
           Boolean(
             prediction.forecastId
+          ) &&
+          !autoSyncCheckedRef.current.has(
+            prediction.id
           )
       );
 
     for (
-      const prediction of predictionsToSync
+      const prediction
+      of predictionsToSync
     ) {
+      autoSyncCheckedRef.current.add(
+        prediction.id
+      );
+
       void readHasClaimed(
         prediction.forecastId as string
       )
-        .then((hasClaimed) => {
-          if (hasClaimed) {
-            syncClaimedReward(
-              prediction.id
+        .then(
+          (
+            hasClaimed
+          ) => {
+            if (
+              hasClaimed
+            ) {
+              syncClaimedReward(
+                prediction.id
+              );
+            }
+          }
+        )
+        .catch(
+          (error) => {
+            console.error(
+              "Automatic claim sync skipped:",
+
+              error
             );
           }
-        })
-        .catch((error) => {
-          console.error(
-            "Automatic claim sync failed:",
-            error
-          );
-        });
+        );
     }
   }, [
     publicClient,
@@ -516,11 +938,29 @@ export default function PredictionHistory() {
 
   const totalUnclaimedRewards =
     predictions.reduce(
-      (total, prediction) =>
-        prediction.status === "won" &&
-        !prediction.claimed
-          ? total + prediction.reward
-          : total,
+      (
+        total,
+        prediction
+      ) => {
+        if (
+          prediction.status !==
+            "won" ||
+          prediction.claimed
+        ) {
+          return total;
+        }
+
+        const reward =
+          prediction.claimableReward >
+          0
+            ? prediction.claimableReward
+            : prediction.reward;
+
+        return (
+          total +
+          reward
+        );
+      },
       0
     );
 
@@ -537,223 +977,321 @@ export default function PredictionHistory() {
           </h3>
 
           <p className="mt-2 text-sm text-gray-500">
-            Winning rewards remain available until
-            they are claimed onchain.
+            BTC, ETH, SOL,
+            BNB and XRP
+            forecasts are
+            tracked separately.
+            Winning rewards remain
+            available until claimed.
           </p>
         </div>
 
         <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.08] px-4 py-3">
-          <p className="text-[10px] uppercase text-emerald-400">
+          <p className="text-[10px] uppercase tracking-wider text-emerald-400">
             Unclaimed Rewards
           </p>
 
           <p className="mt-1 text-xl font-black text-white">
-            {totalUnclaimedRewards.toLocaleString()} points
+            {totalUnclaimedRewards.toLocaleString()}{" "}
+            points
           </p>
         </div>
       </div>
 
+      {predictions.length ===
+        0 && (
+        <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-white/[0.015] p-8 text-center">
+          <p className="font-semibold text-gray-300">
+            No predictions yet
+          </p>
+
+          <p className="mt-2 text-sm text-gray-600">
+            Submit your first
+            market forecast to
+            see it here.
+          </p>
+        </div>
+      )}
+
       <div className="mt-6 space-y-4">
-        {predictions.map((prediction) => {
-          const isWon =
-            prediction.status === "won";
+        {predictions.map(
+          (
+            prediction
+          ) => {
+            const isWon =
+              prediction.status ===
+              "won";
 
-          const isResolvedOnchain =
-            Boolean(
-              prediction.resolveTransactionHash
-            ) ||
-            prediction.onchainStatus ===
-              "claimable" ||
-            prediction.onchainStatus ===
-              "claimed";
+            const isResolvedOnchain =
+              Boolean(
+                prediction.resolveTransactionHash
+              ) ||
+              prediction.onchainStatus ===
+                "claimable" ||
+              prediction.onchainStatus ===
+                "claimed";
 
-          const isClaimable =
-            isWon &&
-            isResolvedOnchain &&
-            !prediction.claimed;
+            const isClaimable =
+              isWon &&
+              isResolvedOnchain &&
+              !prediction.claimed;
 
-          const isProcessing =
-            processingPredictionId ===
-            prediction.id;
+            const isProcessing =
+              processingPredictionId ===
+              prediction.id;
 
-          const visibleHash =
-            latestHashes[prediction.id] ??
-            prediction.claimTransactionHash ??
-            prediction.resolveTransactionHash ??
-            prediction.transactionHash;
+            const visibleHash =
+              latestHashes[
+                prediction.id
+              ] ??
+              prediction.claimTransactionHash ??
+              prediction.resolveTransactionHash ??
+              prediction.transactionHash;
 
-          return (
-            <article
-              key={prediction.id}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] p-5"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">
-                    Round #{prediction.roundNumber}
-                  </p>
+            return (
+              <article
+                key={
+                  prediction.id
+                }
+                className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-5"
+              >
+                <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-orange-500/[0.03] blur-3xl" />
 
-                  <p
-                    className={`mt-2 text-lg font-bold ${
-                      prediction.direction === "higher"
-                        ? "text-emerald-400"
-                        : "text-rose-400"
-                    }`}
-                  >
-                    {prediction.direction.toUpperCase()}
-                  </p>
-                </div>
+                <div className="relative">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-xs text-gray-500">
+                          Round #
+                          {
+                            prediction.roundNumber
+                          }
+                        </p>
 
-                <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold">
-                  {prediction.claimed
-                    ? "CLAIMED"
-                    : prediction.status.toUpperCase()}
-                </span>
-              </div>
+                        <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-[9px] font-black text-orange-400">
+                          {
+                            prediction.market
+                          }
+                          /USDT
+                        </span>
+                      </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-4">
-                <div>
-                  <p className="text-xs text-gray-500">
-                    Timeframe
-                  </p>
-                  <p className="mt-1 font-semibold">
-                    {formatDuration(
-                      prediction.duration
-                    )}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-gray-500">
-                    Stake
-                  </p>
-                  <p className="mt-1 font-semibold">
-                    {prediction.points} points
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-gray-500">
-                    Start / End
-                  </p>
-                  <p className="mt-1 text-xs">
-                    {formatPrice(
-                      prediction.startPrice
-                    )}{" "}
-                    →{" "}
-                    {formatPrice(
-                      prediction.endPrice
-                    )}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-gray-500">
-                    Movement
-                  </p>
-                  <p className="mt-1 font-semibold">
-                    {formatDifference(
-                      prediction.priceDifference
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {isWon && (
-                <div className="mt-4 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4">
-                  <p className="font-bold text-emerald-400">
-                    {prediction.reward} Arena Points
-                  </p>
-
-                  {!prediction.claimed &&
-                    !isResolvedOnchain && (
-                      <button
-                        type="button"
-                        disabled={
-                          isWaitingForWallet ||
-                          isProcessing
-                        }
-                        onClick={() => {
-                          void resolvePredictionOnchain(
-                            prediction
-                          );
-                        }}
-                        className="mt-3 w-full rounded-xl bg-yellow-500/15 px-4 py-3 text-xs font-bold text-yellow-300"
+                      <p
+                        className={`mt-2 text-lg font-bold ${
+                          prediction.direction ===
+                          "higher"
+                            ? "text-emerald-400"
+                            : "text-rose-400"
+                        }`}
                       >
-                        {isProcessing &&
-                        processingAction === "resolve"
-                          ? "RESOLVING..."
-                          : "RESOLVE REWARD ONCHAIN"}
-                      </button>
-                    )}
+                        {prediction.direction.toUpperCase()}
+                      </p>
+                    </div>
 
-                  {isClaimable && (
-                    <button
-                      type="button"
-                      disabled={
-                        isWaitingForWallet ||
-                        isProcessing
-                      }
-                      onClick={() => {
-                        void claimPredictionReward(
-                          prediction
-                        );
-                      }}
-                      className="mt-3 w-full rounded-xl bg-emerald-500 px-4 py-3 text-xs font-black text-black"
+                    <span
+                      className={`rounded-full border px-3 py-1 text-xs font-bold ${
+                        prediction.claimed
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                          : prediction.status ===
+                              "won"
+                            ? "border-emerald-500/20 text-emerald-300"
+                            : prediction.status ===
+                                "lost"
+                              ? "border-rose-500/20 text-rose-300"
+                              : "border-white/10 text-gray-300"
+                      }`}
                     >
-                      {isProcessing &&
-                      processingAction === "claim"
-                        ? "CHECKING CLAIM..."
-                        : `CLAIM ${prediction.reward} POINTS ONCHAIN`}
-                    </button>
+                      {prediction.claimed
+                        ? "CLAIMED"
+                        : prediction.status.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <p className="text-xs text-gray-500">
+                        Timeframe
+                      </p>
+
+                      <p className="mt-1 font-semibold text-white">
+                        {formatDuration(
+                          prediction.duration
+                        )}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-gray-500">
+                        Stake
+                      </p>
+
+                      <p className="mt-1 font-semibold text-white">
+                        {prediction.points.toLocaleString()}{" "}
+                        points
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-gray-500">
+                        Start / End
+                      </p>
+
+                      <p className="mt-1 text-xs font-medium text-white">
+                        {formatPrice(
+                          prediction.startPrice,
+                          prediction.market
+                        )}{" "}
+                        →{" "}
+                        {formatPrice(
+                          prediction.endPrice,
+                          prediction.market
+                        )}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-gray-500">
+                        Movement
+                      </p>
+
+                      <p
+                        className={`mt-1 font-semibold ${
+                          prediction.priceDifference !==
+                            null &&
+                          prediction.priceDifference >=
+                            0
+                            ? "text-emerald-300"
+                            : "text-rose-300"
+                        }`}
+                      >
+                        {formatDifference(
+                          prediction.priceDifference,
+                          prediction.market
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {isWon && (
+                    <div className="mt-4 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4">
+                      <p className="font-bold text-emerald-400">
+                        {prediction.reward.toLocaleString()}{" "}
+                        Arena Points
+                      </p>
+
+                      {!prediction.claimed &&
+                        !isResolvedOnchain && (
+                          <button
+                            type="button"
+                            disabled={
+                              isWaitingForWallet ||
+                              isProcessing
+                            }
+                            onClick={() => {
+                              void resolvePredictionOnchain(
+                                prediction
+                              );
+                            }}
+                            className="mt-3 w-full rounded-xl border border-yellow-500/25 bg-yellow-500/15 px-4 py-3 text-xs font-black text-yellow-300 transition hover:bg-yellow-500/20 disabled:cursor-wait disabled:opacity-50"
+                          >
+                            {isProcessing &&
+                            processingAction ===
+                              "resolve"
+                              ? "RESOLVING..."
+                              : "RESOLVE REWARD ONCHAIN"}
+                          </button>
+                        )}
+
+                      {isClaimable && (
+                        <button
+                          type="button"
+                          disabled={
+                            isWaitingForWallet ||
+                            isProcessing
+                          }
+                          onClick={() => {
+                            void claimPredictionReward(
+                              prediction
+                            );
+                          }}
+                          className="mt-3 w-full rounded-xl bg-emerald-500 px-4 py-3 text-xs font-black text-black transition hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-50"
+                        >
+                          {isProcessing &&
+                          processingAction ===
+                            "claim"
+                            ? "CLAIMING..."
+                            : `CLAIM ${prediction.reward.toLocaleString()} POINTS ONCHAIN`}
+                        </button>
+                      )}
+
+                      {!prediction.claimed &&
+                        prediction.forecastId && (
+                          <button
+                            type="button"
+                            disabled={
+                              isProcessing
+                            }
+                            onClick={() => {
+                              void syncPredictionClaim(
+                                prediction
+                              );
+                            }}
+                            className="mt-2 w-full rounded-xl border border-blue-500/30 bg-blue-500/[0.04] px-4 py-2 text-xs font-semibold text-blue-300 transition hover:bg-blue-500/[0.08] disabled:cursor-wait disabled:opacity-50"
+                          >
+                            {isProcessing &&
+                            processingAction ===
+                              "sync"
+                              ? "SYNCING..."
+                              : "SYNC CLAIM STATUS"}
+                          </button>
+                        )}
+
+                      {prediction.claimed && (
+                        <div className="mt-3 flex items-center gap-2">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-xs text-emerald-400">
+                            ✓
+                          </span>
+
+                          <p className="text-sm font-bold text-emerald-400">
+                            Reward claimed
+                            onchain
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
 
-                  {!prediction.claimed &&
-                    prediction.forecastId && (
-                      <button
-                        type="button"
-                        disabled={isProcessing}
-                        onClick={() => {
-                          void syncPredictionClaim(
-                            prediction
-                          );
-                        }}
-                        className="mt-2 w-full rounded-xl border border-blue-500/30 px-4 py-2 text-xs font-semibold text-blue-300"
-                      >
-                        {isProcessing &&
-                        processingAction === "sync"
-                          ? "SYNCING..."
-                          : "SYNC CLAIM STATUS"}
-                      </button>
-                    )}
-
-                  {prediction.claimed && (
-                    <p className="mt-3 text-sm font-bold text-emerald-400">
-                      ✓ Reward claimed onchain
+                  {messages[
+                    prediction.id
+                  ] && (
+                    <p className="mt-3 rounded-xl border border-blue-500/20 bg-blue-500/[0.06] p-3 text-xs leading-5 text-blue-200">
+                      {
+                        messages[
+                          prediction.id
+                        ]
+                      }
                     </p>
                   )}
+
+                  {visibleHash && (
+                    <a
+                      href={`https://testnet.arcscan.app/tx/${visibleHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex text-xs font-semibold text-blue-300 transition hover:text-blue-200"
+                    >
+                      {shortenHash(
+                        visibleHash
+                      )}{" "}
+                      — View on Arc
+                      Explorer ↗
+                    </a>
+                  )}
                 </div>
-              )}
-
-              {messages[prediction.id] && (
-                <p className="mt-3 rounded-xl border border-blue-500/20 bg-blue-500/[0.06] p-3 text-xs text-blue-200">
-                  {messages[prediction.id]}
-                </p>
-              )}
-
-              {visibleHash && (
-                <a
-                  href={`https://testnet.arcscan.app/tx/${visibleHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex text-xs font-semibold text-blue-300"
-                >
-                  {shortenHash(visibleHash)} — View on Arc Explorer ↗
-                </a>
-              )}
-            </article>
-          );
-        })}
+              </article>
+            );
+          }
+        )}
       </div>
     </section>
   );

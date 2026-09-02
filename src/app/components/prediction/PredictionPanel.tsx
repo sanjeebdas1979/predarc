@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+
 import {
   usePublicClient,
   useWriteContract,
 } from "wagmi";
+
 import { arcTestnet } from "viem/chains";
 
 import {
@@ -12,15 +14,27 @@ import {
   FORECAST_REGISTRY_V2_ADDRESS,
 } from "../../contracts/forecastRegistryV2";
 
-import { useDemoPoints } from "../providers/DemoPointsProvider";
-import { useVerification } from "../providers/VerificationProvider";
+import {
+  useDemoPoints,
+  type PredictionMarket,
+} from "../providers/DemoPointsProvider";
+
+import {
+  useBtcPrice,
+} from "../providers/BtcPriceProvider";
+
+import {
+  useVerification,
+} from "../providers/VerificationProvider";
 
 import {
   useRound,
   type PredictionDuration,
 } from "../providers/RoundProvider";
 
-type Direction = "higher" | "lower";
+type Direction =
+  | "higher"
+  | "lower";
 
 function formatDuration(
   duration: PredictionDuration
@@ -36,20 +50,32 @@ function formatDuration(
   return "15 Minutes";
 }
 
-function shortenHash(hash: string): string {
-  return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
+function shortenHash(
+  hash: string
+): string {
+  return `${hash.slice(
+    0,
+    10
+  )}...${hash.slice(-8)}`;
 }
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(
+  error: unknown
+): string {
   if (!(error instanceof Error)) {
     return "Onchain prediction failed. Please try again.";
   }
 
-  const errorMessage = error.message.toLowerCase();
+  const errorMessage =
+    error.message.toLowerCase();
 
   if (
-    errorMessage.includes("user rejected") ||
-    errorMessage.includes("user denied")
+    errorMessage.includes(
+      "user rejected"
+    ) ||
+    errorMessage.includes(
+      "user denied"
+    )
   ) {
     return "Transaction was rejected in MetaMask.";
   }
@@ -59,10 +85,14 @@ function getErrorMessage(error: unknown): string {
       "forecast already submitted"
     )
   ) {
-    return "This wallet already submitted a forecast for this onchain round.";
+    return "This forecast ID has already been submitted onchain.";
   }
 
-  if (errorMessage.includes("insufficient funds")) {
+  if (
+    errorMessage.includes(
+      "insufficient funds"
+    )
+  ) {
     return "Not enough Arc Testnet USDC for network gas.";
   }
 
@@ -76,7 +106,13 @@ export default function PredictionPanel() {
     addPrediction,
   } = useDemoPoints();
 
-  const { isVerified } = useVerification();
+  const {
+    selectedMarket,
+  } = useBtcPrice();
+
+  const {
+    isVerified,
+  } = useVerification();
 
   const {
     roundNumber,
@@ -87,37 +123,81 @@ export default function PredictionPanel() {
     startPrice,
   } = useRound();
 
-  const publicClient = usePublicClient({
-    chainId: arcTestnet.id,
-  });
+  const publicClient =
+    usePublicClient({
+      chainId:
+        arcTestnet.id,
+    });
 
   const {
     writeContractAsync,
-    isPending: isWaitingForWallet,
+    isPending:
+      isWaitingForWallet,
   } = useWriteContract();
 
-  const [direction, setDirection] =
-    useState<Direction | null>(null);
+  const [
+    direction,
+    setDirection,
+  ] =
+    useState<Direction | null>(
+      null
+    );
 
-  const [stake, setStake] = useState(100);
-  const [message, setMessage] = useState("");
+  const [
+    stake,
+    setStake,
+  ] =
+    useState(100);
 
-  const [transactionHash, setTransactionHash] =
-    useState<`0x${string}` | null>(null);
+  const [
+    message,
+    setMessage,
+  ] =
+    useState("");
 
-  const [submittedDirection, setSubmittedDirection] =
-    useState<Direction | null>(null);
+  const [
+    transactionHash,
+    setTransactionHash,
+  ] =
+    useState<
+      `0x${string}` | null
+    >(null);
 
-  const [submittedStake, setSubmittedStake] =
+  const [
+    submittedDirection,
+    setSubmittedDirection,
+  ] =
+    useState<
+      Direction | null
+    >(null);
+
+  const [
+    submittedStake,
+    setSubmittedStake,
+  ] =
     useState(0);
 
-  const [submittedDuration, setSubmittedDuration] =
-    useState<PredictionDuration | null>(null);
+  const [
+    submittedDuration,
+    setSubmittedDuration,
+  ] =
+    useState<
+      PredictionDuration | null
+    >(null);
+
+  const [
+    submittedMarket,
+    setSubmittedMarket,
+  ] =
+    useState<
+      PredictionMarket | null
+    >(null);
 
   const [
     isConfirmingTransaction,
     setIsConfirmingTransaction,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const isOnchainBusy =
     isWaitingForWallet ||
@@ -133,7 +213,8 @@ export default function PredictionPanel() {
     canChangeDuration &&
     !isOnchainBusy;
 
-  const durationOptions: PredictionDuration[] = [
+  const durationOptions:
+    PredictionDuration[] = [
     60,
     300,
     900,
@@ -151,12 +232,14 @@ export default function PredictionPanel() {
     "Onchain prediction confirmed successfully.";
 
   function selectDuration(
-    duration: PredictionDuration
+    duration:
+      PredictionDuration
   ): void {
     if (!isVerified) {
       setMessage(
         "Complete Arc Testnet verification first."
       );
+
       return;
     }
 
@@ -164,6 +247,7 @@ export default function PredictionPanel() {
       setMessage(
         "Wait for the current transaction to finish."
       );
+
       return;
     }
 
@@ -171,25 +255,34 @@ export default function PredictionPanel() {
       setMessage(
         "Timeframe is locked for the active prediction."
       );
+
       return;
     }
 
-    setPredictionDuration(duration);
+    setPredictionDuration(
+      duration
+    );
+
     setMessage("");
   }
 
   function selectDirection(
-    selectedDirection: Direction
+    selectedDirection:
+      Direction
   ): void {
     if (!isVerified) {
       setMessage(
         "Complete Arc Testnet verification first."
       );
+
       return;
     }
 
     if (!isPredictionOpen) {
-      setMessage("Round is already closed.");
+      setMessage(
+        "Round is already closed."
+      );
+
       return;
     }
 
@@ -197,26 +290,38 @@ export default function PredictionPanel() {
       setMessage(
         "Wait for the current transaction to finish."
       );
+
       return;
     }
 
-    setDirection(selectedDirection);
+    setDirection(
+      selectedDirection
+    );
+
     setMessage("");
   }
 
-  async function submitPrediction(): Promise<void> {
+  async function submitPrediction():
+    Promise<void> {
     setMessage("");
-    setTransactionHash(null);
+
+    setTransactionHash(
+      null
+    );
 
     if (!isVerified) {
       setMessage(
         "Complete Arc Testnet verification before predicting."
       );
+
       return;
     }
 
     if (!isPredictionOpen) {
-      setMessage("Round is already closed.");
+      setMessage(
+        "Round is already closed."
+      );
+
       return;
     }
 
@@ -224,6 +329,7 @@ export default function PredictionPanel() {
       setMessage(
         "An onchain transaction is already in progress."
       );
+
       return;
     }
 
@@ -231,29 +337,46 @@ export default function PredictionPanel() {
       setMessage(
         "Please choose Higher or Lower."
       );
-      return;
-    }
 
-    if (!Number.isFinite(stake) || stake < 10) {
-      setMessage(
-        "Minimum prediction is 10 demo points."
-      );
-      return;
-    }
-
-    if (stake > balance) {
-      setMessage("Not enough demo points.");
       return;
     }
 
     if (
-      startPrice === null ||
-      !Number.isFinite(startPrice) ||
+      !Number.isFinite(
+        stake
+      ) ||
+      stake < 10
+    ) {
+      setMessage(
+        "Minimum prediction is 10 demo points."
+      );
+
+      return;
+    }
+
+    if (
+      stake >
+      balance
+    ) {
+      setMessage(
+        "Not enough demo points."
+      );
+
+      return;
+    }
+
+    if (
+      startPrice ===
+        null ||
+      !Number.isFinite(
+        startPrice
+      ) ||
       startPrice <= 0
     ) {
       setMessage(
-        "BTC round entry price is not ready yet."
+        `${selectedMarket} round entry price is not ready yet.`
       );
+
       return;
     }
 
@@ -261,80 +384,145 @@ export default function PredictionPanel() {
       setMessage(
         "Arc Testnet client is not ready. Reconnect your wallet."
       );
+
       return;
     }
 
     try {
       setMessage(
-        "Confirm the forecast transaction in MetaMask."
+        `Confirm the ${selectedMarket} forecast transaction in MetaMask.`
       );
 
       const onchainForecastId =
-        BigInt(Date.now());
+        BigInt(
+          Date.now()
+        );
 
-      const scaledStartPrice = BigInt(
-        Math.round(startPrice * 100)
-      );
+      const scaledStartPrice =
+        BigInt(
+          Math.round(
+            startPrice *
+              100
+          )
+        );
 
       const directionValue =
-        direction === "higher" ? 0 : 1;
+        direction ===
+        "higher"
+          ? 0
+          : 1;
 
-      const hash = await writeContractAsync({
-        address: FORECAST_REGISTRY_V2_ADDRESS,
-        abi: FORECAST_REGISTRY_V2_ABI,
-        functionName: "submitForecast",
-        args: [
-          onchainForecastId,
-          directionValue,
-          roundDuration,
-          BigInt(stake),
-          scaledStartPrice,
-        ],
-        chainId: arcTestnet.id,
-      });
+      const hash =
+        await writeContractAsync(
+          {
+            address:
+              FORECAST_REGISTRY_V2_ADDRESS,
 
-      setTransactionHash(hash);
-      setIsConfirmingTransaction(true);
+            abi:
+              FORECAST_REGISTRY_V2_ABI,
+
+            functionName:
+              "submitForecast",
+
+            args: [
+              onchainForecastId,
+              directionValue,
+              roundDuration,
+              BigInt(
+                stake
+              ),
+              scaledStartPrice,
+            ],
+
+            chainId:
+              arcTestnet.id,
+          }
+        );
+
+      setTransactionHash(
+        hash
+      );
+
+      setIsConfirmingTransaction(
+        true
+      );
 
       setMessage(
-        "Waiting for Arc Testnet confirmation..."
+        `Waiting for Arc Testnet confirmation for ${selectedMarket} forecast...`
       );
 
       const receipt =
-        await publicClient.waitForTransactionReceipt({
-          hash,
-          confirmations: 1,
-        });
+        await publicClient.waitForTransactionReceipt(
+          {
+            hash,
+            confirmations: 1,
+          }
+        );
 
-      if (receipt.status !== "success") {
+      if (
+        receipt.status !==
+        "success"
+      ) {
         throw new Error(
           "Transaction confirmation failed."
         );
       }
 
-      const pointsSpent = spendPoints(stake);
+      const pointsSpent =
+        spendPoints(
+          stake
+        );
 
       if (!pointsSpent) {
         setMessage(
           "Transaction confirmed, but demo points could not be deducted."
         );
+
         return;
       }
 
+      /*
+       * IMPORTANT:
+       *
+       * selectedMarket is stored with the
+       * local prediction record.
+       *
+       * BTC / ETH / SOL / BNB / XRP
+       * will now remain attached to this
+       * prediction permanently.
+       */
       addPrediction(
-  roundNumber,
-  direction,
-  stake,
-  roundDuration,
-  {
-    forecastId: onchainForecastId,
-    transactionHash: hash,
-  }
-);
+        roundNumber,
+        direction,
+        stake,
+        roundDuration,
+        {
+          forecastId:
+            onchainForecastId,
 
-      setSubmittedDirection(direction);
-      setSubmittedStake(stake);
-      setSubmittedDuration(roundDuration);
+          transactionHash:
+            hash,
+        },
+        selectedMarket as
+          PredictionMarket
+      );
+
+      setSubmittedDirection(
+        direction
+      );
+
+      setSubmittedStake(
+        stake
+      );
+
+      setSubmittedDuration(
+        roundDuration
+      );
+
+      setSubmittedMarket(
+        selectedMarket as
+          PredictionMarket
+      );
 
       setMessage(
         "Onchain prediction confirmed successfully."
@@ -345,9 +533,15 @@ export default function PredictionPanel() {
         error
       );
 
-      setMessage(getErrorMessage(error));
+      setMessage(
+        getErrorMessage(
+          error
+        )
+      );
     } finally {
-      setIsConfirmingTransaction(false);
+      setIsConfirmingTransaction(
+        false
+      );
     }
   }
 
@@ -364,12 +558,20 @@ export default function PredictionPanel() {
             </p>
 
             <h2 className="mt-1 text-xl font-black text-white">
-              Round #{roundNumber}
+              Round #
+              {roundNumber}
             </h2>
 
-            <p className="mt-1 text-[10px] leading-4 text-gray-500">
-              Submit your forecast on Arc Testnet.
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-[9px] font-black text-orange-400">
+                {selectedMarket}
+                /USDT
+              </span>
+
+              <p className="text-[10px] leading-4 text-gray-500">
+                Forecast on Arc Testnet
+              </p>
+            </div>
           </div>
 
           <span
@@ -388,11 +590,14 @@ export default function PredictionPanel() {
         {!isVerified && (
           <div className="mt-3 rounded-xl border border-orange-500/30 bg-orange-500/[0.08] p-3 text-center">
             <p className="text-xs font-semibold text-orange-400">
-              Prediction access locked
+              Prediction access
+              locked
             </p>
 
             <p className="mt-1 text-[10px] leading-4 text-gray-400">
-              Connect and verify your Arc Testnet wallet.
+              Connect and verify
+              your Arc Testnet
+              wallet.
             </p>
           </div>
         )}
@@ -404,50 +609,66 @@ export default function PredictionPanel() {
               Timeframe
             </p>
 
-            {!canUseTimeframe && isVerified && (
-              <span className="text-[9px] font-semibold text-yellow-400">
-                LOCKED
-              </span>
-            )}
+            {!canUseTimeframe &&
+              isVerified && (
+                <span className="text-[9px] font-semibold text-yellow-400">
+                  LOCKED
+                </span>
+              )}
           </div>
 
           <div className="mt-2 grid grid-cols-3 gap-2">
-            {durationOptions.map((duration) => {
-              const isSelected =
-                roundDuration === duration;
+            {durationOptions.map(
+              (
+                duration
+              ) => {
+                const isSelected =
+                  roundDuration ===
+                  duration;
 
-              return (
-                <button
-                  key={duration}
-                  type="button"
-                  disabled={!canUseTimeframe}
-                  onClick={() =>
-                    selectDuration(duration)
-                  }
-                  className={`rounded-lg border px-2 py-2 transition ${
-                    isSelected
-                      ? "border-orange-500 bg-orange-500/15 text-orange-400"
-                      : "border-white/10 bg-white/[0.02] text-gray-400 hover:border-orange-500/40 hover:text-white"
-                  } disabled:cursor-not-allowed disabled:opacity-40`}
-                >
-                  <span className="block text-xs font-black">
-                    {duration === 60
-                      ? "1m"
-                      : duration === 300
-                      ? "5m"
-                      : "15m"}
-                  </span>
+                return (
+                  <button
+                    key={
+                      duration
+                    }
+                    type="button"
+                    disabled={
+                      !canUseTimeframe
+                    }
+                    onClick={() =>
+                      selectDuration(
+                        duration
+                      )
+                    }
+                    className={`rounded-lg border px-2 py-2 transition ${
+                      isSelected
+                        ? "border-orange-500 bg-orange-500/15 text-orange-400"
+                        : "border-white/10 bg-white/[0.02] text-gray-400 hover:border-orange-500/40 hover:text-white"
+                    } disabled:cursor-not-allowed disabled:opacity-40`}
+                  >
+                    <span className="block text-xs font-black">
+                      {duration ===
+                      60
+                        ? "1m"
+                        : duration ===
+                            300
+                          ? "5m"
+                          : "15m"}
+                    </span>
 
-                  <span className="mt-0.5 block text-[8px] uppercase tracking-wide opacity-60">
-                    {duration === 60
-                      ? "Quick"
-                      : duration === 300
-                      ? "Standard"
-                      : "Extended"}
-                  </span>
-                </button>
-              );
-            })}
+                    <span className="mt-0.5 block text-[8px] uppercase tracking-wide opacity-60">
+                      {duration ===
+                      60
+                        ? "Quick"
+                        : duration ===
+                            300
+                          ? "Standard"
+                          : "Extended"}
+                    </span>
+                  </button>
+                );
+              }
+            )}
           </div>
         </div>
 
@@ -460,12 +681,17 @@ export default function PredictionPanel() {
           <div className="mt-2 grid grid-cols-2 gap-2">
             <button
               type="button"
-              disabled={!canUsePredictionPanel}
+              disabled={
+                !canUsePredictionPanel
+              }
               onClick={() =>
-                selectDirection("higher")
+                selectDirection(
+                  "higher"
+                )
               }
               className={`min-h-[94px] rounded-2xl border p-3 transition ${
-                direction === "higher"
+                direction ===
+                "higher"
                   ? "border-emerald-400 bg-emerald-500/15 ring-1 ring-emerald-400/70"
                   : "border-white/10 bg-white/[0.02] hover:border-emerald-500/50 hover:bg-emerald-500/[0.06]"
               } disabled:cursor-not-allowed disabled:opacity-40`}
@@ -479,10 +705,13 @@ export default function PredictionPanel() {
               </p>
 
               <p className="mt-1 text-[9px] text-gray-500">
-                Above entry price
+                Above{" "}
+                {selectedMarket}{" "}
+                entry price
               </p>
 
-              {direction === "higher" && (
+              {direction ===
+                "higher" && (
                 <span className="mt-1.5 inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[8px] font-bold text-emerald-400">
                   SELECTED
                 </span>
@@ -491,12 +720,17 @@ export default function PredictionPanel() {
 
             <button
               type="button"
-              disabled={!canUsePredictionPanel}
+              disabled={
+                !canUsePredictionPanel
+              }
               onClick={() =>
-                selectDirection("lower")
+                selectDirection(
+                  "lower"
+                )
               }
               className={`min-h-[94px] rounded-2xl border p-3 transition ${
-                direction === "lower"
+                direction ===
+                "lower"
                   ? "border-rose-400 bg-rose-500/15 ring-1 ring-rose-400/70"
                   : "border-white/10 bg-white/[0.02] hover:border-rose-500/50 hover:bg-rose-500/[0.06]"
               } disabled:cursor-not-allowed disabled:opacity-40`}
@@ -510,10 +744,13 @@ export default function PredictionPanel() {
               </p>
 
               <p className="mt-1 text-[9px] text-gray-500">
-                Below entry price
+                Below{" "}
+                {selectedMarket}{" "}
+                entry price
               </p>
 
-              {direction === "lower" && (
+              {direction ===
+                "lower" && (
                 <span className="mt-1.5 inline-flex rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[8px] font-bold text-rose-400">
                   SELECTED
                 </span>
@@ -546,9 +783,19 @@ export default function PredictionPanel() {
               type="number"
               min={10}
               value={stake}
-              disabled={!canUsePredictionPanel}
-              onChange={(event) =>
-                setStake(Number(event.target.value))
+              disabled={
+                !canUsePredictionPanel
+              }
+              onChange={(
+                event
+              ) =>
+                setStake(
+                  Number(
+                    event
+                      .target
+                      .value
+                  )
+                )
               }
               className="w-full bg-transparent py-2.5 text-xs font-bold text-white outline-none disabled:cursor-not-allowed disabled:opacity-40"
             />
@@ -559,20 +806,31 @@ export default function PredictionPanel() {
           </div>
 
           <div className="mt-2 flex flex-wrap gap-1">
-            {quickStakeOptions.map((amount) => (
-              <button
-                key={amount}
-                type="button"
-                disabled={
-                  !canUsePredictionPanel ||
-                  amount > balance
-                }
-                onClick={() => setStake(amount)}
-                className="rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-[9px] font-semibold text-gray-400 transition hover:border-orange-500/40 hover:text-orange-400 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                {amount.toLocaleString()}
-              </button>
-            ))}
+            {quickStakeOptions.map(
+              (
+                amount
+              ) => (
+                <button
+                  key={
+                    amount
+                  }
+                  type="button"
+                  disabled={
+                    !canUsePredictionPanel ||
+                    amount >
+                      balance
+                  }
+                  onClick={() =>
+                    setStake(
+                      amount
+                    )
+                  }
+                  className="rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-[9px] font-semibold text-gray-400 transition hover:border-orange-500/40 hover:text-orange-400 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  {amount.toLocaleString()}
+                </button>
+              )
+            )}
 
             <button
               type="button"
@@ -580,7 +838,11 @@ export default function PredictionPanel() {
                 !canUsePredictionPanel ||
                 balance < 10
               }
-              onClick={() => setStake(balance)}
+              onClick={() =>
+                setStake(
+                  balance
+                )
+              }
               className="rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-[9px] font-semibold text-gray-400 transition hover:border-orange-500/40 hover:text-orange-400 disabled:cursor-not-allowed disabled:opacity-30"
             >
               MAX
@@ -588,15 +850,21 @@ export default function PredictionPanel() {
           </div>
         </div>
 
-        {/* Compact note */}
         <p className="mt-3 text-[9px] leading-4 text-blue-200/70">
-          ⛓ Forecast stored on Arc Testnet. Test USDC pays gas only.
+          ⛓{" "}
+          {selectedMarket}{" "}
+          forecast stored
+          through Arc Testnet.
+          Test USDC pays gas
+          only.
         </p>
 
         {/* Submit */}
         <button
           type="button"
-          onClick={submitPrediction}
+          onClick={
+            submitPrediction
+          }
           disabled={
             !isVerified ||
             balance < 10 ||
@@ -608,14 +876,14 @@ export default function PredictionPanel() {
           {!isVerified
             ? "VERIFY ONCHAIN TO PREDICT"
             : isWaitingForWallet
-            ? "CONFIRM IN METAMASK..."
-            : isConfirmingTransaction
-            ? "WAITING FOR ARC CONFIRMATION..."
-            : !isPredictionOpen
-            ? "ROUND CLOSED"
-            : direction
-            ? `SUBMIT ${direction.toUpperCase()} ONCHAIN`
-            : "SELECT HIGHER OR LOWER"}
+              ? "CONFIRM IN METAMASK..."
+              : isConfirmingTransaction
+                ? "WAITING FOR ARC CONFIRMATION..."
+                : !isPredictionOpen
+                  ? "ROUND CLOSED"
+                  : direction
+                    ? `SUBMIT ${selectedMarket} ${direction.toUpperCase()} ONCHAIN`
+                    : "SELECT HIGHER OR LOWER"}
         </button>
 
         {/* Status */}
@@ -638,32 +906,50 @@ export default function PredictionPanel() {
             </p>
 
             {transactionHash && (
-  <div className="mt-2 rounded-lg border border-white/10 bg-black/10 p-2.5">
-    <div className="flex items-center justify-between gap-2">
-      <p className="text-[9px] text-gray-500">
-        Arc Testnet transaction
-      </p>
+              <div className="mt-2 rounded-lg border border-white/10 bg-black/10 p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[9px] text-gray-500">
+                    Arc Testnet
+                    transaction
+                  </p>
 
-      <p className="font-mono text-[9px] text-gray-300">
-        {shortenHash(transactionHash)}
-      </p>
-    </div>
+                  <p className="font-mono text-[9px] text-gray-300">
+                    {shortenHash(
+                      transactionHash
+                    )}
+                  </p>
+                </div>
 
-    <a
-      href={`https://testnet.arcscan.app/tx/${transactionHash}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="mt-2 flex w-full items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/[0.08] px-3 py-2 text-[10px] font-bold text-blue-300 transition hover:border-blue-400/50 hover:bg-blue-500/[0.14] hover:text-blue-200"
-    >
-      View on Arc Explorer ↗
-    </a>
-  </div>
-)}
+                <a
+                  href={`https://testnet.arcscan.app/tx/${transactionHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 flex w-full items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/[0.08] px-3 py-2 text-[10px] font-bold text-blue-300 transition hover:border-blue-400/50 hover:bg-blue-500/[0.14] hover:text-blue-200"
+                >
+                  View on Arc
+                  Explorer ↗
+                </a>
+              </div>
+            )}
 
             {isSuccessfulSubmission &&
               submittedDirection &&
-              submittedDuration !== null && (
-                <div className="mt-2 grid grid-cols-3 gap-1.5">
+              submittedDuration !==
+                null &&
+              submittedMarket && (
+                <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                  <div className="rounded-lg border border-white/10 bg-black/10 p-2">
+                    <p className="text-[8px] text-gray-500">
+                      Market
+                    </p>
+
+                    <p className="mt-1 text-[10px] font-bold text-orange-400">
+                      {
+                        submittedMarket
+                      }
+                    </p>
+                  </div>
+
                   <div className="rounded-lg border border-white/10 bg-black/10 p-2">
                     <p className="text-[8px] text-gray-500">
                       Direction
@@ -671,7 +957,8 @@ export default function PredictionPanel() {
 
                     <p
                       className={`mt-1 text-[10px] font-bold ${
-                        submittedDirection === "higher"
+                        submittedDirection ===
+                        "higher"
                           ? "text-emerald-400"
                           : "text-rose-400"
                       }`}

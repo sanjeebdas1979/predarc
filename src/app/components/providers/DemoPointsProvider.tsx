@@ -11,14 +11,26 @@ import {
   type ReactNode,
 } from "react";
 
-export type PredictionDirection = "higher" | "lower";
+export type PredictionDirection =
+  | "higher"
+  | "lower";
 
 export type PredictionStatus =
   | "pending"
   | "won"
   | "lost";
 
-export type PredictionDuration = 60 | 300 | 900;
+export type PredictionDuration =
+  | 60
+  | 300
+  | 900;
+
+export type PredictionMarket =
+  | "BTC"
+  | "ETH"
+  | "SOL"
+  | "BNB"
+  | "XRP";
 
 export type PredictionOnchainStatus =
   | "local"
@@ -29,61 +41,120 @@ export type PredictionOnchainStatus =
 
 export type PredictionRecord = {
   id: number;
+
   roundNumber: number;
+
+  /*
+   * The asset this forecast belongs to.
+   */
+  market: PredictionMarket;
+
   direction: PredictionDirection;
-  duration: PredictionDuration | null;
+
+  duration:
+    | PredictionDuration
+    | null;
+
   points: number;
+
   submittedAt: string;
 
   status: PredictionStatus;
-  result: PredictionDirection | null;
+
+  result:
+    | PredictionDirection
+    | null;
 
   reward: number;
+
   claimableReward: number;
+
   claimed: boolean;
 
-  startPrice: number | null;
-  endPrice: number | null;
-  priceDifference: number | null;
+  startPrice:
+    | number
+    | null;
 
-  forecastId: string | null;
+  endPrice:
+    | number
+    | null;
 
-  transactionHash: `0x${string}` | null;
-  resolveTransactionHash: `0x${string}` | null;
-  claimTransactionHash: `0x${string}` | null;
+  priceDifference:
+    | number
+    | null;
 
-  onchainStatus: PredictionOnchainStatus;
+  forecastId:
+    | string
+    | null;
+
+  transactionHash:
+    | `0x${string}`
+    | null;
+
+  resolveTransactionHash:
+    | `0x${string}`
+    | null;
+
+  claimTransactionHash:
+    | `0x${string}`
+    | null;
+
+  onchainStatus:
+    PredictionOnchainStatus;
 };
 
 type AddPredictionOnchainData = {
-  forecastId?: bigint | string;
-  transactionHash?: `0x${string}`;
+  forecastId?:
+    | bigint
+    | string;
+
+  transactionHash?:
+    `0x${string}`;
 };
 
 type DemoPointsContextValue = {
   balance: number;
-  predictions: PredictionRecord[];
 
-  spendPoints: (amount: number) => boolean;
+  predictions:
+    PredictionRecord[];
 
+  spendPoints: (
+    amount: number
+  ) => boolean;
+
+  /*
+   * Market is intentionally the LAST
+   * argument so existing calls continue
+   * working until we update PredictionPanel.
+   */
   addPrediction: (
     roundNumber: number,
     direction: PredictionDirection,
     points: number,
     duration: PredictionDuration,
-    onchainData?: AddPredictionOnchainData
+    onchainData?: AddPredictionOnchainData,
+    market?: PredictionMarket
   ) => number;
 
+  /*
+   * Market is optional temporarily for
+   * backward compatibility.
+   *
+   * Later RoundProvider will pass the
+   * selected market explicitly.
+   */
   settleRound: (
     roundNumber: number,
     result: PredictionDirection,
     startPrice: number,
-    endPrice: number
+    endPrice: number,
+    market?: PredictionMarket
   ) => void;
 
   setResolveTransaction: (
     predictionId: number,
-    transactionHash: `0x${string}`
+    transactionHash:
+      `0x${string}`
   ) => void;
 
   markResolvedOnchain: (
@@ -92,21 +163,28 @@ type DemoPointsContextValue = {
 
   syncClaimedReward: (
     predictionId: number,
-    transactionHash?: `0x${string}`
+    transactionHash?:
+      `0x${string}`
   ) => boolean;
 
   claimRewardLocally: (
     predictionId: number,
-    transactionHash: `0x${string}`
+    transactionHash:
+      `0x${string}`
   ) => boolean;
 
-  addPoints: (amount: number) => void;
+  addPoints: (
+    amount: number
+  ) => void;
+
   resetPoints: () => void;
 };
 
 type SavedDemoData = {
   balance: number;
-  predictions: PredictionRecord[];
+
+  predictions:
+    PredictionRecord[];
 };
 
 type DemoPointsProviderProps = {
@@ -119,11 +197,37 @@ const STORAGE_KEY =
   "prederc-forecast-arena-v2-data";
 
 const DemoPointsContext =
-  createContext<DemoPointsContextValue | null>(null);
+  createContext<
+    DemoPointsContextValue | null
+  >(null);
+
+function normalizeMarket(
+  market: unknown
+): PredictionMarket {
+  if (
+    market === "BTC" ||
+    market === "ETH" ||
+    market === "SOL" ||
+    market === "BNB" ||
+    market === "XRP"
+  ) {
+    return market;
+  }
+
+  /*
+   * Existing predictions were created
+   * before multi-market support.
+   *
+   * They were all BTC forecasts.
+   */
+  return "BTC";
+}
 
 function normalizeDuration(
   duration: unknown
-): PredictionDuration | null {
+):
+  | PredictionDuration
+  | null {
   if (
     duration === 60 ||
     duration === 300 ||
@@ -137,12 +241,16 @@ function normalizeDuration(
 
 function normalizeHash(
   value: unknown
-): `0x${string}` | null {
+):
+  | `0x${string}`
+  | null {
   if (
-    typeof value === "string" &&
+    typeof value ===
+      "string" &&
     value.startsWith("0x")
   ) {
-    return value as `0x${string}`;
+    return value as
+      `0x${string}`;
   }
 
   return null;
@@ -164,7 +272,9 @@ function normalizeStatus(
 
 function normalizeResult(
   result: unknown
-): PredictionDirection | null {
+):
+  | PredictionDirection
+  | null {
   if (
     result === "higher" ||
     result === "lower"
@@ -179,7 +289,9 @@ function normalizeOnchainStatus(
   value: unknown,
   status: PredictionStatus,
   claimed: boolean,
-  resolveTransactionHash: `0x${string}` | null
+  resolveTransactionHash:
+    | `0x${string}`
+    | null
 ): PredictionOnchainStatus {
   if (claimed) {
     return "claimed";
@@ -188,14 +300,17 @@ function normalizeOnchainStatus(
   if (
     status === "won" &&
     (
-      resolveTransactionHash !== null ||
+      resolveTransactionHash !==
+        null ||
       value === "claimable"
     )
   ) {
     return "claimable";
   }
 
-  if (status === "lost") {
+  if (
+    status === "lost"
+  ) {
     return "resolved";
   }
 
@@ -213,41 +328,71 @@ function normalizeOnchainStatus(
 }
 
 function normalizePrediction(
-  prediction: Partial<PredictionRecord>
-): PredictionRecord | null {
+  prediction:
+    Partial<PredictionRecord>
+):
+  | PredictionRecord
+  | null {
   if (
-    typeof prediction.id !== "number" ||
-    !Number.isFinite(prediction.id) ||
-    typeof prediction.roundNumber !== "number" ||
-    !Number.isFinite(prediction.roundNumber) ||
-    typeof prediction.points !== "number" ||
-    !Number.isFinite(prediction.points) ||
+    typeof prediction.id !==
+      "number" ||
+    !Number.isFinite(
+      prediction.id
+    ) ||
+    typeof prediction.roundNumber !==
+      "number" ||
+    !Number.isFinite(
+      prediction.roundNumber
+    ) ||
+    typeof prediction.points !==
+      "number" ||
+    !Number.isFinite(
+      prediction.points
+    ) ||
     (
-      prediction.direction !== "higher" &&
-      prediction.direction !== "lower"
+      prediction.direction !==
+        "higher" &&
+      prediction.direction !==
+        "lower"
     )
   ) {
     return null;
   }
 
-  const direction: PredictionDirection =
-    prediction.direction;
+  const direction:
+    PredictionDirection =
+      prediction.direction;
+
+  const market =
+    normalizeMarket(
+      prediction.market
+    );
 
   const status =
-    normalizeStatus(prediction.status);
+    normalizeStatus(
+      prediction.status
+    );
 
   const result =
-    normalizeResult(prediction.result);
+    normalizeResult(
+      prediction.result
+    );
 
   const reward =
-    typeof prediction.reward === "number" &&
-    Number.isFinite(prediction.reward)
+    typeof prediction.reward ===
+      "number" &&
+    Number.isFinite(
+      prediction.reward
+    )
       ? prediction.reward
       : 0;
 
   const claimableReward =
-    typeof prediction.claimableReward === "number" &&
-    Number.isFinite(prediction.claimableReward)
+    typeof prediction.claimableReward ===
+      "number" &&
+    Number.isFinite(
+      prediction.claimableReward
+    )
       ? prediction.claimableReward
       : status === "won"
         ? reward
@@ -262,47 +407,70 @@ function normalizePrediction(
     );
 
   return {
-    id: prediction.id,
-    roundNumber: prediction.roundNumber,
+    id:
+      prediction.id,
+
+    roundNumber:
+      prediction.roundNumber,
+
+    market,
+
     direction,
 
     duration:
-      normalizeDuration(prediction.duration),
+      normalizeDuration(
+        prediction.duration
+      ),
 
-    points: prediction.points,
+    points:
+      prediction.points,
 
     submittedAt:
-      typeof prediction.submittedAt === "string"
+      typeof prediction.submittedAt ===
+        "string"
         ? prediction.submittedAt
         : "Unknown",
 
     status,
+
     result,
 
     reward,
+
     claimableReward,
+
     claimed,
 
     startPrice:
-      typeof prediction.startPrice === "number" &&
-      Number.isFinite(prediction.startPrice)
+      typeof prediction.startPrice ===
+        "number" &&
+      Number.isFinite(
+        prediction.startPrice
+      )
         ? prediction.startPrice
         : null,
 
     endPrice:
-      typeof prediction.endPrice === "number" &&
-      Number.isFinite(prediction.endPrice)
+      typeof prediction.endPrice ===
+        "number" &&
+      Number.isFinite(
+        prediction.endPrice
+      )
         ? prediction.endPrice
         : null,
 
     priceDifference:
-      typeof prediction.priceDifference === "number" &&
-      Number.isFinite(prediction.priceDifference)
+      typeof prediction.priceDifference ===
+        "number" &&
+      Number.isFinite(
+        prediction.priceDifference
+      )
         ? prediction.priceDifference
         : null,
 
     forecastId:
-      typeof prediction.forecastId === "string"
+      typeof prediction.forecastId ===
+        "string"
         ? prediction.forecastId
         : null,
 
@@ -331,43 +499,72 @@ function normalizePrediction(
 export function DemoPointsProvider({
   children,
 }: DemoPointsProviderProps) {
-  const [balance, setBalance] =
-    useState(STARTING_POINTS);
+  const [
+    balance,
+    setBalance,
+  ] = useState(
+    STARTING_POINTS
+  );
 
-  const [predictions, setPredictions] =
-    useState<PredictionRecord[]>([]);
+  const [
+    predictions,
+    setPredictions,
+  ] = useState<
+    PredictionRecord[]
+  >([]);
 
-  const [hasLoadedStorage, setHasLoadedStorage] =
-    useState(false);
+  const [
+    hasLoadedStorage,
+    setHasLoadedStorage,
+  ] = useState(false);
 
   const balanceRef =
-    useRef(STARTING_POINTS);
+    useRef(
+      STARTING_POINTS
+    );
 
   const predictionsRef =
-    useRef<PredictionRecord[]>([]);
+    useRef<
+      PredictionRecord[]
+    >([]);
 
-  const updateBalance = useCallback(
-    (nextBalance: number): void => {
-      balanceRef.current = nextBalance;
-      setBalance(nextBalance);
-    },
-    []
-  );
+  const updateBalance =
+    useCallback(
+      (
+        nextBalance: number
+      ): void => {
+        balanceRef.current =
+          nextBalance;
 
-  const updatePredictions = useCallback(
-    (
-      nextPredictions: PredictionRecord[]
-    ): void => {
-      predictionsRef.current =
-        nextPredictions;
+        setBalance(
+          nextBalance
+        );
+      },
+      []
+    );
 
-      setPredictions(
-        nextPredictions
-      );
-    },
-    []
-  );
+  const updatePredictions =
+    useCallback(
+      (
+        nextPredictions:
+          PredictionRecord[]
+      ): void => {
+        predictionsRef.current =
+          nextPredictions;
 
+        setPredictions(
+          nextPredictions
+        );
+      },
+      []
+    );
+
+  /*
+   * Restore saved Arena data.
+   *
+   * Older BTC-only records are automatically
+   * migrated to market: "BTC".
+   */
   useEffect(() => {
     try {
       const savedData =
@@ -385,20 +582,29 @@ export function DemoPointsProvider({
         ) as SavedDemoData;
 
       if (
-        !Number.isFinite(parsedData.balance) ||
-        !Array.isArray(parsedData.predictions)
+        !Number.isFinite(
+          parsedData.balance
+        ) ||
+        !Array.isArray(
+          parsedData.predictions
+        )
       ) {
         return;
       }
 
       const normalizedPredictions =
         parsedData.predictions
-          .map(normalizePrediction)
+          .map(
+            normalizePrediction
+          )
           .filter(
             (
               prediction
-            ): prediction is PredictionRecord =>
-              prediction !== null
+            ):
+              prediction is
+                PredictionRecord =>
+              prediction !==
+              null
           );
 
       balanceRef.current =
@@ -420,16 +626,24 @@ export function DemoPointsProvider({
         error
       );
     } finally {
-      setHasLoadedStorage(true);
+      setHasLoadedStorage(
+        true
+      );
     }
   }, []);
 
+  /*
+   * Persist predictions and balance.
+   */
   useEffect(() => {
-    if (!hasLoadedStorage) {
+    if (
+      !hasLoadedStorage
+    ) {
       return;
     }
 
-    const savedData: SavedDemoData = {
+    const savedData:
+      SavedDemoData = {
       balance,
       predictions,
     };
@@ -437,7 +651,9 @@ export function DemoPointsProvider({
     try {
       window.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify(savedData)
+        JSON.stringify(
+          savedData
+        )
       );
     } catch (error) {
       console.error(
@@ -451,183 +667,283 @@ export function DemoPointsProvider({
     hasLoadedStorage,
   ]);
 
-  const spendPoints = useCallback(
-    (amount: number): boolean => {
-      const currentBalance =
-        balanceRef.current;
+  const spendPoints =
+    useCallback(
+      (
+        amount: number
+      ): boolean => {
+        const currentBalance =
+          balanceRef.current;
 
-      if (
-        !Number.isFinite(amount) ||
-        amount <= 0 ||
-        amount > currentBalance
-      ) {
-        return false;
-      }
+        if (
+          !Number.isFinite(
+            amount
+          ) ||
+          amount <= 0 ||
+          amount >
+            currentBalance
+        ) {
+          return false;
+        }
 
-      updateBalance(
-        currentBalance - amount
-      );
+        updateBalance(
+          currentBalance -
+            amount
+        );
 
-      return true;
-    },
-    [updateBalance]
-  );
+        return true;
+      },
+      [
+        updateBalance,
+      ]
+    );
 
-  const addPrediction = useCallback(
-    (
-      roundNumber: number,
-      direction: PredictionDirection,
-      points: number,
-      duration: PredictionDuration,
-      onchainData?: AddPredictionOnchainData
-    ): number => {
-      const predictionId =
-        Date.now();
+  const addPrediction =
+    useCallback(
+      (
+        roundNumber: number,
+        direction:
+          PredictionDirection,
+        points: number,
+        duration:
+          PredictionDuration,
+        onchainData?:
+          AddPredictionOnchainData,
+        market:
+          PredictionMarket =
+          "BTC"
+      ): number => {
+        const predictionId =
+          Date.now();
 
-      const transactionHash =
-        onchainData?.transactionHash ?? null;
+        const transactionHash =
+          onchainData
+            ?.transactionHash ??
+          null;
 
-      const newPrediction: PredictionRecord = {
-        id: predictionId,
-        roundNumber,
-        direction,
-        duration,
-        points,
+        const newPrediction:
+          PredictionRecord = {
+          id:
+            predictionId,
 
-        submittedAt:
-          new Date().toLocaleTimeString(
-            [],
-            {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            }
-          ),
+          roundNumber,
 
-        status: "pending",
-        result: null,
+          market,
 
-        reward: 0,
-        claimableReward: 0,
-        claimed: false,
+          direction,
 
-        startPrice: null,
-        endPrice: null,
-        priceDifference: null,
+          duration,
 
-        forecastId:
-          onchainData?.forecastId !== undefined
-            ? onchainData.forecastId.toString()
-            : null,
+          points,
 
-        transactionHash,
-        resolveTransactionHash: null,
-        claimTransactionHash: null,
+          submittedAt:
+            new Date()
+              .toLocaleTimeString(
+                [],
+                {
+                  hour:
+                    "2-digit",
 
-        onchainStatus:
-          transactionHash
-            ? "submitted"
-            : "local",
-      };
+                  minute:
+                    "2-digit",
 
-      updatePredictions([
-        newPrediction,
-        ...predictionsRef.current,
-      ]);
+                  second:
+                    "2-digit",
+                }
+              ),
 
-      return predictionId;
-    },
-    [updatePredictions]
-  );
+          status:
+            "pending",
 
-  const settleRound = useCallback(
-    (
-      roundNumber: number,
-      result: PredictionDirection,
-      startPrice: number,
-      endPrice: number
-    ): void => {
-      if (
-        !Number.isFinite(startPrice) ||
-        !Number.isFinite(endPrice)
-      ) {
-        return;
-      }
+          result:
+            null,
 
-      const priceDifference =
-        endPrice - startPrice;
+          reward:
+            0,
 
-      const nextPredictions: PredictionRecord[] =
-        predictionsRef.current.map(
-          (
-            prediction
-          ): PredictionRecord => {
-            if (
-              prediction.roundNumber !==
-                roundNumber ||
-              prediction.status !== "pending"
-            ) {
-              return prediction;
-            }
+          claimableReward:
+            0,
 
-            const didWin =
-              prediction.direction === result;
+          claimed:
+            false,
 
-            const reward =
-              didWin
-                ? prediction.points * 2
-                : 0;
+          startPrice:
+            null,
 
-            const nextStatus:
-              PredictionStatus =
+          endPrice:
+            null,
+
+          priceDifference:
+            null,
+
+          forecastId:
+            onchainData
+              ?.forecastId !==
+            undefined
+              ? onchainData.forecastId.toString()
+              : null,
+
+          transactionHash,
+
+          resolveTransactionHash:
+            null,
+
+          claimTransactionHash:
+            null,
+
+          onchainStatus:
+            transactionHash
+              ? "submitted"
+              : "local",
+        };
+
+        updatePredictions([
+          newPrediction,
+          ...predictionsRef.current,
+        ]);
+
+        return predictionId;
+      },
+      [
+        updatePredictions,
+      ]
+    );
+
+  /*
+   * Resolve predictions for a specific round.
+   *
+   * Once RoundProvider passes a market,
+   * only predictions belonging to that
+   * asset will resolve.
+   *
+   * The optional market preserves existing
+   * behaviour until we update RoundProvider.
+   */
+  const settleRound =
+    useCallback(
+      (
+        roundNumber: number,
+        result:
+          PredictionDirection,
+        startPrice: number,
+        endPrice: number,
+        market?:
+          PredictionMarket
+      ): void => {
+        if (
+          !Number.isFinite(
+            startPrice
+          ) ||
+          !Number.isFinite(
+            endPrice
+          )
+        ) {
+          return;
+        }
+
+        const priceDifference =
+          endPrice -
+          startPrice;
+
+        const nextPredictions:
+          PredictionRecord[] =
+          predictionsRef.current.map(
+            (
+              prediction
+            ):
+              PredictionRecord => {
+              const matchesRound =
+                prediction.roundNumber ===
+                roundNumber;
+
+              const matchesMarket =
+                market ===
+                  undefined ||
+                prediction.market ===
+                  market;
+
+              if (
+                !matchesRound ||
+                !matchesMarket ||
+                prediction.status !==
+                  "pending"
+              ) {
+                return prediction;
+              }
+
+              const didWin =
+                prediction.direction ===
+                result;
+
+              const reward =
+                didWin
+                  ? prediction.points *
+                    2
+                  : 0;
+
+              const nextStatus:
+                PredictionStatus =
                 didWin
                   ? "won"
                   : "lost";
 
-            const nextOnchainStatus:
-              PredictionOnchainStatus =
+              const nextOnchainStatus:
+                PredictionOnchainStatus =
                 didWin
                   ? "submitted"
                   : "resolved";
 
-            return {
-              ...prediction,
+              return {
+                ...prediction,
 
-              status: nextStatus,
-              result,
+                status:
+                  nextStatus,
 
-              reward,
-              claimableReward: reward,
-              claimed: false,
+                result,
 
-              startPrice,
-              endPrice,
-              priceDifference,
+                reward,
 
-              onchainStatus:
-                nextOnchainStatus,
-            };
-          }
+                claimableReward:
+                  reward,
+
+                claimed:
+                  false,
+
+                startPrice,
+
+                endPrice,
+
+                priceDifference,
+
+                onchainStatus:
+                  nextOnchainStatus,
+              };
+            }
+          );
+
+        updatePredictions(
+          nextPredictions
         );
-
-      updatePredictions(
-        nextPredictions
-      );
-    },
-    [updatePredictions]
-  );
+      },
+      [
+        updatePredictions,
+      ]
+    );
 
   const setResolveTransaction =
     useCallback(
       (
         predictionId: number,
-        transactionHash: `0x${string}`
+        transactionHash:
+          `0x${string}`
       ): void => {
-        const nextPredictions: PredictionRecord[] =
+        const nextPredictions:
+          PredictionRecord[] =
           predictionsRef.current.map(
             (
               prediction
-            ): PredictionRecord => {
+            ):
+              PredictionRecord => {
               if (
                 prediction.id !==
                 predictionId
@@ -637,9 +953,10 @@ export function DemoPointsProvider({
 
               const nextOnchainStatus:
                 PredictionOnchainStatus =
-                  prediction.status === "won"
-                    ? "claimable"
-                    : "resolved";
+                prediction.status ===
+                  "won"
+                  ? "claimable"
+                  : "resolved";
 
               return {
                 ...prediction,
@@ -657,7 +974,9 @@ export function DemoPointsProvider({
           nextPredictions
         );
       },
-      [updatePredictions]
+      [
+        updatePredictions,
+      ]
     );
 
   const markResolvedOnchain =
@@ -665,11 +984,13 @@ export function DemoPointsProvider({
       (
         predictionId: number
       ): void => {
-        const nextPredictions: PredictionRecord[] =
+        const nextPredictions:
+          PredictionRecord[] =
           predictionsRef.current.map(
             (
               prediction
-            ): PredictionRecord => {
+            ):
+              PredictionRecord => {
               if (
                 prediction.id !==
                 predictionId
@@ -679,9 +1000,10 @@ export function DemoPointsProvider({
 
               const nextOnchainStatus:
                 PredictionOnchainStatus =
-                  prediction.status === "won"
-                    ? "claimable"
-                    : "resolved";
+                prediction.status ===
+                  "won"
+                  ? "claimable"
+                  : "resolved";
 
               return {
                 ...prediction,
@@ -696,47 +1018,59 @@ export function DemoPointsProvider({
           nextPredictions
         );
       },
-      [updatePredictions]
+      [
+        updatePredictions,
+      ]
     );
 
   const syncClaimedReward =
     useCallback(
       (
         predictionId: number,
-        transactionHash?: `0x${string}`
+        transactionHash?:
+          `0x${string}`
       ): boolean => {
         const targetPrediction =
           predictionsRef.current.find(
-            (prediction) =>
+            (
+              prediction
+            ) =>
               prediction.id ===
               predictionId
           );
 
         if (
           !targetPrediction ||
-          targetPrediction.status !== "won" ||
+          targetPrediction.status !==
+            "won" ||
           targetPrediction.claimed
         ) {
           return false;
         }
 
         const rewardToAdd =
-          targetPrediction.claimableReward > 0
+          targetPrediction
+            .claimableReward >
+          0
             ? targetPrediction.claimableReward
             : targetPrediction.reward;
 
         if (
-          !Number.isFinite(rewardToAdd) ||
+          !Number.isFinite(
+            rewardToAdd
+          ) ||
           rewardToAdd <= 0
         ) {
           return false;
         }
 
-        const nextPredictions: PredictionRecord[] =
+        const nextPredictions:
+          PredictionRecord[] =
           predictionsRef.current.map(
             (
               prediction
-            ): PredictionRecord => {
+            ):
+              PredictionRecord => {
               if (
                 prediction.id !==
                 predictionId
@@ -747,8 +1081,11 @@ export function DemoPointsProvider({
               return {
                 ...prediction,
 
-                claimed: true,
-                claimableReward: 0,
+                claimed:
+                  true,
+
+                claimableReward:
+                  0,
 
                 claimTransactionHash:
                   transactionHash ??
@@ -765,8 +1102,9 @@ export function DemoPointsProvider({
           rewardToAdd;
 
         /*
-         * Refs update first so another automatic
-         * sync cannot add the same reward twice.
+         * Update refs first so repeated
+         * sync calls cannot add the same
+         * reward twice.
          */
         predictionsRef.current =
           nextPredictions;
@@ -791,92 +1129,122 @@ export function DemoPointsProvider({
     useCallback(
       (
         predictionId: number,
-        transactionHash: `0x${string}`
+        transactionHash:
+          `0x${string}`
       ): boolean => {
         return syncClaimedReward(
           predictionId,
           transactionHash
         );
       },
-      [syncClaimedReward]
+      [
+        syncClaimedReward,
+      ]
     );
 
-  const addPoints = useCallback(
-    (amount: number): void => {
-      if (
-        !Number.isFinite(amount) ||
-        amount <= 0
-      ) {
-        return;
-      }
+  const addPoints =
+    useCallback(
+      (
+        amount: number
+      ): void => {
+        if (
+          !Number.isFinite(
+            amount
+          ) ||
+          amount <= 0
+        ) {
+          return;
+        }
 
-      updateBalance(
-        balanceRef.current + amount
-      );
-    },
-    [updateBalance]
-  );
+        updateBalance(
+          balanceRef.current +
+            amount
+        );
+      },
+      [
+        updateBalance,
+      ]
+    );
 
   const resetPoints =
-    useCallback((): void => {
-      balanceRef.current =
-        STARTING_POINTS;
+    useCallback(
+      (): void => {
+        balanceRef.current =
+          STARTING_POINTS;
 
-      predictionsRef.current =
-        [];
+        predictionsRef.current =
+          [];
 
-      setBalance(
-        STARTING_POINTS
-      );
-
-      setPredictions([]);
-
-      try {
-        window.localStorage.removeItem(
-          STORAGE_KEY
+        setBalance(
+          STARTING_POINTS
         );
-      } catch (error) {
-        console.error(
-          "Could not clear Arena data:",
-          error
+
+        setPredictions(
+          []
         );
-      }
-    }, []);
+
+        try {
+          window.localStorage.removeItem(
+            STORAGE_KEY
+          );
+        } catch (error) {
+          console.error(
+            "Could not clear Arena data:",
+            error
+          );
+        }
+      },
+      []
+    );
 
   const value =
-    useMemo<DemoPointsContextValue>(
+    useMemo<
+      DemoPointsContextValue
+    >(
       () => ({
         balance,
+
         predictions,
 
         spendPoints,
+
         addPrediction,
+
         settleRound,
 
         setResolveTransaction,
+
         markResolvedOnchain,
 
         syncClaimedReward,
+
         claimRewardLocally,
 
         addPoints,
+
         resetPoints,
       }),
       [
         balance,
+
         predictions,
 
         spendPoints,
+
         addPrediction,
+
         settleRound,
 
         setResolveTransaction,
+
         markResolvedOnchain,
 
         syncClaimedReward,
+
         claimRewardLocally,
 
         addPoints,
+
         resetPoints,
       ]
     );

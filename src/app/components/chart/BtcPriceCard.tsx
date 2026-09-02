@@ -1,72 +1,182 @@
 "use client";
 
-import { useBtcPrice } from "../providers/BtcPriceProvider";
+import {
+  MARKET_OPTIONS,
+  useBtcPrice,
+} from "../providers/BtcPriceProvider";
+
+function formatPrice(
+  price: number
+): string {
+  if (price >= 1000) {
+    return `$${price.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+
+  if (price >= 1) {
+    return `$${price.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    })}`;
+  }
+
+  return `$${price.toLocaleString(undefined, {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 6,
+  })}`;
+}
+
+function formatUpdatedTime(
+  timestamp: number
+): string {
+  return new Date(timestamp).toLocaleTimeString(
+    undefined,
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }
+  );
+}
 
 export default function BtcPriceCard() {
-  const { data, isLoading, error, refreshPrice } = useBtcPrice();
+  const {
+    data,
+    selectedMarket,
+    isConnected,
+    isLoading,
+    error,
+    refreshPrice,
+  } = useBtcPrice();
+
+  const selectedMarketInfo =
+    MARKET_OPTIONS.find(
+      (market) =>
+        market.symbol === selectedMarket
+    );
+
+  const marketName =
+    selectedMarketInfo?.name ??
+    selectedMarket;
+
+  const change24h =
+    data?.change24h ?? 0;
+
+  const isPositive =
+    change24h >= 0;
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-      <div className="flex items-start justify-between gap-4">
+    <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-5">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm text-white/60">Live Market Price</p>
-          <h2 className="mt-1 text-xl font-semibold text-white">
-            BTC/USD
-          </h2>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-medium text-gray-500">
+              Live Market Price
+            </p>
+
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                isConnected
+                  ? "bg-emerald-400"
+                  : "bg-yellow-400"
+              }`}
+            />
+          </div>
+
+          <h3 className="mt-2 text-lg font-black text-white">
+            {selectedMarket}/USDT
+          </h3>
+
+          <p className="mt-0.5 text-xs text-gray-500">
+            {marketName}
+          </p>
         </div>
 
         <button
           type="button"
           onClick={refreshPrice}
-          className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/70 transition hover:bg-white/10"
+          disabled={isLoading}
+          className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs font-medium text-gray-300 transition hover:border-white/20 hover:bg-white/[0.05] disabled:cursor-wait disabled:opacity-50"
         >
-          Refresh
+          {isLoading
+            ? "Loading..."
+            : "Refresh"}
         </button>
       </div>
 
       <div className="mt-6">
-        {isLoading && !data ? (
-          <p className="text-sm text-white/60">
-            Loading live BTC price...
-          </p>
-        ) : error && !data ? (
-          <p className="text-sm text-red-300">{error}</p>
-        ) : data ? (
+        {data ? (
           <>
-            <p className="text-4xl font-bold tracking-tight text-white">
-              ${data.price.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+            <p className="text-3xl font-black tracking-tight text-white">
+              {formatPrice(data.price)}
             </p>
 
-            <p className="mt-3 text-sm text-white/60">
-              24h change:{" "}
-              <span
-                className={
-                  data.change24h >= 0
-                    ? "text-emerald-400"
-                    : "text-red-400"
-                }
-              >
-                {data.change24h >= 0 ? "+" : ""}
-                {data.change24h.toFixed(2)}%
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-gray-500">
+                24h change
               </span>
-            </p>
 
-            <p className="mt-2 text-xs text-white/40">
+              <span
+                className={`font-bold ${
+                  isPositive
+                    ? "text-emerald-400"
+                    : "text-rose-400"
+                }`}
+              >
+                {isPositive ? "+" : ""}
+                {change24h.toFixed(2)}%
+              </span>
+            </div>
+
+            <p className="mt-3 text-xs text-gray-600">
               Updated{" "}
-              {new Date(data.updatedAt).toLocaleTimeString()}
+              {formatUpdatedTime(
+                data.updatedAt
+              )}
             </p>
           </>
-        ) : null}
+        ) : (
+          <div className="py-3">
+            <p className="text-lg font-semibold text-gray-400">
+              {isLoading
+                ? `Loading ${selectedMarket} price...`
+                : `${selectedMarket} price unavailable`}
+            </p>
+          </div>
+        )}
       </div>
 
-      {error && data ? (
-        <p className="mt-4 text-xs text-amber-300">
-          {error} Showing the latest available price.
-        </p>
-      ) : null}
+      {error && (
+        <div className="mt-4 rounded-xl border border-rose-500/20 bg-rose-500/[0.06] p-3">
+          <p className="text-xs leading-5 text-rose-300">
+            {error}
+          </p>
+        </div>
+      )}
+
+      <div className="mt-5 border-t border-white/[0.06] pt-4">
+        <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider">
+          <span className="text-gray-600">
+            Data Source
+          </span>
+
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                isConnected
+                  ? "bg-emerald-400"
+                  : "bg-yellow-400"
+              }`}
+            />
+
+            <span className="text-gray-400">
+              Binance
+            </span>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

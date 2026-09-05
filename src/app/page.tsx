@@ -93,20 +93,18 @@ export default function Home() {
 
         {/* Main trading workspace */}
         <section className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.7fr)]">
-          {/* Left: chart and result */}
+          {/* Left: chart, unified live round, active position */}
           <div className="space-y-4">
             <BtcPriceChart />
+
+            <CountdownTimer />
 
             <ActivePredictionCard />
           </div>
 
-          {/* Right: prediction and live round */}
+          {/* Right: prediction controls */}
           <aside className="space-y-4 xl:sticky xl:top-6">
             <PredictionPanel />
-
-            <div className="rounded-2xl border border-white/10 bg-[#0d121a] p-4">
-              <CountdownTimer />
-            </div>
           </aside>
         </section>
 

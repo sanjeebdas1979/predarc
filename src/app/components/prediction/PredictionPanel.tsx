@@ -36,6 +36,9 @@ type Direction =
   | "higher"
   | "lower";
 
+const PRICE_SCALE =
+  1_000_000;
+
 function formatDuration(
   duration: PredictionDuration
 ): string {
@@ -401,8 +404,7 @@ export default function PredictionPanel() {
       const scaledStartPrice =
         BigInt(
           Math.round(
-            startPrice *
-              100
+            startPrice * PRICE_SCALE
           )
         );
 

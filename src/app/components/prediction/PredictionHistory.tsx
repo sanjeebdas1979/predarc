@@ -450,12 +450,11 @@ export default function PredictionHistory() {
   ): Promise<void> {
     if (
       !prediction.forecastId ||
-      prediction.endPrice ===
-        null
+      prediction.endPrice === null ||
+      prediction.startPrice === null
     ) {
       updateMessage(
         prediction.id,
-
         "Forecast data is incomplete."
       );
 
@@ -465,7 +464,6 @@ export default function PredictionHistory() {
     if (!publicClient) {
       updateMessage(
         prediction.id,
-
         "Arc Testnet client is unavailable."
       );
 
@@ -483,39 +481,179 @@ export default function PredictionHistory() {
 
       updateMessage(
         prediction.id,
+        "Checking forecast state on Arc Testnet..."
+      );
 
-        "Confirm forecast resolution in MetaMask."
+      const onchainForecast =
+        await publicClient.readContract({
+          address:
+            FORECAST_REGISTRY_V2_ADDRESS,
+
+          abi:
+            FORECAST_REGISTRY_V2_ABI,
+
+          functionName:
+            "getForecast",
+
+          args: [
+            BigInt(
+              prediction.forecastId
+            ),
+          ],
+        }) as {
+          forecastId: bigint;
+          user: `0x${string}`;
+          direction: number;
+          duration: number;
+          arenaPoints: bigint;
+          startPrice: bigint;
+          endPrice: bigint;
+          submittedAt: bigint;
+          resolvedAt: bigint;
+          claimableReward: bigint;
+          status: number;
+          claimed: boolean;
+          exists: boolean;
+        };
+
+      if (!onchainForecast.exists) {
+        updateMessage(
+          prediction.id,
+          "This forecast does not exist onchain."
+        );
+
+        return;
+      }
+
+      /*
+       * Do not send another resolve transaction
+       * when the contract already has an end price
+       * or resolution timestamp.
+       */
+      if (
+        onchainForecast.endPrice > BigInt(0) ||
+        onchainForecast.resolvedAt > BigInt(0)
+      ) {
+        markResolvedOnchain(
+          prediction.id
+        );
+
+        updateMessage(
+          prediction.id,
+          "Forecast is already resolved onchain. Local status updated."
+        );
+
+        return;
+      }
+
+      /*
+       * Detect which price precision was used
+       * when this forecast was originally submitted.
+       *
+       * Legacy forecasts: x100
+       * New forecasts:    x1,000,000
+       */
+      const legacyStartPrice =
+        BigInt(
+          Math.round(
+            prediction.startPrice *
+              100
+          )
+        );
+
+      const preciseStartPrice =
+        BigInt(
+          Math.round(
+            prediction.startPrice *
+              1_000_000
+          )
+        );
+
+      let detectedPriceScale:
+        100 | 1_000_000;
+
+      if (
+        onchainForecast.startPrice ===
+        preciseStartPrice
+      ) {
+        detectedPriceScale =
+          1_000_000;
+      } else if (
+        onchainForecast.startPrice ===
+        legacyStartPrice
+      ) {
+        detectedPriceScale =
+          100;
+      } else {
+        updateMessage(
+          prediction.id,
+          "Could not safely match the local start price with the onchain forecast. Resolution was not submitted."
+        );
+
+        return;
+      }
+
+      const scaledEndPrice =
+        BigInt(
+          Math.round(
+            prediction.endPrice *
+              detectedPriceScale
+          )
+        );
+
+      /*
+       * Old x100 forecasts can lose small price
+       * movements, especially XRP.
+       *
+       * Example:
+       * 1.3984 -> 140
+       * 1.3982 -> 140
+       *
+       * In that case we intentionally do NOT
+       * waste gas on a resolution that cannot
+       * represent the actual movement.
+       */
+      if (
+        scaledEndPrice ===
+        onchainForecast.startPrice
+      ) {
+        updateMessage(
+          prediction.id,
+          detectedPriceScale === 100
+            ? "Legacy forecast precision is insufficient for this price movement. No resolution transaction was submitted."
+            : "The scaled start and end prices are equal. Waiting for a resolvable price difference."
+        );
+
+        return;
+      }
+
+      updateMessage(
+        prediction.id,
+        `Confirm forecast resolution in MetaMask. Price precision: x${detectedPriceScale.toLocaleString()}.`
       );
 
       const hash =
-        await writeContractAsync(
-          {
-            address:
-              FORECAST_REGISTRY_V2_ADDRESS,
+        await writeContractAsync({
+          address:
+            FORECAST_REGISTRY_V2_ADDRESS,
 
-            abi:
-              FORECAST_REGISTRY_V2_ABI,
+          abi:
+            FORECAST_REGISTRY_V2_ABI,
 
-            functionName:
-              "resolveForecast",
+          functionName:
+            "resolveForecast",
 
-            args: [
-              BigInt(
-                prediction.forecastId
-              ),
+          args: [
+            BigInt(
+              prediction.forecastId
+            ),
 
-              BigInt(
-                Math.round(
-                  prediction.endPrice *
-                    100
-                )
-              ),
-            ],
+            scaledEndPrice,
+          ],
 
-            chainId:
-              arcTestnet.id,
-          }
-        );
+          chainId:
+            arcTestnet.id,
+        });
 
       setLatestHashes(
         (
@@ -530,7 +668,6 @@ export default function PredictionHistory() {
 
       updateMessage(
         prediction.id,
-
         "Resolution submitted. Waiting for Arc confirmation..."
       );
 
@@ -539,7 +676,6 @@ export default function PredictionHistory() {
           publicClient.waitForTransactionReceipt(
             {
               hash,
-
               confirmations: 1,
             }
           ),
@@ -565,13 +701,11 @@ export default function PredictionHistory() {
 
       updateMessage(
         prediction.id,
-
-        "Forecast resolved. Reward is now claimable."
+        "Forecast resolved successfully. Reward status updated."
       );
     } catch (error) {
       console.error(
         "Forecast resolution failed:",
-
         error
       );
 
@@ -591,8 +725,7 @@ export default function PredictionHistory() {
 
         updateMessage(
           prediction.id,
-
-          "Forecast was already resolved onchain. Reward status updated."
+          "Forecast was already resolved onchain. Local status updated."
         );
 
         return;
@@ -608,7 +741,6 @@ export default function PredictionHistory() {
       ) {
         updateMessage(
           prediction.id,
-
           "Resolution transaction was rejected in MetaMask."
         );
 
@@ -622,8 +754,7 @@ export default function PredictionHistory() {
       ) {
         updateMessage(
           prediction.id,
-
-          "Resolution transaction is still pending or Arc RPC is delayed. Check Arc Explorer before retrying."
+          "Resolution may still be pending or Arc RPC is delayed. Check Arc Explorer before retrying."
         );
 
         return;
@@ -631,8 +762,7 @@ export default function PredictionHistory() {
 
       updateMessage(
         prediction.id,
-
-        "Forecast resolution failed."
+        "Forecast resolution failed. No local reward state was changed."
       );
     } finally {
       setProcessingPredictionId(
@@ -644,7 +774,6 @@ export default function PredictionHistory() {
       );
     }
   }
-
   async function claimPredictionReward(
     prediction:
       PredictionRecord

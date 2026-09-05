@@ -89,10 +89,39 @@ type RoundProviderProps = {
 const DEFAULT_ROUND_DURATION:
   PredictionDuration = 60;
 
-const RESOLVING_DURATION = 2;
+const RESOLVING_DURATION = 0;
 
-const RESULT_DURATION = 5;
+const RESULT_DURATION = 0;
 
+function getNextBoundaryTimestamp(
+  duration: PredictionDuration
+): number {
+  const durationMs =
+    duration * 1000;
+
+  const now =
+    Date.now();
+
+  return (
+    Math.floor(
+      now / durationMs
+    ) *
+      durationMs +
+    durationMs
+  );
+}
+
+function getRemainingSeconds(
+  endsAt: number
+): number {
+  return Math.max(
+    0,
+    Math.ceil(
+      (endsAt - Date.now()) /
+        1000
+    )
+  );
+}
 const RoundContext =
   createContext<
     RoundContextValue | null
@@ -108,6 +137,8 @@ export function RoundProvider({
 
   const {
     data,
+    candles,
+    timeframe,
     isConnected,
     selectedMarket,
   } = useBtcPrice();
@@ -214,6 +245,35 @@ export function RoundProvider({
    * settled more than once.
    */
   const settledRoundRef =
+    useRef<
+      number | null
+    >(null);
+
+  /*
+   * Exact wall-clock boundary for the
+   * currently active Binance-style round.
+   */
+  const roundEndsAtRef =
+    useRef<
+      number | null
+    >(null);
+
+  /*
+   * Price captured exactly when the
+   * current candle/round reaches its
+   * time boundary.
+   */
+  const roundClosingPriceRef =
+    useRef<
+      number | null
+    >(null);
+
+  /*
+   * The previous candle close becomes
+   * the reference opening price for the
+   * next synchronized round.
+   */
+  const nextRoundStartPriceRef =
     useRef<
       number | null
     >(null);
@@ -482,22 +542,57 @@ export function RoundProvider({
 
   /*
    * Countdown.
+   *
+   * Open rounds follow absolute
+   * Binance candle boundaries.
+   *
+   * Resolving/result phases keep
+   * their short UI countdowns.
    */
   useEffect(() => {
+    const intervalMs =
+      status === "open"
+        ? 250
+        : 1000;
+
     const timer =
       window.setInterval(
         () => {
+          if (
+            status === "open"
+          ) {
+            if (
+              roundEndsAtRef.current ===
+              null
+            ) {
+              const nextBoundary =
+                getNextBoundaryTimestamp(
+                  roundDuration
+                );
+
+              roundEndsAtRef.current =
+                nextBoundary;
+            }
+
+            setTimeLeft(
+              getRemainingSeconds(
+                roundEndsAtRef.current
+              )
+            );
+
+            return;
+          }
+
           setTimeLeft(
             (
               currentTime
             ) =>
               currentTime > 0
-                ? currentTime -
-                  1
+                ? currentTime - 1
                 : 0
           );
         },
-        1000
+        intervalMs
       );
 
     return () => {
@@ -505,11 +600,23 @@ export function RoundProvider({
         timer
       );
     };
-  }, []);
+  }, [
+    status,
+    roundDuration,
+  ]);
 
   /*
-   * Handle Open → Resolving →
-   * Result → New Round.
+   * Binance candle synchronized round settlement.
+   *
+   * The wall-clock timer only tells us that the
+   * boundary has been reached.
+   *
+   * Settlement waits for Binance to publish the
+   * NEW candle. At that moment the previous candle
+   * is finalized and its close is safe to use.
+   *
+   * The next round then starts immediately from
+   * the new candle's opening price.
    */
   useEffect(() => {
     if (
@@ -519,7 +626,10 @@ export function RoundProvider({
     }
 
     /*
-     * ROUND OPEN FINISHED
+     * Boundary reached.
+     *
+     * Move into a very short resolving state while
+     * waiting for Binance's new candle event.
      */
     if (
       status === "open"
@@ -528,145 +638,250 @@ export function RoundProvider({
         "resolving"
       );
 
-      setTimeLeft(
-        RESOLVING_DURATION
+      return;
+    }
+
+    if (
+      status !== "resolving"
+    ) {
+      return;
+    }
+
+    if (
+      settledRoundRef.current ===
+      roundNumber
+    ) {
+      return;
+    }
+
+    const expectedTimeframe =
+      roundDuration === 60
+        ? "1m"
+        : roundDuration === 300
+          ? "5m"
+          : "15m";
+
+    /*
+     * Never resolve a 1-minute prediction using
+     * a 5m/15m chart candle, or vice versa.
+     */
+    if (
+      timeframe !==
+      expectedTimeframe
+    ) {
+      return;
+    }
+
+    if (
+      candles.length < 2
+    ) {
+      return;
+    }
+
+    const latestCandle =
+      candles[
+        candles.length - 1
+      ];
+
+    const closedCandle =
+      candles[
+        candles.length - 2
+      ];
+
+    if (
+      !latestCandle ||
+      !closedCandle
+    ) {
+      return;
+    }
+
+    const boundaryTimestamp =
+      roundEndsAtRef.current;
+
+    if (
+      boundaryTimestamp ===
+      null
+    ) {
+      return;
+    }
+
+    const boundarySeconds =
+      Math.floor(
+        boundaryTimestamp /
+          1000
       );
 
+    /*
+     * Until the newest Binance candle starts at
+     * the boundary, the previous candle is not yet
+     * considered finalized for this round.
+     *
+     * IMPORTANT:
+     * We do NOT set timeLeft back to 1 here.
+     * The candles dependency will trigger this
+     * effect immediately when Binance sends the
+     * new candle.
+     */
+    if (
+      latestCandle.time <
+      boundarySeconds
+    ) {
+      return;
+    }
+
+    const openingPrice =
+      startPriceRef.current;
+
+    const closingPrice =
+      closedCandle.close;
+
+    const nextOpeningPrice =
+      latestCandle.open;
+
+    const correctLiveMarket =
+      latestPriceMarketRef.current ===
+      roundMarket;
+
+    const correctStartMarket =
+      startPriceMarketRef.current ===
+      roundMarket;
+
+    if (
+      openingPrice === null ||
+      !Number.isFinite(
+        openingPrice
+      ) ||
+      !Number.isFinite(
+        closingPrice
+      ) ||
+      !Number.isFinite(
+        nextOpeningPrice
+      ) ||
+      !isConnected ||
+      !correctLiveMarket ||
+      !correctStartMarket ||
+      selectedMarket !==
+        roundMarket
+    ) {
       return;
     }
 
     /*
-     * RESOLVE ROUND
+     * A genuinely flat finalized candle is a real
+     * tie and should later be handled as DRAW/VOID.
+     *
+     * Do not replace it with a future live price.
      */
     if (
-      status ===
-      "resolving"
+      closingPrice ===
+      openingPrice
     ) {
-      if (
-        settledRoundRef.current ===
-        roundNumber
-      ) {
-        return;
-      }
-
-      const openingPrice =
-        startPriceRef.current;
-
-      const closingPrice =
-        latestPriceRef.current;
-
       /*
-       * Critical market safety checks.
+       * Flat finalized candle.
        *
-       * If a SOL prediction is active,
-       * we only settle when the currently
-       * available live price is SOL.
+       * Do not leave the round stuck in RESOLVING.
+       * Treat this round as a frontend VOID and
+       * immediately continue with the new Binance
+       * candle.
+       *
+       * Proper onchain draw/refund support will be
+       * handled separately because ForecastRegistryV2
+       * was designed around Higher/Lower outcomes.
        */
-      const correctLiveMarket =
-        latestPriceMarketRef.current ===
-        roundMarket;
+      console.info(
+        "PredArc: flat candle detected. Voiding frontend round and starting the next candle."
+      );
 
-      const correctStartMarket =
-        startPriceMarketRef.current ===
-        roundMarket;
+      const nextMarket:
+        PredictionMarket =
+        selectedMarket;
 
-      if (
-        openingPrice ===
-          null ||
-        closingPrice ===
-          null ||
-        !isConnected ||
-        !correctLiveMarket ||
-        !correctStartMarket ||
-        selectedMarket !==
-          roundMarket
-      ) {
-        /*
-         * Never resolve using a price
-         * from the wrong asset.
-         *
-         * Wait until the correct market
-         * data is available again.
-         */
-        setTimeLeft(
-          1
-        );
+      setRoundNumber(
+        (
+          currentRound
+        ) =>
+          currentRound + 1
+      );
 
-        return;
-      }
+      setRoundMarket(
+        nextMarket
+      );
 
-      /*
-       * No artificial/random winner.
-       * Wait until real price movement.
-       */
-      if (
-        closingPrice ===
-        openingPrice
-      ) {
-        setTimeLeft(
-          1
-        );
+      startPriceRef.current =
+        nextOpeningPrice;
 
-        return;
-      }
-
-      const marketResult:
-        RoundDirection =
-        closingPrice >
-        openingPrice
-          ? "higher"
-          : "lower";
+      startPriceMarketRef.current =
+        nextMarket;
 
       settledRoundRef.current =
-        roundNumber;
+        null;
+
+      setStartPrice(
+        nextOpeningPrice
+      );
 
       setEndPrice(
-        closingPrice
+        null
       );
 
       setResult(
-        marketResult
-      );
-
-      /*
-       * Resolve only predictions
-       * belonging to this asset.
-       */
-      settleRound(
-        roundNumber,
-        marketResult,
-        openingPrice,
-        closingPrice,
-        roundMarket
+        null
       );
 
       setStatus(
-        "result"
+        "open"
       );
 
+      const nextBoundary =
+        (
+          latestCandle.time +
+          roundDuration
+        ) *
+        1000;
+
+      roundEndsAtRef.current =
+        nextBoundary;
+
       setTimeLeft(
-        RESULT_DURATION
+        getRemainingSeconds(
+          nextBoundary
+        )
       );
 
       return;
     }
 
+    const marketResult:
+      RoundDirection =
+      closingPrice >
+      openingPrice
+        ? "higher"
+        : "lower";
+
+    settledRoundRef.current =
+      roundNumber;
+
     /*
-     * RESULT FINISHED:
-     * prepare the next round.
+     * Settle the prediction using the FINALIZED
+     * Binance candle close.
+     */
+    settleRound(
+      roundNumber,
+      marketResult,
+      openingPrice,
+      closingPrice,
+      roundMarket
+    );
+
+    /*
+     * Immediately prepare the next round.
+     *
+     * No 2-second resolving screen.
+     * No 5-second result screen.
      */
     const nextMarket:
       PredictionMarket =
       selectedMarket;
-
-    startPriceRef.current =
-      null;
-
-    startPriceMarketRef.current =
-      null;
-
-    settledRoundRef.current =
-      null;
 
     setRoundNumber(
       (
@@ -679,8 +894,17 @@ export function RoundProvider({
       nextMarket
     );
 
+    startPriceRef.current =
+      nextOpeningPrice;
+
+    startPriceMarketRef.current =
+      nextMarket;
+
+    settledRoundRef.current =
+      null;
+
     setStartPrice(
-      null
+      nextOpeningPrice
     );
 
     setEndPrice(
@@ -695,8 +919,24 @@ export function RoundProvider({
       "open"
     );
 
+    /*
+     * latestCandle.time is the exact start of the
+     * new Binance candle, in seconds.
+     */
+    const nextBoundary =
+      (
+        latestCandle.time +
+        roundDuration
+      ) *
+      1000;
+
+    roundEndsAtRef.current =
+      nextBoundary;
+
     setTimeLeft(
-      roundDuration
+      getRemainingSeconds(
+        nextBoundary
+      )
     );
   }, [
     timeLeft,
@@ -707,6 +947,8 @@ export function RoundProvider({
     selectedMarket,
     settleRound,
     isConnected,
+    candles,
+    timeframe,
   ]);
 
   const progress =

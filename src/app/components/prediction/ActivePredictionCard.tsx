@@ -24,34 +24,68 @@ import {
   type PredictionDuration,
 } from "../providers/RoundProvider";
 
-function formatPrice(price: number | null): string {
-  if (price === null || !Number.isFinite(price)) {
-    return "Waiting...";
-  }
-
-  return `$${price.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+function getPriceDecimals(
+  market: string
+): number {
+  return market === "XRP"
+    ? 4
+    : 2;
 }
 
-function formatDifference(
-  difference: number | null
+function formatPrice(
+  price: number | null,
+  market: string
 ): string {
   if (
-    difference === null ||
-    !Number.isFinite(difference)
+    price === null ||
+    !Number.isFinite(price)
   ) {
     return "Waiting...";
   }
 
-  const sign = difference >= 0 ? "+" : "-";
+  const decimals =
+    getPriceDecimals(
+      market
+    );
 
-  return `${sign}$${Math.abs(
+  return `${price.toLocaleString(undefined, {
+    minimumFractionDigits:
+      decimals,
+    maximumFractionDigits:
+      decimals,
+  })}`;
+}
+
+function formatDifference(
+  difference: number | null,
+  market: string
+): string {
+  if (
+    difference === null ||
+    !Number.isFinite(
+      difference
+    )
+  ) {
+    return "Waiting...";
+  }
+
+  const sign =
+    difference >= 0
+      ? "+"
+      : "-";
+
+  const decimals =
+    getPriceDecimals(
+      market
+    );
+
+  return `${sign}${Math.abs(
     difference
   ).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits:
+      decimals,
+    maximumFractionDigits:
+      decimals,
   })}`;
 }
 
@@ -147,6 +181,8 @@ export default function ActivePredictionCard() {
     result,
     startPrice,
     endPrice,
+    roundMarket,
+    roundDuration,
   } = useRound();
 
   const publicClient = usePublicClient({
@@ -176,9 +212,17 @@ export default function ActivePredictionCard() {
     () =>
       predictions.find(
         (prediction) =>
-          prediction.roundNumber === roundNumber
+          prediction.roundNumber === roundNumber &&
+          prediction.market === roundMarket &&
+          prediction.duration === roundDuration &&
+          prediction.status === "pending"
       ) ?? null,
-    [predictions, roundNumber]
+    [
+      predictions,
+      roundNumber,
+      roundMarket,
+      roundDuration,
+    ]
   );
 
   useEffect(() => {
@@ -460,62 +504,44 @@ export default function ActivePredictionCard() {
   }
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold text-orange-400">
+    <section className="rounded-2xl border border-white/10 bg-[#0d121a] p-4">
+      {/* Compact header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-orange-400">
             {isSettled
               ? "Prediction Settled"
               : "Your Active Prediction"}
           </p>
 
-          <h2 className="mt-1 text-xl font-bold text-white">
+          <span className="text-base font-bold text-white">
             Round #{currentPrediction.roundNumber}
-          </h2>
+          </span>
+
+          <span
+            className={`rounded-full border px-2.5 py-1 text-[9px] font-black ${
+              currentPrediction.direction === "higher"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                : "border-rose-500/30 bg-rose-500/10 text-rose-400"
+            }`}
+          >
+            {currentPrediction.direction === "higher"
+              ? "↑ HIGHER"
+              : "↓ LOWER"}
+          </span>
         </div>
 
         <span
-          className={`rounded-full border px-3 py-1 text-[10px] font-bold ${statusStyles}`}
+          className={`rounded-full border px-2.5 py-1 text-[9px] font-bold ${statusStyles}`}
         >
           {statusText}
         </span>
       </div>
 
-      <div
-        className={`mt-4 rounded-2xl border p-4 ${
-          currentPrediction.direction === "higher"
-            ? "border-emerald-500/30 bg-emerald-500/10"
-            : "border-rose-500/30 bg-rose-500/10"
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="text-3xl">
-            {currentPrediction.direction === "higher"
-              ? "📈"
-              : "📉"}
-          </div>
-
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-gray-400">
-              Your prediction
-            </p>
-
-            <p
-              className={`mt-1 text-xl font-bold ${
-                currentPrediction.direction === "higher"
-                  ? "text-emerald-400"
-                  : "text-rose-400"
-              }`}
-            >
-              {currentPrediction.direction.toUpperCase()}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-          <p className="text-[10px] text-gray-500">
+      {/* Compact prediction data */}
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+        <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
+          <p className="text-[9px] uppercase tracking-wide text-gray-500">
             Timeframe
           </p>
 
@@ -526,59 +552,68 @@ export default function ActivePredictionCard() {
           </p>
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-          <p className="text-[10px] text-gray-500">
+        <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
+          <p className="text-[9px] uppercase tracking-wide text-gray-500">
             Stake
           </p>
 
           <p className="mt-1 text-sm font-semibold text-white">
-            {currentPrediction.points.toLocaleString()} points
+            {currentPrediction.points.toLocaleString()} pts
           </p>
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-          <p className="text-[10px] text-gray-500">
-            Entry Price
+        <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
+          <p className="text-[9px] uppercase tracking-wide text-gray-500">
+            Entry
           </p>
 
-          <p className="mt-1 font-mono text-xs font-semibold text-white">
-            {formatPrice(entryPrice)}
+          <p className="mt-1 font-mono text-xs font-bold text-white">
+            {formatPrice(
+              entryPrice,
+              currentPrediction.market
+            )}
           </p>
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-          <p className="text-[10px] text-gray-500">
+        <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
+          <p className="text-[9px] uppercase tracking-wide text-gray-500">
             {isSettled
-              ? "Final Price"
-              : "Live Price"}
+              ? "Final"
+              : "Live"}
           </p>
 
-          <p className="mt-1 font-mono text-xs font-semibold text-white">
-            {formatPrice(displayPrice)}
+          <p className="mt-1 font-mono text-xs font-bold text-white">
+            {formatPrice(
+              displayPrice,
+              currentPrediction.market
+            )}
           </p>
         </div>
-      </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-white/10 bg-black/10 p-4">
-          <p className="text-[10px] text-gray-500">
-            Price Movement
+        <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
+          <p className="text-[9px] uppercase tracking-wide text-gray-500">
+            Movement
           </p>
 
           <p
-            className={`mt-1 font-mono text-lg font-bold ${movementStyles}`}
+            className={`mt-1 font-mono text-xs font-black ${movementStyles}`}
           >
-            {formatDifference(priceDifference)}
+            {formatDifference(
+              priceDifference,
+              currentPrediction.market
+            )}
           </p>
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-black/10 p-4">
-          <p className="text-[10px] text-gray-500">
-            Position Status
+        <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
+          <p className="text-[9px] uppercase tracking-wide text-gray-500">
+            {isSettled
+              ? "Result"
+              : "Position"}
           </p>
 
           <p
-            className={`mt-1 text-lg font-bold ${
+            className={`mt-1 text-xs font-black ${
               isSettled
                 ? isWinner
                   ? "text-emerald-400"
@@ -592,62 +627,33 @@ export default function ActivePredictionCard() {
           >
             {isSettled
               ? isWinner
-                ? "Winning Result"
-                : "Losing Result"
+                ? "WIN"
+                : "LOSS"
               : isDirectionCurrentlyCorrect === null
-                ? "Waiting for movement"
+                ? "WAITING"
                 : isDirectionCurrentlyCorrect
-                  ? "Currently Winning"
-                  : "Currently Losing"}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-white/10 bg-black/10 p-4">
-          <p className="text-[10px] text-gray-500">
-            {isSettled
-              ? "Arena Reward"
-              : "Time Remaining"}
-          </p>
-
-          <p
-            className={`mt-1 text-lg font-bold ${
-              isWinner
-                ? "text-emerald-400"
-                : "text-white"
-            }`}
-          >
-            {isSettled
-              ? isWinner
-                ? `+${currentPrediction.reward.toLocaleString()} points`
-                : "0 points"
-              : formatTime(timeLeft)}
+                  ? "WINNING"
+                  : "LOSING"}
           </p>
         </div>
       </div>
 
+      {/* Compact reward controls only after a win */}
       {isWinner && (
-        <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.08] p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="mt-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold text-emerald-400">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-400">
                 Arena Reward
               </p>
 
-              <p className="mt-1 text-xl font-black text-white">
-                {currentPrediction.reward.toLocaleString()} points
-              </p>
-
-              <p className="mt-1 text-[10px] text-gray-400">
-                {isClaimed
-                  ? "Reward claimed successfully."
-                  : isResolvedOnchain
-                    ? "Reward is ready to claim onchain."
-                    : "Resolve this forecast onchain before claiming."}
+              <p className="mt-0.5 text-base font-black text-white">
+                +{currentPrediction.reward.toLocaleString()} points
               </p>
             </div>
 
             <span
-              className={`rounded-full border px-3 py-1 text-[9px] font-bold ${
+              className={`rounded-full border px-2.5 py-1 text-[9px] font-bold ${
                 isClaimed
                   ? "border-blue-500/30 bg-blue-500/10 text-blue-300"
                   : isResolvedOnchain
@@ -656,7 +662,7 @@ export default function ActivePredictionCard() {
               }`}
             >
               {isClaimed
-                ? "✓ CLAIMED"
+                ? "CLAIMED"
                 : isResolvedOnchain
                   ? "CLAIMABLE"
                   : "AWAITING RESOLUTION"}
@@ -670,7 +676,7 @@ export default function ActivePredictionCard() {
                 void resolveRewardOnchain();
               }}
               disabled={isOnchainBusy}
-              className="mt-4 w-full rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-xs font-bold text-yellow-300 transition hover:bg-yellow-500/20 disabled:cursor-wait disabled:opacity-50"
+              className="mt-2.5 w-full rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-[10px] font-bold text-yellow-300 transition hover:bg-yellow-500/20 disabled:cursor-wait disabled:opacity-50"
             >
               {isOnchainBusy
                 ? "PROCESSING ON ARC..."
@@ -685,67 +691,33 @@ export default function ActivePredictionCard() {
                 void claimRewardOnchain();
               }}
               disabled={isOnchainBusy}
-              className="mt-4 w-full rounded-xl border border-emerald-400/40 bg-emerald-500 px-4 py-3 text-xs font-black text-[#07120d] transition hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-50"
+              className="mt-2.5 w-full rounded-lg border border-emerald-400/40 bg-emerald-500 px-3 py-2 text-[10px] font-black text-[#07120d] transition hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-50"
             >
               {isOnchainBusy
                 ? "PROCESSING CLAIM..."
-                : `CLAIM ${currentPrediction.reward.toLocaleString()} ARENA POINTS ONCHAIN`}
+                : `CLAIM ${currentPrediction.reward.toLocaleString()} ARENA POINTS`}
             </button>
           )}
         </div>
       )}
 
+      {/* Transaction feedback */}
       {transactionMessage && (
-        <div className="mt-4 rounded-xl border border-blue-500/20 bg-blue-500/[0.06] p-3">
-          <p className="text-[10px] font-semibold text-blue-200">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-500/20 bg-blue-500/[0.06] px-3 py-2">
+          <p className="text-[9px] font-semibold text-blue-200">
             {transactionMessage}
           </p>
 
           {latestTransactionHash && (
-            <div className="mt-2">
-              <p className="font-mono text-[9px] text-gray-400">
-                {shortenHash(
-                  latestTransactionHash
-                )}
-              </p>
-
-              <a
-                href={`https://testnet.arcscan.app/tx/${latestTransactionHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex text-[10px] font-semibold text-blue-300 hover:text-blue-200"
-              >
-                View on Arc Explorer ↗
-              </a>
-            </div>
-          )}
-        </div>
-      )}
-
-      {!isSettled && (
-        <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-          <p className="text-[10px] leading-5 text-gray-500">
-            The live position may change until the round
-            closes. Rewards become available only after the
-            final BTC price is confirmed.
-          </p>
-        </div>
-      )}
-
-      {isSettled && result && (
-        <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-          <p className="text-xs text-gray-300">
-            Final market result:{" "}
-            <span
-              className={`font-bold ${
-                result === "higher"
-                  ? "text-emerald-400"
-                  : "text-rose-400"
-              }`}
+            <a
+              href={`https://testnet.arcscan.app/tx/${latestTransactionHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[9px] font-semibold text-blue-300 hover:text-blue-200"
             >
-              {result.toUpperCase()}
-            </span>
-          </p>
+              View on Arc Explorer
+            </a>
+          )}
         </div>
       )}
     </section>

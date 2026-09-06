@@ -238,9 +238,39 @@ export function BtcPriceProvider({
     useRef<BtcCandle | null>(null);
 
   /*
-   * Restore previously selected market.
+   * Restore market from URL first, then local storage.
    */
   useEffect(() => {
+    const queryMarket =
+      new URLSearchParams(
+        window.location.search
+      )
+        .get("market")
+        ?.toUpperCase();
+
+    if (
+      queryMarket &&
+      isMarketSymbol(queryMarket)
+    ) {
+      setSelectedMarketState(
+        queryMarket
+      );
+
+      try {
+        window.localStorage.setItem(
+          SELECTED_MARKET_STORAGE_KEY,
+          queryMarket
+        );
+      } catch (storageError) {
+        console.error(
+          "Could not save market from URL:",
+          storageError
+        );
+      }
+
+      return;
+    }
+
     try {
       const savedMarket =
         window.localStorage.getItem(

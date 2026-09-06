@@ -185,7 +185,7 @@ export default function MarketSelector() {
           />
 
           {isConnected
-            ? "Binance Live"
+            ? "Live"
             : "Connecting"}
         </div>
       </div>

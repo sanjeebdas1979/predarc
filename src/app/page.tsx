@@ -72,6 +72,10 @@ export default function Home() {
             </div>
           </div>
 
+          <Link href="/receipts" className="text-sm font-bold text-orange-300 hover:text-white">
+            Payment receipts
+          </Link>
+
           {/* Navigation */}
           <nav className="hidden items-center gap-6 xl:flex">
             <a

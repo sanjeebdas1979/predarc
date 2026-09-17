@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import BtcPriceCard from "../components/chart/BtcPriceCard";
 import BtcPriceChart from "../components/chart/BtcPriceChart";
 
@@ -41,6 +43,8 @@ export default function Home() {
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <PredarcBrand />
 
+          <Link href="/daily" className="text-sm font-bold text-orange-300 hover:text-white">Daily access preview</Link>
+          <Link href="/receipts" className="text-sm font-bold text-orange-300 hover:text-white">Payment receipts</Link>
           <ConnectWallet />
         </div>
       </header>

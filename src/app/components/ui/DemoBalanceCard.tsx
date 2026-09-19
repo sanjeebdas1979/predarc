@@ -1,6 +1,10 @@
 "use client";
 
 import {
+  useState,
+} from "react";
+
+import {
   useAccount,
   useBalance,
   useChainId,
@@ -37,6 +41,18 @@ function formatDisplayedBalance(
 
 export default function DemoBalanceCard() {
   const { balance, resetPoints } = useDemoPoints();
+  const [
+    serverBalance,
+    setServerBalance,
+  ] = useState<string | null>(null);
+  const [
+    serverBalanceMessage,
+    setServerBalanceMessage,
+  ] = useState("");
+  const [
+    isCheckingServerBalance,
+    setIsCheckingServerBalance,
+  ] = useState(false);
 
   const {
     address,
@@ -77,6 +93,50 @@ export default function DemoBalanceCard() {
     await refetch();
   }
 
+  async function checkServerBalance(): Promise<void> {
+    setIsCheckingServerBalance(true);
+    setServerBalanceMessage("");
+
+    try {
+      const response =
+        await fetch("/api/account", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok ||
+        result?.authenticated !== true ||
+        typeof result.balance !== "string"
+      ) {
+        throw new Error(
+          typeof result?.error === "string"
+            ? result.error
+            : "Server balance check failed."
+        );
+      }
+
+      setServerBalance(
+        result.balance
+      );
+
+      setServerBalanceMessage(
+        `Server balance checked successfully (HTTP ${response.status}).`
+      );
+    } catch (error) {
+      setServerBalanceMessage(
+        error instanceof Error
+          ? error.message
+          : "Server balance check failed."
+      );
+    } finally {
+      setIsCheckingServerBalance(false);
+    }
+  }
+
   return (
     <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-5">
       {/* Practice balance */}
@@ -104,6 +164,61 @@ export default function DemoBalanceCard() {
         Practice points have no cash value and cannot be
         transferred or redeemed.
       </p>
+
+      {/* Server demo balance */}
+      <div className="mt-4 rounded-2xl border border-purple-300/20 bg-purple-300/5 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-purple-200">
+              Server Demo Balance
+            </p>
+
+            <p className="mt-2 text-sm leading-5 text-gray-400">
+              Sign in with wallet to create or read your
+              Supabase-backed testnet points.
+            </p>
+
+            {serverBalance !== null ? (
+              <p className="mt-3 text-2xl font-black text-white">
+                {Number(
+                  serverBalance
+                ).toLocaleString()}
+
+                <span className="ml-2 text-sm text-purple-200">
+                  POINTS
+                </span>
+              </p>
+            ) : null}
+          </div>
+
+          <span
+            className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+              serverBalance !== null
+                ? "bg-emerald-400"
+                : "bg-purple-300"
+            }`}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            void checkServerBalance();
+          }}
+          disabled={isCheckingServerBalance}
+          className="mt-3 w-full rounded-xl bg-purple-300 px-4 py-3 text-sm font-bold text-black transition hover:bg-purple-200 disabled:cursor-wait disabled:opacity-50"
+        >
+          {isCheckingServerBalance
+            ? "Checking Balance..."
+            : "Check Server Balance"}
+        </button>
+
+        {serverBalanceMessage ? (
+          <p className="mt-3 text-xs leading-5 text-purple-100">
+            {serverBalanceMessage}
+          </p>
+        ) : null}
+      </div>
 
       {/* Arc wallet balance */}
       <div className="mt-4 rounded-2xl border border-white/10 bg-black/10 p-4">

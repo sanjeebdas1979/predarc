@@ -20,6 +20,7 @@ export default function AuthTestPage() {
   const lock = useRef(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [account, setAccount] = useState<{ wallet: string; balance: string } | null>(null);
 
   const [session, setSession] = useState<Session | null>(null);
   const [sessionStatus, setSessionStatus] = useState("Checking session…");
@@ -37,7 +38,7 @@ export default function AuthTestPage() {
         && result.chainId === chain && Date.parse(result.expiresAt) > Date.now()) {
         setSession(result);
         setSessionStatus("Signed in");
-      } else { setSessionStatus("Not signed in"); }
+      } else { setAccount(null); setSessionStatus("Not signed in"); }
     } catch {
       if (current === sequence.current) setSessionStatus("Session check failed. Retry Refresh session.");
     }
@@ -57,6 +58,7 @@ export default function AuthTestPage() {
 
   async function logout() {
     ++sequence.current;
+    setAccount(null);
     setSessionStatus("Signing out…");
     let response: Response;
     try {
@@ -94,6 +96,7 @@ export default function AuthTestPage() {
 
   async function signIn() {
     if (session || sessionStatus !== "Not signed in") return;
+    setAccount(null);
     const initial = getAccount(config);
     if (!initial.address || initial.chainId !== chain) throw new Error("Connect on Arc Testnet first.");
     const wallet = initial.address;
@@ -131,6 +134,47 @@ export default function AuthTestPage() {
     setMessage(`Sign-in succeeded for ${result.wallet}. Session expires at ${result.expiresAt}.`);
   }
 
+  async function checkBalance() {
+    setAccount(null);
+    if (!session || sessionStatus !== "Signed in") {
+      throw new Error("Sign in with your wallet first.");
+    }
+    const expectedWallet = session.wallet;
+    const current = sequence.current;
+    const connected = getAccount(config);
+    if (!connected.isConnected || connected.address?.toLowerCase() !== expectedWallet
+      || connected.chainId !== chain) {
+      throw new Error("Connect the signed-in wallet on Arc Testnet first.");
+    }
+    setMessage("Checking your server demo balance…");
+    const response = await fetch("/api/account", {
+      method: "POST", credentials: "same-origin", cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+    const result = await response.json();
+    if (current !== sequence.current) return;
+    if (response.status === 401) {
+      setSession(null);
+      setSessionStatus("Not signed in");
+      throw new Error("Your session has ended. Sign in again.");
+    }
+    if (!response.ok) {
+      throw new Error(`Balance check failed (HTTP ${response.status}). Please retry.`);
+    }
+    if (!result || result.authenticated !== true || result.wallet !== expectedWallet
+      || result.chainId !== chain || typeof result.balance !== "string"
+      || !/^(0|[1-9][0-9]*)$/.test(result.balance)) {
+      throw new Error("Unexpected account response. Please refresh the session.");
+    }
+    const latest = getAccount(config);
+    if (!latest.isConnected || latest.address?.toLowerCase() !== expectedWallet
+      || latest.chainId !== chain || Date.parse(session.expiresAt) <= Date.now()) {
+      throw new Error("Wallet, network or session changed. Refresh the session before retrying.");
+    }
+    setAccount({ wallet: expectedWallet, balance: result.balance });
+    setMessage("Balance checked successfully (HTTP 200).");
+  }
+
   return (
     <main className="min-h-screen bg-[#080c12] px-5 py-12 text-white">
       <div className="mx-auto max-w-2xl space-y-6">
@@ -155,6 +199,21 @@ export default function AuthTestPage() {
               <button className={button} disabled={busy} onClick={() => void run(logout)}>Logout</button>}
           </div>
         </section>
+        {session && sessionStatus === "Signed in" && (
+          <section className="space-y-3 rounded-xl border border-purple-300/25 p-4" aria-live="polite">
+            <h2 className="text-lg font-bold">Server demo balance</h2>
+            <p className="text-sm text-gray-400">Your first check creates 1,000 testnet demo points once per wallet. Checking again does not add more points. These points have no cash value and are separate from the current arena demo balance.</p>
+            <button type="button" className={button}
+              disabled={busy || !isConnected || address?.toLowerCase() !== session.wallet || chainId !== chain}
+              onClick={() => void run(checkBalance)}>Check balance</button>
+            {account?.wallet === session.wallet && isConnected
+              && address?.toLowerCase() === session.wallet && chainId === chain && (
+              <p className="text-xl font-bold text-purple-200">
+                Server balance: {account.balance} demo points
+              </p>
+            )}
+          </section>
+        )}
         <div className="flex flex-wrap gap-3">
           {!session && sessionStatus === "Not signed in" && !isConnected && connectors.map(connector => (
             <button className={button} key={connector.uid} disabled={busy}

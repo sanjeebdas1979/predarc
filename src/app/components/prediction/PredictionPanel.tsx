@@ -39,6 +39,9 @@ type Direction =
 const PRICE_SCALE =
   1_000_000;
 
+const SERVER_BALANCE_EVENT =
+  "predarc:server-balance";
+
 function formatDuration(
   duration: PredictionDuration
 ): string {
@@ -604,6 +607,20 @@ export default function PredictionPanel() {
       setSubmittedMarket(
         selectedMarket as
           PredictionMarket
+      );
+
+      window.dispatchEvent(
+        new CustomEvent(
+          SERVER_BALANCE_EVENT,
+          {
+            detail: {
+              balance:
+                serverPrediction.balance,
+              message:
+                "Server balance updated after prediction.",
+            },
+          }
+        )
       );
 
       setMessage(

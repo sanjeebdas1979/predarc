@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useState,
 } from "react";
 
@@ -38,6 +39,9 @@ function formatDisplayedBalance(
     maximumFractionDigits: 4,
   });
 }
+
+const SERVER_BALANCE_EVENT =
+  "predarc:server-balance";
 
 export default function DemoBalanceCard() {
   const { balance, resetPoints } = useDemoPoints();
@@ -136,6 +140,51 @@ export default function DemoBalanceCard() {
       setIsCheckingServerBalance(false);
     }
   }
+
+  useEffect(() => {
+    function handleServerBalance(
+      event: Event
+    ) {
+      const detail =
+        (event as CustomEvent<{
+          balance?: unknown;
+          message?: unknown;
+        }>).detail;
+
+      if (
+        typeof detail?.balance !==
+          "string" ||
+        !/^(0|[1-9][0-9]*)$/.test(
+          detail.balance
+        )
+      ) {
+        return;
+      }
+
+      setServerBalance(
+        detail.balance
+      );
+
+      setServerBalanceMessage(
+        typeof detail.message ===
+          "string"
+          ? detail.message
+          : "Server balance updated after prediction."
+      );
+    }
+
+    window.addEventListener(
+      SERVER_BALANCE_EVENT,
+      handleServerBalance
+    );
+
+    return () => {
+      window.removeEventListener(
+        SERVER_BALANCE_EVENT,
+        handleServerBalance
+      );
+    };
+  }, []);
 
   return (
     <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-5">

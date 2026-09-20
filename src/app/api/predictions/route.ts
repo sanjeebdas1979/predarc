@@ -9,6 +9,24 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type PredictionRow = {
+  id: string;
+  market: string;
+  direction: string;
+  points: number | string;
+  duration_seconds:
+    number | string;
+  status: string;
+  entry_price:
+    number | string;
+  accepted_at: string;
+  closes_at: string;
+};
+
+type ClaimRow = {
+  source_id: string;
+};
+
 export async function GET(
   request: NextRequest
 ) {
@@ -114,6 +132,99 @@ export async function GET(
       );
     }
 
+    const predictionRows =
+      (data ??
+        []) as unknown as PredictionRow[];
+
+    const claimSourceIds =
+      predictionRows.map(
+        (
+          prediction
+        ) =>
+          `claim:${prediction.id}`
+      );
+
+    let claimedSourceIds =
+      new Set<string>();
+
+    if (
+      claimSourceIds.length > 0
+    ) {
+      const {
+        data:
+          claimRows,
+        error:
+          claimError,
+      } =
+        await getSupabaseAdmin()
+          .from(
+            "predarc_points_ledger"
+          )
+          .select(
+            "source_id"
+          )
+          .eq(
+            "chain_id",
+            session.chainId
+          )
+          .eq(
+            "wallet",
+            session.wallet
+          )
+          .eq(
+            "kind",
+            "claim_credit"
+          )
+          .in(
+            "source_id",
+            claimSourceIds
+          )
+          .abortSignal(
+            AbortSignal.timeout(
+              8000
+            )
+          );
+
+      if (claimError) {
+        return authReply(
+          {
+            error:
+              "Prediction history is temporarily unavailable. Retry.",
+          },
+          503
+        );
+      }
+
+      claimedSourceIds =
+        new Set(
+          ((claimRows ??
+            []) as ClaimRow[])
+            .map(
+              (
+                row
+              ) =>
+                typeof row.source_id ===
+                "string"
+                  ? row.source_id
+                  : ""
+            )
+            .filter(Boolean)
+        );
+    }
+
+    const predictions =
+      predictionRows.map(
+        (
+          prediction
+        ) => ({
+          ...prediction,
+          claimed:
+            claimedSourceIds.has(
+              `claim:${prediction.id}`
+            ),
+        })
+      );
+
     return authReply(
       {
         authenticated: true,
@@ -122,7 +233,7 @@ export async function GET(
         chainId:
           session.chainId,
         predictions:
-          data ?? [],
+          predictions,
       }
     );
   } catch {

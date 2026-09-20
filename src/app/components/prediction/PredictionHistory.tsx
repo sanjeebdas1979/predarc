@@ -48,6 +48,7 @@ type ServerPrediction = {
   entry_price: string;
   accepted_at: string;
   closes_at: string;
+  claimed: boolean;
 };
 
 function isServerPredictionClosed(
@@ -419,7 +420,8 @@ export default function PredictionHistory() {
                   !("status" in record) ||
                   !("entry_price" in record) ||
                   !("accepted_at" in record) ||
-                  !("closes_at" in record)
+                  !("closes_at" in record) ||
+                  !("claimed" in record)
                 ) {
                   return [];
                 }
@@ -498,6 +500,9 @@ export default function PredictionHistory() {
                       record.accepted_at,
                     closes_at:
                       record.closes_at,
+                    claimed:
+                      record.claimed ===
+                      true,
                   },
                 ];
               }
@@ -617,6 +622,115 @@ export default function PredictionHistory() {
                 error instanceof Error
                   ? error.message
                   : "Could not settle server prediction.",
+            })
+          );
+        } finally {
+          setServerProcessingId(
+            null
+          );
+        }
+      },
+      [
+        loadServerHistory,
+      ]
+    );
+
+  const claimServerPrediction =
+    useCallback(
+      async (
+        prediction: ServerPrediction
+      ) => {
+        setServerProcessingId(
+          prediction.id
+        );
+
+        setServerRecordMessages(
+          (
+            currentMessages
+          ) => ({
+            ...currentMessages,
+
+            [prediction.id]:
+              "Claiming server reward...",
+          })
+        );
+
+        try {
+          const response =
+            await fetch(
+              "/api/predictions/claim",
+              {
+                method:
+                  "POST",
+                credentials:
+                  "same-origin",
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
+                body:
+                  JSON.stringify(
+                    {
+                      predictionId:
+                        prediction.id,
+                    }
+                  ),
+              }
+            );
+
+          const result =
+            await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              typeof result?.error ===
+                "string"
+                ? result.error
+                : "Could not claim server reward."
+            );
+          }
+
+          const reward =
+            typeof result?.reward ===
+            "string"
+              ? result.reward
+              : (
+                  prediction.points * 2
+                ).toString();
+
+          setServerRecordMessages(
+            (
+              currentMessages
+            ) => ({
+              ...currentMessages,
+
+              [prediction.id]:
+                result.replayed === true
+                  ? "Server reward was already claimed."
+                  : `Claimed ${Number(
+                      reward
+                    ).toLocaleString()} server points.`,
+            })
+          );
+
+          window.dispatchEvent(
+            new Event(
+              SERVER_BALANCE_EVENT
+            )
+          );
+
+          await loadServerHistory();
+        } catch (error) {
+          setServerRecordMessages(
+            (
+              currentMessages
+            ) => ({
+              ...currentMessages,
+
+              [prediction.id]:
+                error instanceof Error
+                  ? error.message
+                  : "Could not claim server reward.",
             })
           );
         } finally {
@@ -1569,6 +1683,11 @@ export default function PredictionHistory() {
                     prediction
                   );
 
+                const canClaimServerPrediction =
+                  prediction.status ===
+                    "won" &&
+                  !prediction.claimed;
+
                 const isServerProcessing =
                   serverProcessingId ===
                   prediction.id;
@@ -1664,6 +1783,37 @@ export default function PredictionHistory() {
                         ? "Settling..."
                         : "Settle server result"}
                     </button>
+                  ) : null}
+
+                  {canClaimServerPrediction ? (
+                    <button
+                      type="button"
+                      disabled={
+                        isServerProcessing
+                      }
+                      onClick={() => {
+                        void claimServerPrediction(
+                          prediction
+                        );
+                      }}
+                      className="mt-3 w-full rounded-xl bg-purple-300 px-4 py-2 text-xs font-bold uppercase text-black transition hover:bg-purple-200 disabled:cursor-wait disabled:opacity-50"
+                    >
+                      {isServerProcessing
+                        ? "Claiming..."
+                        : `Claim ${(
+                            prediction.points *
+                            2
+                          ).toLocaleString()} server points`}
+                    </button>
+                  ) : null}
+
+                  {prediction.status ===
+                    "won" &&
+                  prediction.claimed ? (
+                    <p className="mt-3 text-xs font-semibold text-emerald-300">
+                      Server reward
+                      claimed.
+                    </p>
                   ) : null}
                 </div>
                 );

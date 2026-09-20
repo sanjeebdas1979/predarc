@@ -1599,6 +1599,28 @@ export default function PredictionHistory() {
       0
     );
 
+  const totalServerUnclaimedRewards =
+    serverPredictions.reduce(
+      (
+        total,
+        prediction
+      ) => {
+        if (
+          prediction.status !==
+            "won" ||
+          prediction.claimed
+        ) {
+          return total;
+        }
+
+        return (
+          total +
+          prediction.points * 2
+        );
+      },
+      0
+    );
+
   return (
     <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1608,16 +1630,15 @@ export default function PredictionHistory() {
           </p>
 
           <h3 className="mt-2 text-2xl font-bold text-white">
-            Your recent forecasts
+            Server prediction history
           </h3>
 
           <p className="mt-2 text-sm text-gray-500">
-            BTC, ETH, SOL,
-            BNB and XRP
-            forecasts are
-            tracked separately.
-            Winning rewards remain
-            available until claimed.
+            Supabase is now the
+            primary source for
+            accepted forecasts,
+            settlement status and
+            reward claims.
           </p>
         </div>
 
@@ -1627,7 +1648,7 @@ export default function PredictionHistory() {
           </p>
 
           <p className="mt-1 text-xl font-black text-white">
-            {totalUnclaimedRewards.toLocaleString()}{" "}
+            {totalServerUnclaimedRewards.toLocaleString()}{" "}
             points
           </p>
         </div>
@@ -1637,13 +1658,15 @@ export default function PredictionHistory() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-purple-200">
-              Server ledger records
+              Your recent forecasts
             </p>
 
             <p className="mt-1 text-xs leading-5 text-gray-500">
-              Latest Supabase-backed
-              predictions for the
-              signed-in wallet.
+              Server-backed records
+              for the signed-in
+              wallet. Use these for
+              the current Predarc
+              demo flow.
             </p>
           </div>
 
@@ -1828,8 +1851,10 @@ export default function PredictionHistory() {
         )}
       </div>
 
-      {predictions.length ===
-        0 && (
+      {serverPredictions.length ===
+        0 &&
+        predictions.length ===
+          0 && (
         <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-white/[0.015] p-8 text-center">
           <p className="font-semibold text-gray-300">
             No predictions yet
@@ -1843,7 +1868,38 @@ export default function PredictionHistory() {
         </div>
       )}
 
-      <div className="mt-6 space-y-4">
+      {predictions.length >
+        0 && (
+        <details className="mt-6 rounded-2xl border border-white/10 bg-white/[0.015] p-5">
+          <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-300">
+                Legacy local demo
+                history
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-gray-500">
+                These older browser
+                records are kept for
+                reference while the
+                app moves to the
+                server ledger.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-black/10 px-3 py-2 text-right">
+              <p className="text-[10px] uppercase tracking-wider text-gray-500">
+                Local unclaimed
+              </p>
+
+              <p className="text-sm font-bold text-gray-200">
+                {totalUnclaimedRewards.toLocaleString()}{" "}
+                points
+              </p>
+            </div>
+          </summary>
+
+          <div className="mt-4 space-y-4">
         {predictions.map(
           (
             prediction
@@ -2122,7 +2178,9 @@ export default function PredictionHistory() {
             );
           }
         )}
-      </div>
+          </div>
+        </details>
+      )}
     </section>
   );
 }

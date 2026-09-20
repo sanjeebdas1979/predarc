@@ -50,6 +50,22 @@ type ServerPrediction = {
   closes_at: string;
 };
 
+function isServerPredictionClosed(
+  prediction: ServerPrediction
+): boolean {
+  const closesAt =
+    Date.parse(
+      prediction.closes_at
+    );
+
+  return (
+    Number.isFinite(
+      closesAt
+    ) &&
+    closesAt <= Date.now()
+  );
+}
+
 function getMarketDecimals(
   market: PredictionMarket
 ): number {
@@ -319,6 +335,25 @@ export default function PredictionHistory() {
     useState(false);
 
   const [
+    serverProcessingId,
+    setServerProcessingId,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  const [
+    serverRecordMessages,
+    setServerRecordMessages,
+  ] =
+    useState<
+      Record<
+        string,
+        string
+      >
+    >({});
+
+  const [
     latestHashes,
     setLatestHashes,
   ] =
@@ -485,6 +520,114 @@ export default function PredictionHistory() {
         }
       },
       []
+    );
+
+  const settleServerPrediction =
+    useCallback(
+      async (
+        prediction: ServerPrediction
+      ) => {
+        setServerProcessingId(
+          prediction.id
+        );
+
+        setServerRecordMessages(
+          (
+            currentMessages
+          ) => ({
+            ...currentMessages,
+
+            [prediction.id]:
+              "Settling server result...",
+          })
+        );
+
+        try {
+          const response =
+            await fetch(
+              "/api/predictions/settle",
+              {
+                method:
+                  "POST",
+                credentials:
+                  "same-origin",
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
+                body:
+                  JSON.stringify(
+                    {
+                      predictionId:
+                        prediction.id,
+                      market:
+                        prediction.market,
+                    }
+                  ),
+              }
+            );
+
+          const result =
+            await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              typeof result?.error ===
+                "string"
+                ? result.error
+                : "Could not settle server prediction."
+            );
+          }
+
+          const status =
+            typeof result
+              ?.prediction
+              ?.status ===
+            "string"
+              ? result.prediction
+                  .status
+              : "settled";
+
+          setServerRecordMessages(
+            (
+              currentMessages
+            ) => ({
+              ...currentMessages,
+
+              [prediction.id]:
+                `Server result settled: ${status}.`,
+            })
+          );
+
+          window.dispatchEvent(
+            new Event(
+              SERVER_BALANCE_EVENT
+            )
+          );
+
+          await loadServerHistory();
+        } catch (error) {
+          setServerRecordMessages(
+            (
+              currentMessages
+            ) => ({
+              ...currentMessages,
+
+              [prediction.id]:
+                error instanceof Error
+                  ? error.message
+                  : "Could not settle server prediction.",
+            })
+          );
+        } finally {
+          setServerProcessingId(
+            null
+          );
+        }
+      },
+      [
+        loadServerHistory,
+      ]
     );
 
   /*
@@ -1418,13 +1561,30 @@ export default function PredictionHistory() {
             {serverPredictions.map(
               (
                 prediction
-              ) => (
-                <div
-                  key={
+              ) => {
+                const canSettleServerPrediction =
+                  prediction.status ===
+                    "pending" &&
+                  isServerPredictionClosed(
+                    prediction
+                  );
+
+                const isServerProcessing =
+                  serverProcessingId ===
+                  prediction.id;
+
+                const serverRecordMessage =
+                  serverRecordMessages[
                     prediction.id
-                  }
-                  className="rounded-xl border border-white/10 bg-black/10 p-4"
-                >
+                  ];
+
+                return (
+                  <div
+                    key={
+                      prediction.id
+                    }
+                    className="rounded-xl border border-white/10 bg-black/10 p-4"
+                  >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-bold text-white">
@@ -1478,8 +1638,36 @@ export default function PredictionHistory() {
                       </span>
                     </p>
                   </div>
+
+                  {serverRecordMessage ? (
+                    <p className="mt-3 text-xs text-purple-100">
+                      {
+                        serverRecordMessage
+                      }
+                    </p>
+                  ) : null}
+
+                  {canSettleServerPrediction ? (
+                    <button
+                      type="button"
+                      disabled={
+                        isServerProcessing
+                      }
+                      onClick={() => {
+                        void settleServerPrediction(
+                          prediction
+                        );
+                      }}
+                      className="mt-3 w-full rounded-xl bg-purple-300 px-4 py-2 text-xs font-bold uppercase text-black transition hover:bg-purple-200 disabled:cursor-wait disabled:opacity-50"
+                    >
+                      {isServerProcessing
+                        ? "Settling..."
+                        : "Settle server result"}
+                    </button>
+                  ) : null}
                 </div>
-              )
+                );
+              }
             )}
           </div>
         ) : (

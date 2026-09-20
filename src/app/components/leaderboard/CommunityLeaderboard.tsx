@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useAccount } from "wagmi";
 
+import { useServerPredictionStats } from "../hooks/useServerPredictionStats";
 import { useDemoPoints } from "../providers/DemoPointsProvider";
 
 type LeaderboardPlayer = {
@@ -23,8 +24,10 @@ function shortenAddress(address: string): string {
 export default function CommunityLeaderboard() {
   const { address } = useAccount();
   const { balance, predictions } = useDemoPoints();
+  const serverStats =
+    useServerPredictionStats();
 
-  const currentUserStats = useMemo(() => {
+  const localUserStats = useMemo(() => {
     const settledPredictions = predictions.filter(
       (prediction) => prediction.status !== "pending"
     );
@@ -48,6 +51,22 @@ export default function CommunityLeaderboard() {
       accuracy,
     };
   }, [predictions]);
+
+  const currentUserStats =
+    serverStats.isAuthenticated
+      ? {
+          wins:
+            serverStats.wins,
+          losses:
+            serverStats.losses,
+          accuracy:
+            serverStats.accuracy,
+        }
+      : localUserStats;
+
+  const currentUserPoints =
+    serverStats.balance ??
+    balance;
 
   const leaderboard = useMemo(() => {
     const demoPlayers: LeaderboardPlayer[] = [
@@ -116,7 +135,7 @@ export default function CommunityLeaderboard() {
       accuracy: currentUserStats.accuracy,
       wins: currentUserStats.wins,
       losses: currentUserStats.losses,
-      points: balance,
+      points: currentUserPoints,
       isCurrentUser: true,
     };
 
@@ -131,7 +150,7 @@ export default function CommunityLeaderboard() {
     );
   }, [
     address,
-    balance,
+    currentUserPoints,
     currentUserStats.accuracy,
     currentUserStats.wins,
     currentUserStats.losses,
@@ -167,6 +186,13 @@ export default function CommunityLeaderboard() {
         <p className="mt-2 text-sm text-gray-400">
           Ranked by current points, with accuracy used as a
           tiebreaker.
+        </p>
+
+        <p className="mt-2 text-xs text-gray-500">
+          {serverStats.isAuthenticated
+            ? "Your row uses live server ledger stats."
+            : serverStats.message ||
+              "Your row uses local demo stats until you sign in."}
         </p>
       </div>
 
@@ -278,8 +304,8 @@ export default function CommunityLeaderboard() {
       <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.02] p-4">
         <p className="text-xs leading-5 text-gray-500">
           Demo community profiles are placeholders. Your row
-          uses your live local prediction statistics and current
-          demo balance.
+          uses server ledger statistics when signed in and local
+          demo data as a fallback.
         </p>
       </div>
     </section>

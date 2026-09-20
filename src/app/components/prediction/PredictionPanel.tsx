@@ -102,6 +102,73 @@ function getErrorMessage(
   return "Onchain prediction failed. Please try again.";
 }
 
+async function submitServerPrediction(
+  market: PredictionMarket,
+  direction: Direction,
+  points: number,
+  durationSeconds: PredictionDuration
+): Promise<{
+  balance: string;
+  replayed: boolean;
+}> {
+  const response =
+    await fetch(
+      "/api/predictions/submit",
+      {
+        method: "POST",
+        credentials:
+          "same-origin",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body:
+          JSON.stringify(
+            {
+              requestId:
+                crypto
+                  .randomUUID(),
+              market,
+              direction,
+              points,
+              durationSeconds,
+            }
+          ),
+      }
+    );
+
+  const result =
+    await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      typeof result?.error ===
+        "string"
+        ? result.error
+        : "Server prediction failed."
+    );
+  }
+
+  if (
+    result?.authenticated !==
+      true ||
+    typeof result.balance !==
+      "string"
+  ) {
+    throw new Error(
+      "Server prediction returned an unexpected result."
+    );
+  }
+
+  return {
+    balance:
+      result.balance,
+    replayed:
+      result.replayed ===
+      true,
+  };
+}
+
 export default function PredictionPanel() {
   const {
     balance,
@@ -470,6 +537,19 @@ export default function PredictionPanel() {
         );
       }
 
+      setMessage(
+        "Arc transaction confirmed. Recording prediction in server ledger..."
+      );
+
+      const serverPrediction =
+        await submitServerPrediction(
+          selectedMarket as
+            PredictionMarket,
+          direction,
+          stake,
+          roundDuration
+        );
+
       const pointsSpent =
         spendPoints(
           stake
@@ -527,7 +607,9 @@ export default function PredictionPanel() {
       );
 
       setMessage(
-        "Onchain prediction confirmed successfully."
+        `Onchain prediction confirmed and server ledger recorded. Server balance: ${Number(
+          serverPrediction.balance
+        ).toLocaleString()} points.`
       );
     } catch (error) {
       console.error(

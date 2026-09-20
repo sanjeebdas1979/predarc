@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -31,6 +32,23 @@ const RPC_READ_TIMEOUT_MS =
 
 const RECEIPT_TIMEOUT_MS =
   45000;
+
+const SERVER_BALANCE_EVENT =
+  "predarc:server-balance";
+
+type ServerPrediction = {
+  id: string;
+  market: PredictionMarket;
+  direction:
+    | "higher"
+    | "lower";
+  points: number;
+  duration_seconds: number;
+  status: string;
+  entry_price: string;
+  accepted_at: string;
+  closes_at: string;
+};
 
 function getMarketDecimals(
   market: PredictionMarket
@@ -127,6 +145,33 @@ function formatDuration(
   }
 
   return "Not recorded";
+}
+
+function formatServerDate(
+  value: string
+): string {
+  const timestamp =
+    Date.parse(value);
+
+  if (
+    !Number.isFinite(
+      timestamp
+    )
+  ) {
+    return "Not recorded";
+  }
+
+  return new Date(
+    timestamp
+  ).toLocaleString(
+    [],
+    {
+      dateStyle:
+        "medium",
+      timeStyle:
+        "short",
+    }
+  );
 }
 
 function shortenHash(
@@ -254,6 +299,26 @@ export default function PredictionHistory() {
     >({});
 
   const [
+    serverPredictions,
+    setServerPredictions,
+  ] =
+    useState<
+      ServerPrediction[]
+    >([]);
+
+  const [
+    serverHistoryMessage,
+    setServerHistoryMessage,
+  ] =
+    useState("");
+
+  const [
+    isLoadingServerHistory,
+    setIsLoadingServerHistory,
+  ] =
+    useState(false);
+
+  const [
     latestHashes,
     setLatestHashes,
   ] =
@@ -264,6 +329,164 @@ export default function PredictionHistory() {
       >
     >({});
 
+  const loadServerHistory =
+    useCallback(
+      async () => {
+        setIsLoadingServerHistory(
+          true
+        );
+
+        try {
+          const response =
+            await fetch(
+              "/api/predictions",
+              {
+                cache:
+                  "no-store",
+                credentials:
+                  "same-origin",
+              }
+            );
+
+          const result =
+            await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              typeof result?.error ===
+                "string"
+                ? result.error
+                : "Could not load server prediction history."
+            );
+          }
+
+          const records =
+            Array.isArray(
+              result?.predictions
+            )
+              ? result.predictions
+              : [];
+
+          setServerPredictions(
+            records.flatMap(
+              (
+                record: unknown
+              ): ServerPrediction[] => {
+                if (
+                  typeof record !==
+                    "object" ||
+                  record === null ||
+                  !("id" in record) ||
+                  !("market" in record) ||
+                  !("direction" in record) ||
+                  !("points" in record) ||
+                  !("duration_seconds" in record) ||
+                  !("status" in record) ||
+                  !("entry_price" in record) ||
+                  !("accepted_at" in record) ||
+                  !("closes_at" in record)
+                ) {
+                  return [];
+                }
+
+                const points =
+                  Number(record.points);
+
+                const durationSeconds =
+                  Number(
+                    record.duration_seconds
+                  );
+
+                const entryPrice =
+                  Number(
+                    record.entry_price
+                  );
+
+                if (
+                  typeof record.id !==
+                    "string" ||
+                  typeof record.market !==
+                    "string" ||
+                  !(
+                    record.market ===
+                      "BTC" ||
+                    record.market ===
+                      "ETH" ||
+                    record.market ===
+                      "SOL" ||
+                    record.market ===
+                      "BNB" ||
+                    record.market ===
+                      "XRP"
+                  ) ||
+                  !(
+                    record.direction ===
+                      "higher" ||
+                    record.direction ===
+                      "lower"
+                  ) ||
+                  !Number.isFinite(
+                    points
+                  ) ||
+                  !Number.isFinite(
+                    durationSeconds
+                  ) ||
+                  !Number.isFinite(
+                    entryPrice
+                  ) ||
+                  typeof record.status !==
+                    "string" ||
+                  typeof record.accepted_at !==
+                    "string" ||
+                  typeof record.closes_at !==
+                    "string"
+                ) {
+                  return [];
+                }
+
+                return [
+                  {
+                    id:
+                      record.id,
+                    market:
+                      record.market,
+                    direction:
+                      record.direction,
+                    points,
+                    duration_seconds:
+                      durationSeconds,
+                    status:
+                      record.status,
+                    entry_price:
+                      entryPrice.toString(),
+                    accepted_at:
+                      record.accepted_at,
+                    closes_at:
+                      record.closes_at,
+                  },
+                ];
+              }
+            )
+          );
+
+          setServerHistoryMessage(
+            "Server prediction history refreshed."
+          );
+        } catch (error) {
+          setServerHistoryMessage(
+            error instanceof Error
+              ? error.message
+              : "Could not load server prediction history."
+          );
+        } finally {
+          setIsLoadingServerHistory(
+            false
+          );
+        }
+      },
+      []
+    );
+
   /*
    * Prevent automatic claim-sync
    * from repeatedly checking the
@@ -273,6 +496,32 @@ export default function PredictionHistory() {
     useRef<
       Set<number>
     >(new Set());
+
+  useEffect(() => {
+    void loadServerHistory();
+  }, [
+    loadServerHistory,
+  ]);
+
+  useEffect(() => {
+    function refreshServerHistory() {
+      void loadServerHistory();
+    }
+
+    window.addEventListener(
+      SERVER_BALANCE_EVENT,
+      refreshServerHistory
+    );
+
+    return () => {
+      window.removeEventListener(
+        SERVER_BALANCE_EVENT,
+        refreshServerHistory
+      );
+    };
+  }, [
+    loadServerHistory,
+  ]);
 
   function updateMessage(
     predictionId: number,
@@ -1125,6 +1374,120 @@ export default function PredictionHistory() {
             points
           </p>
         </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-purple-300/20 bg-purple-300/[0.04] p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-purple-200">
+              Server ledger records
+            </p>
+
+            <p className="mt-1 text-xs leading-5 text-gray-500">
+              Latest Supabase-backed
+              predictions for the
+              signed-in wallet.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            disabled={
+              isLoadingServerHistory
+            }
+            onClick={() => {
+              void loadServerHistory();
+            }}
+            className="rounded-xl bg-purple-300 px-4 py-2 text-xs font-bold text-black transition hover:bg-purple-200 disabled:cursor-wait disabled:opacity-50"
+          >
+            {isLoadingServerHistory
+              ? "Refreshing..."
+              : "Refresh server records"}
+          </button>
+        </div>
+
+        {serverHistoryMessage ? (
+          <p className="mt-3 text-xs text-purple-100">
+            {serverHistoryMessage}
+          </p>
+        ) : null}
+
+        {serverPredictions.length >
+        0 ? (
+          <div className="mt-4 grid gap-3">
+            {serverPredictions.map(
+              (
+                prediction
+              ) => (
+                <div
+                  key={
+                    prediction.id
+                  }
+                  className="rounded-xl border border-white/10 bg-black/10 p-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold text-white">
+                        {
+                          prediction.market
+                        }
+                        /USDT ·{" "}
+                        {prediction.direction.toUpperCase()}
+                      </p>
+
+                      <p className="mt-1 text-[11px] text-gray-500">
+                        Accepted{" "}
+                        {formatServerDate(
+                          prediction.accepted_at
+                        )}
+                      </p>
+                    </div>
+
+                    <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase text-gray-300">
+                      {
+                        prediction.status
+                      }
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
+                    <p className="text-gray-400">
+                      Stake:{" "}
+                      <span className="font-semibold text-white">
+                        {prediction.points.toLocaleString()}{" "}
+                        points
+                      </span>
+                    </p>
+
+                    <p className="text-gray-400">
+                      Entry:{" "}
+                      <span className="font-semibold text-white">
+                        $
+                        {Number(
+                          prediction.entry_price
+                        ).toLocaleString()}
+                      </span>
+                    </p>
+
+                    <p className="text-gray-400">
+                      Closes:{" "}
+                      <span className="font-semibold text-white">
+                        {formatServerDate(
+                          prediction.closes_at
+                        )}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-gray-500">
+            No server ledger
+            predictions loaded yet.
+          </p>
+        )}
       </div>
 
       {predictions.length ===

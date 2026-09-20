@@ -158,6 +158,7 @@ export default function DemoBalanceCard() {
           detail.balance
         )
       ) {
+        void checkServerBalance();
         return;
       }
 
@@ -186,69 +187,44 @@ export default function DemoBalanceCard() {
     };
   }, []);
 
+  useEffect(() => {
+    void checkServerBalance();
+  }, []);
+
   return (
     <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-5">
-      {/* Practice balance */}
+      {/* Server demo balance */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs text-gray-400">
-            Practice Balance
+            Server Demo Balance
           </p>
 
           <h2 className="mt-2 text-3xl font-black text-white">
-            {balance.toLocaleString()}
+            {serverBalance !== null
+              ? Number(
+                  serverBalance
+                ).toLocaleString()
+              : "—"}
 
-            <span className="ml-2 text-sm text-orange-400">
+            <span className="ml-2 text-sm text-purple-200">
               POINTS
             </span>
           </h2>
         </div>
 
-        <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-[9px] font-bold uppercase tracking-wide text-orange-400">
-          Demo
+        <span className="rounded-full border border-purple-300/30 bg-purple-300/10 px-3 py-1 text-[9px] font-bold uppercase tracking-wide text-purple-200">
+          Server
         </span>
       </div>
 
       <p className="mt-3 text-xs leading-5 text-gray-500">
-        Practice points have no cash value and cannot be
-        transferred or redeemed.
+        Supabase-backed testnet points are used for the
+        current Predarc demo. They have no cash value and
+        cannot be transferred or redeemed.
       </p>
 
-      {/* Server demo balance */}
       <div className="mt-4 rounded-2xl border border-purple-300/20 bg-purple-300/5 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-purple-200">
-              Server Demo Balance
-            </p>
-
-            <p className="mt-2 text-sm leading-5 text-gray-400">
-              Sign in with wallet to create or read your
-              Supabase-backed testnet points.
-            </p>
-
-            {serverBalance !== null ? (
-              <p className="mt-3 text-2xl font-black text-white">
-                {Number(
-                  serverBalance
-                ).toLocaleString()}
-
-                <span className="ml-2 text-sm text-purple-200">
-                  POINTS
-                </span>
-              </p>
-            ) : null}
-          </div>
-
-          <span
-            className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-              serverBalance !== null
-                ? "bg-emerald-400"
-                : "bg-purple-300"
-            }`}
-          />
-        </div>
-
         <button
           type="button"
           onClick={() => {
@@ -267,6 +243,17 @@ export default function DemoBalanceCard() {
             {serverBalanceMessage}
           </p>
         ) : null}
+
+        <div className="mt-3 rounded-xl border border-white/10 bg-black/10 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+            Legacy local balance
+          </p>
+
+          <p className="mt-1 text-xs text-gray-400">
+            {balance.toLocaleString()} local points remain in
+            this browser for old demo history only.
+          </p>
+        </div>
       </div>
 
       {/* Arc wallet balance */}
@@ -343,9 +330,9 @@ export default function DemoBalanceCard() {
         <button
           type="button"
           onClick={resetPoints}
-          className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-300 transition hover:border-orange-500 hover:text-orange-400"
+          className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-400 transition hover:border-purple-300/50 hover:text-purple-200"
         >
-          Reset Practice Points
+          Reset Legacy Local Points
         </button>
       </div>
 

@@ -1,9 +1,10 @@
 import { createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { arcTestnet, mainnet } from "viem/chains";
+import { arcMainnet } from "./daily";
 
 export const wagmiConfig = createConfig({
-  chains: [arcTestnet, mainnet],
+  chains: [arcTestnet, arcMainnet, mainnet],
 
   connectors: [
     injected({
@@ -12,8 +13,9 @@ export const wagmiConfig = createConfig({
   ],
 
   transports: {
+    [arcMainnet.id]: http("https://rpc.mainnet.arc.io"),
     [arcTestnet.id]: http(
-      "https://rpc.testnet.arc.network"
+      "https://rpc.testnet.arc.io"
     ),
 
     [mainnet.id]: http(

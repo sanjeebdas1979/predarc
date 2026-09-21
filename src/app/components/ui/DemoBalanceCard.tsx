@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
   useAccount,
   useBalance,
   useChainId,
@@ -35,8 +40,23 @@ function formatDisplayedBalance(
   });
 }
 
+const SERVER_BALANCE_EVENT =
+  "predarc:server-balance";
+
 export default function DemoBalanceCard() {
   const { balance, resetPoints } = useDemoPoints();
+  const [
+    serverBalance,
+    setServerBalance,
+  ] = useState<string | null>(null);
+  const [
+    serverBalanceMessage,
+    setServerBalanceMessage,
+  ] = useState("");
+  const [
+    isCheckingServerBalance,
+    setIsCheckingServerBalance,
+  ] = useState(false);
 
   const {
     address,
@@ -77,33 +97,164 @@ export default function DemoBalanceCard() {
     await refetch();
   }
 
+  async function checkServerBalance(): Promise<void> {
+    setIsCheckingServerBalance(true);
+    setServerBalanceMessage("");
+
+    try {
+      const response =
+        await fetch("/api/account", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok ||
+        result?.authenticated !== true ||
+        typeof result.balance !== "string"
+      ) {
+        throw new Error(
+          typeof result?.error === "string"
+            ? result.error
+            : "Server balance check failed."
+        );
+      }
+
+      setServerBalance(
+        result.balance
+      );
+
+      setServerBalanceMessage(
+        `Server balance checked successfully (HTTP ${response.status}).`
+      );
+    } catch (error) {
+      setServerBalanceMessage(
+        error instanceof Error
+          ? error.message
+          : "Server balance check failed."
+      );
+    } finally {
+      setIsCheckingServerBalance(false);
+    }
+  }
+
+  useEffect(() => {
+    function handleServerBalance(
+      event: Event
+    ) {
+      const detail =
+        (event as CustomEvent<{
+          balance?: unknown;
+          message?: unknown;
+        }>).detail;
+
+      if (
+        typeof detail?.balance !==
+          "string" ||
+        !/^(0|[1-9][0-9]*)$/.test(
+          detail.balance
+        )
+      ) {
+        void checkServerBalance();
+        return;
+      }
+
+      setServerBalance(
+        detail.balance
+      );
+
+      setServerBalanceMessage(
+        typeof detail.message ===
+          "string"
+          ? detail.message
+          : "Server balance updated after prediction."
+      );
+    }
+
+    window.addEventListener(
+      SERVER_BALANCE_EVENT,
+      handleServerBalance
+    );
+
+    return () => {
+      window.removeEventListener(
+        SERVER_BALANCE_EVENT,
+        handleServerBalance
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    void checkServerBalance();
+  }, []);
+
   return (
     <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-5">
-      {/* Practice balance */}
+      {/* Server demo balance */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs text-gray-400">
-            Practice Balance
+            Server Demo Balance
           </p>
 
           <h2 className="mt-2 text-3xl font-black text-white">
-            {balance.toLocaleString()}
+            {serverBalance !== null
+              ? Number(
+                  serverBalance
+                ).toLocaleString()
+              : "—"}
 
-            <span className="ml-2 text-sm text-orange-400">
+            <span className="ml-2 text-sm text-purple-200">
               POINTS
             </span>
           </h2>
         </div>
 
-        <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-[9px] font-bold uppercase tracking-wide text-orange-400">
-          Demo
+        <span className="rounded-full border border-purple-300/30 bg-purple-300/10 px-3 py-1 text-[9px] font-bold uppercase tracking-wide text-purple-200">
+          Server
         </span>
       </div>
 
       <p className="mt-3 text-xs leading-5 text-gray-500">
-        Practice points have no cash value and cannot be
-        transferred or redeemed.
+        Supabase-backed testnet points are used for the
+        current Predarc demo. They have no cash value and
+        cannot be transferred or redeemed.
       </p>
+
+      <div className="mt-4 rounded-2xl border border-purple-300/20 bg-purple-300/5 p-4">
+        <button
+          type="button"
+          onClick={() => {
+            void checkServerBalance();
+          }}
+          disabled={isCheckingServerBalance}
+          className="mt-3 w-full rounded-xl bg-purple-300 px-4 py-3 text-sm font-bold text-black transition hover:bg-purple-200 disabled:cursor-wait disabled:opacity-50"
+        >
+          {isCheckingServerBalance
+            ? "Checking Balance..."
+            : "Check Server Balance"}
+        </button>
+
+        {serverBalanceMessage ? (
+          <p className="mt-3 text-xs leading-5 text-purple-100">
+            {serverBalanceMessage}
+          </p>
+        ) : null}
+
+        <div className="mt-3 rounded-xl border border-white/10 bg-black/10 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+            Legacy local balance
+          </p>
+
+          <p className="mt-1 text-xs text-gray-400">
+            {balance.toLocaleString()} local points remain in
+            this browser for old demo history only.
+          </p>
+        </div>
+      </div>
 
       {/* Arc wallet balance */}
       <div className="mt-4 rounded-2xl border border-white/10 bg-black/10 p-4">
@@ -179,9 +330,9 @@ export default function DemoBalanceCard() {
         <button
           type="button"
           onClick={resetPoints}
-          className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-300 transition hover:border-orange-500 hover:text-orange-400"
+          className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-400 transition hover:border-purple-300/50 hover:text-purple-200"
         >
-          Reset Practice Points
+          Reset Legacy Local Points
         </button>
       </div>
 

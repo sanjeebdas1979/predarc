@@ -2,12 +2,15 @@
 
 import { useMemo } from "react";
 
+import { useServerPredictionStats } from "../hooks/useServerPredictionStats";
 import { useDemoPoints } from "../providers/DemoPointsProvider";
 
 export default function Leaderboard() {
   const { balance, predictions } = useDemoPoints();
+  const serverStats =
+    useServerPredictionStats();
 
-  const stats = useMemo(() => {
+  const localStats = useMemo(() => {
     const settledPredictions = predictions.filter(
       (prediction) => prediction.status !== "pending"
     );
@@ -33,6 +36,26 @@ export default function Leaderboard() {
       accuracy,
     };
   }, [predictions]);
+
+  const stats =
+    serverStats.isAuthenticated
+      ? {
+          totalPredictions:
+            serverStats.totalPredictions,
+          settledPredictions:
+            serverStats.settledPredictions,
+          wins:
+            serverStats.wins,
+          losses:
+            serverStats.losses,
+          accuracy:
+            serverStats.accuracy,
+        }
+      : localStats;
+
+  const displayedBalance =
+    serverStats.balance ??
+    balance;
 
   const userRank =
     stats.settledPredictions === 0
@@ -74,8 +97,15 @@ export default function Leaderboard() {
           </h2>
 
           <p className="mt-2 max-w-xl text-sm text-gray-400">
-            Your rank is calculated from settled predictions and current
-            forecasting accuracy.
+            Your rank uses server ledger records when signed in,
+            with local demo history as a fallback.
+          </p>
+
+          <p className="mt-2 text-xs text-gray-500">
+            {serverStats.isAuthenticated
+              ? "Server stats active."
+              : serverStats.message ||
+                "Local demo stats active."}
           </p>
         </div>
 
@@ -179,11 +209,13 @@ export default function Leaderboard() {
           </p>
 
           <p className="mt-2 text-2xl font-bold text-white">
-            {balance.toLocaleString()} points
+            {displayedBalance.toLocaleString()} points
           </p>
 
           <p className="mt-2 text-xs text-gray-500">
-            Your available demo balance.
+            {serverStats.isAuthenticated
+              ? "Your Supabase-backed server demo balance."
+              : "Your local demo balance."}
           </p>
         </div>
 

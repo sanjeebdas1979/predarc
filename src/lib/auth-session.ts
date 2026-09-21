@@ -5,7 +5,10 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const authChainId = 5042002;
 export function localAuthConfigured() {
-  return process.env.PREDARC_APP_ORIGIN === "http://localhost:3000"
+  const appOrigin = process.env.PREDARC_APP_ORIGIN;
+
+  return typeof appOrigin === "string"
+    && /^https?:\/\/[^/]+$/.test(appOrigin)
     && Number(process.env.PREDARC_AUTH_CHAIN_ID) === authChainId;
 }
 export function authReply(body: object, status = 200) {

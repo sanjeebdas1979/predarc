@@ -11,6 +11,23 @@ export function localAuthConfigured() {
     && /^https?:\/\/[^/]+$/.test(appOrigin)
     && Number(process.env.PREDARC_AUTH_CHAIN_ID) === authChainId;
 }
+export function requestOriginAllowed(request: NextRequest) {
+  const appOrigin = process.env.PREDARC_APP_ORIGIN;
+  if (typeof appOrigin !== "string") return false;
+
+  const requestOrigin = request.headers.get("origin");
+  if (requestOrigin && requestOrigin !== appOrigin) return false;
+
+  const forwardedHost =
+    request.headers.get("x-forwarded-host") ?? request.nextUrl.host;
+  const forwardedProto =
+    request.headers.get("x-forwarded-proto") ??
+    request.nextUrl.protocol.replace(":", "");
+
+  if (!forwardedHost) return false;
+
+  return `${forwardedProto}://${forwardedHost}` === appOrigin;
+}
 export function authReply(body: object, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", Vary: "Cookie" } });
 }

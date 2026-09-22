@@ -23,11 +23,6 @@ export async function POST(request: NextRequest) {
     if (appUrl.origin !== configuredOrigin) {
       return reply({ error: "Use an app origin without a trailing slash or path." }, 503);
     }
-    // This first challenge endpoint is limited to local testing until the
-    // complete login flow and durable request limits are implemented.
-    if (appUrl.origin !== "http://localhost:3000") {
-      return reply({ error: "Wallet login is currently available for local testing only." }, 503);
-    }
     if (request.headers.get("origin") !== appUrl.origin) {
       return reply({ error: "Invalid request origin." }, 403);
     }
@@ -100,3 +95,4 @@ export async function POST(request: NextRequest) {
     return reply({ error: "Sign-in service is temporarily unavailable." }, 503);
   }
 }
+

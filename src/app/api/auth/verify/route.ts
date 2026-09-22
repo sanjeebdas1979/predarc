@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
   try {
     const origin = process.env.PREDARC_APP_ORIGIN;
     const chainId = Number(process.env.PREDARC_AUTH_CHAIN_ID);
-    if (origin !== "http://localhost:3000" || chainId !== 5042002) {
-      return reply({ error: "Local Arc Testnet login is not configured." }, 503);
+    if (!origin || chainId !== 5042002) {
+      return reply({ error: "Arc Testnet login is not configured." }, 503);
     }
     if (request.headers.get("origin") !== origin) {
       return reply({ error: "Invalid request origin." }, 403);
@@ -145,3 +145,5 @@ export async function POST(request: NextRequest) {
     return reply({ error: "Sign-in service is temporarily unavailable." }, 503);
   }
 }
+
+

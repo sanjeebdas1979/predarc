@@ -4,6 +4,7 @@ import {
   localAuthConfigured,
   readAuthSession,
   requestOriginAllowed,
+  sessionHash,
 } from "@/lib/auth-session";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -23,28 +24,52 @@ type PredictionRow = {
   settled_at?: string | null;
   result?: string | null;
   exit_price?: number | string | null;
-  reward_points?: number | string | null;
-  claim_status?: string | null;
-  claimed_at?: string | null;
 };
 
-type AccountRpcRow = {
+type AccountResult = {
+  wallet?: string | null;
+  balance?: number | string | null;
   points?: number | string | null;
   total_predictions?: number | string | null;
   wins?: number | string | null;
   losses?: number | string | null;
   rewards_claimed?: number | string | null;
   updated_at?: string | null;
+  sessionExpiresAt?: string | null;
 };
 
-function normalizePrediction(row: PredictionRow) {
+type ClaimLedgerRow = {
+  source_id?: string | null;
+  delta?: number | string | null;
+  created_at?: string | null;
+};
+
+function normalizeAccount(account: AccountResult | null, wallet: string) {
+  if (!account) return null;
+
+  const points = account.points ?? account.balance ?? 0;
+
+  return {
+    wallet,
+    points: Number(points ?? 0),
+    totalPredictions: Number(account.total_predictions ?? 0),
+    wins: Number(account.wins ?? 0),
+    losses: Number(account.losses ?? 0),
+    rewardsClaimed: Number(account.rewards_claimed ?? 0),
+    updatedAt: account.updated_at ?? account.sessionExpiresAt ?? null,
+  };
+}
+
+function normalizePrediction(
+  row: PredictionRow,
+  claimByPredictionId: Map<string, ClaimLedgerRow>
+) {
   const stakePoints = Number(row.points ?? 0);
-  const rewardPoints = Number(row.reward_points ?? 0);
   const status = String(row.status ?? "accepted").toLowerCase();
   const result = row.result ? String(row.result).toLowerCase() : null;
-  const claimStatus = row.claim_status
-    ? String(row.claim_status).toLowerCase()
-    : null;
+  const claim = claimByPredictionId.get(row.id);
+  const rewardPoints = claim ? Number(claim.delta ?? 0) : 0;
+  const claimStatus = claim ? "claimed" : null;
 
   return {
     id: row.id,
@@ -61,7 +86,7 @@ function normalizePrediction(row: PredictionRow) {
         : Number(row.exit_price),
     rewardPoints,
     claimStatus,
-    claimedAt: row.claimed_at ?? null,
+    claimedAt: claim?.created_at ?? null,
     acceptedAt: row.accepted_at,
     closesAt: row.closes_at,
     settledAt: row.settled_at ?? null,
@@ -70,7 +95,6 @@ function normalizePrediction(row: PredictionRow) {
     canClaim:
       status === "settled" &&
       result === "won" &&
-      rewardPoints > 0 &&
       claimStatus !== "claimed",
   };
 }
@@ -94,20 +118,18 @@ export async function GET(request: NextRequest) {
     }
 
     const wallet = session.wallet.toLowerCase();
+    const tokenHash = sessionHash(request);
 
     const { data: accountResult } = await getSupabaseAdmin()
-      .rpc("predarc_get_or_create_account", {
-        p_wallet: wallet,
-        p_starting_points: 1000,
+      .rpc("predarc_account_v1", {
+        p_session_hash: tokenHash,
       })
       .single();
-
-    const account = accountResult as AccountRpcRow | null;
 
     const { data, error } = await getSupabaseAdmin()
       .from("predarc_predictions")
       .select(
-        "id,market,direction,points,duration_seconds,status,entry_price,accepted_at,closes_at,settled_at,result,exit_price,reward_points,claim_status,claimed_at"
+        "id,market,direction,points,duration_seconds,status,entry_price,accepted_at,closes_at,settled_at,result,exit_price"
       )
       .eq("wallet", wallet)
       .order("accepted_at", { ascending: false })
@@ -115,22 +137,29 @@ export async function GET(request: NextRequest) {
 
     if (error) throw new Error("Prediction history lookup failed");
 
-    const predictions = ((data ?? []) as unknown as PredictionRow[]).map(
-      normalizePrediction
+    const predictionRows = (data ?? []) as PredictionRow[];
+    const predictionIds = predictionRows.map((row) => row.id);
+    const claimByPredictionId = new Map<string, ClaimLedgerRow>();
+
+    if (predictionIds.length > 0) {
+      const { data: claimRows } = await getSupabaseAdmin()
+        .from("predarc_points_ledger")
+        .select("source_id,delta,created_at")
+        .eq("wallet", wallet)
+        .eq("kind", "claim_credit")
+        .in("source_id", predictionIds);
+
+      for (const claim of (claimRows ?? []) as ClaimLedgerRow[]) {
+        if (claim.source_id) claimByPredictionId.set(claim.source_id, claim);
+      }
+    }
+
+    const predictions = predictionRows.map((row) =>
+      normalizePrediction(row, claimByPredictionId)
     );
 
     return authReply({
-      account: account
-        ? {
-            wallet,
-            points: Number(account.points ?? 0),
-            totalPredictions: Number(account.total_predictions ?? 0),
-            wins: Number(account.wins ?? 0),
-            losses: Number(account.losses ?? 0),
-            rewardsClaimed: Number(account.rewards_claimed ?? 0),
-            updatedAt: account.updated_at ?? null,
-          }
-        : null,
+      account: normalizeAccount(accountResult as AccountResult | null, wallet),
       predictions,
     });
   } catch (error) {

@@ -379,8 +379,7 @@ export default function PredictionHistory() {
               {
                 cache:
                   "no-store",
-                credentials:
-                  "same-origin",
+                credentials: "include",
               }
             );
 
@@ -554,8 +553,7 @@ export default function PredictionHistory() {
               {
                 method:
                   "POST",
-                credentials:
-                  "same-origin",
+                credentials: "include",
                 headers: {
                   "Content-Type":
                     "application/json",
@@ -662,8 +660,7 @@ export default function PredictionHistory() {
               {
                 method:
                   "POST",
-                credentials:
-                  "same-origin",
+                credentials: "include",
                 headers: {
                   "Content-Type":
                     "application/json",
@@ -2184,4 +2181,5 @@ export default function PredictionHistory() {
     </section>
   );
 }
+
 

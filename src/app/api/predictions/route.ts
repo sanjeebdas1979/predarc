@@ -97,7 +97,7 @@ function normalizePrediction(
   };
 }
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   if (!localAuthConfigured()) {
     return authReply(
       { error: "Prediction history is available only in the local testnet setup." },
@@ -180,3 +180,4 @@ export async function GET(request: NextRequest) {
     return authReply({ error: "Unable to load prediction history." }, 500);
   }
 }
+

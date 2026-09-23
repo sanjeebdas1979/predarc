@@ -20,9 +20,7 @@ type PredictionRow = {
   entry_price: number | string;
   accepted_at: string;
   closes_at: string;
-  settled_at?: string | null;
-  result?: string | null;
-  exit_price?: number | string | null;
+  settled_at?: string | null;  exit_price?: number | string | null;
 };
 
 type AccountResult = {
@@ -64,9 +62,10 @@ function normalizePrediction(
 ) {
   const stakePoints = Number(row.points ?? 0);
   const status = String(row.status ?? "accepted").toLowerCase();
-  const result = row.result ? String(row.result).toLowerCase() : null;
+  const result =
+    status === "won" || status === "lost" || status === "void" ? status : null;
   const claim = claimByPredictionId.get(row.id);
-  const rewardPoints = claim ? Number(claim.delta ?? 0) : 0;
+  const rewardPoints = claim ? Number(claim.delta ?? 0) : status === "won" ? stakePoints * 2 : 0;
   const claimStatus = claim ? "claimed" : null;
 
   return {
@@ -89,11 +88,9 @@ function normalizePrediction(
     closesAt: row.closes_at,
     settledAt: row.settled_at ?? null,
     result,
-    canSettle: status === "accepted" && Date.parse(row.closes_at) <= Date.now(),
+    canSettle: status === "pending" && Date.parse(row.closes_at) <= Date.now(),
     canClaim:
-      status === "settled" &&
-      result === "won" &&
-      claimStatus !== "claimed",
+      status === "won" && claimStatus !== "claimed",
   };
 }
 
@@ -142,7 +139,7 @@ async function handlePredictionHistory(request: NextRequest) {
     const { data, error } = await getSupabaseAdmin()
       .from("predarc_predictions")
       .select(
-        "id,market,direction,points,duration_seconds,status,entry_price,accepted_at,closes_at,settled_at,result,exit_price"
+        "id,market,direction,points,duration_seconds,status,entry_price,accepted_at,closes_at,settled_at,exit_price"
       )
       .eq("wallet", wallet)
       .order("accepted_at", { ascending: false })
@@ -189,3 +186,4 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return handlePredictionHistory(request);
 }
+

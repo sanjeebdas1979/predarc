@@ -138,14 +138,12 @@ export function useServerPredictionStats(): ServerStats {
           ] = await Promise.all([
             fetch("/api/account", {
               method: "POST",
-              credentials:
-                "same-origin",
+              credentials: "include",
             }),
             fetch("/api/predictions", {
               cache:
                 "no-store",
-              credentials:
-                "same-origin",
+              credentials: "include",
             }),
           ]);
 
@@ -357,4 +355,5 @@ export function useServerPredictionStats(): ServerStats {
     refresh,
   };
 }
+
 

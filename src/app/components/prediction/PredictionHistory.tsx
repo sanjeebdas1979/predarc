@@ -415,12 +415,12 @@ export default function PredictionHistory() {
                   !("market" in record) ||
                   !("direction" in record) ||
                   !("points" in record) ||
-                  !("duration_seconds" in record) ||
+                  !("durationSeconds" in record) ||
                   !("status" in record) ||
-                  !("entry_price" in record) ||
-                  !("accepted_at" in record) ||
-                  !("closes_at" in record) ||
-                  !("claimed" in record)
+                  !("entryPrice" in record) ||
+                  !("acceptedAt" in record) ||
+                  !("closesAt" in record) ||
+                  !("claimStatus" in record)
                 ) {
                   return [];
                 }
@@ -430,12 +430,12 @@ export default function PredictionHistory() {
 
                 const durationSeconds =
                   Number(
-                    record.duration_seconds
+                    record.durationSeconds
                   );
 
                 const entryPrice =
                   Number(
-                    record.entry_price
+                    record.entryPrice
                   );
 
                 if (
@@ -472,9 +472,9 @@ export default function PredictionHistory() {
                   ) ||
                   typeof record.status !==
                     "string" ||
-                  typeof record.accepted_at !==
+                  typeof record.acceptedAt !==
                     "string" ||
-                  typeof record.closes_at !==
+                  typeof record.closesAt !==
                     "string"
                 ) {
                   return [];
@@ -496,12 +496,11 @@ export default function PredictionHistory() {
                     entry_price:
                       entryPrice.toString(),
                     accepted_at:
-                      record.accepted_at,
+                      record.acceptedAt,
                     closes_at:
-                      record.closes_at,
+                      record.closesAt,
                     claimed:
-                      record.claimed ===
-                      true,
+                      record.claimStatus === "claimed",
                   },
                 ];
               }
@@ -2181,5 +2180,9 @@ export default function PredictionHistory() {
     </section>
   );
 }
+
+
+
+
 
 

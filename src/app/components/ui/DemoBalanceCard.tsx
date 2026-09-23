@@ -109,13 +109,15 @@ export default function DemoBalanceCard() {
         });
 
       const result =
-        await response.json();
+        await response.json();      const nextServerBalance =
+        typeof result?.points === "number" && Number.isFinite(result.points)
+          ? String(result.points)
+          : typeof result?.balance === "string" &&
+              /^(0|[1-9][0-9]*)$/.test(result.balance)
+            ? result.balance
+            : null;
 
-      if (
-        !response.ok ||
-        result?.authenticated !== true ||
-        typeof result.balance !== "string"
-      ) {
+      if (!response.ok || nextServerBalance === null) {
         throw new Error(
           typeof result?.error === "string"
             ? result.error
@@ -123,9 +125,7 @@ export default function DemoBalanceCard() {
         );
       }
 
-      setServerBalance(
-        result.balance
-      );
+      setServerBalance(nextServerBalance);
 
       setServerBalanceMessage(
         `Server balance checked successfully (HTTP ${response.status}).`
@@ -345,3 +345,4 @@ export default function DemoBalanceCard() {
     </section>
   );
 }
+

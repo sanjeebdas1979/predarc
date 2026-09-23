@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import {
   authReply,
   localAuthConfigured,
-  readAuthSession,
   requestOriginAllowed,
   sessionHash,
 } from "@/lib/auth-session";
@@ -46,7 +45,6 @@ type ClaimLedgerRow = {
 
 function normalizeAccount(account: AccountResult | null, wallet: string) {
   if (!account) return null;
-
   const points = account.points ?? account.balance ?? 0;
 
   return {
@@ -112,13 +110,28 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const session = await readAuthSession(request);
-    if (!session) {
+    const tokenHash = sessionHash(request);
+    if (!tokenHash) {
       return authReply({ predictions: [], account: null }, 200);
     }
 
-    const wallet = session.wallet.toLowerCase();
-    const tokenHash = sessionHash(request);
+    const { data: session, error: sessionError } = await getSupabaseAdmin()
+      .from("predarc_auth_sessions")
+      .select("wallet,expires_at")
+      .eq("token_hash", tokenHash)
+      .maybeSingle();
+
+    if (sessionError) throw new Error("Session lookup failed");
+
+    if (
+      !session ||
+      !(Date.parse(String(session.expires_at)) > Date.now()) ||
+      !String(session.wallet).startsWith("0x")
+    ) {
+      return authReply({ predictions: [], account: null }, 200);
+    }
+
+    const wallet = String(session.wallet).toLowerCase();
 
     const { data: accountResult } = await getSupabaseAdmin()
       .rpc("predarc_account_v1", {

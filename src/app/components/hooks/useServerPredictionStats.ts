@@ -357,3 +357,4 @@ export function useServerPredictionStats(): ServerStats {
     refresh,
   };
 }
+

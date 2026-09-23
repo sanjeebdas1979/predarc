@@ -152,15 +152,25 @@ async function handlePredictionHistory(request: NextRequest) {
     const claimByPredictionId = new Map<string, ClaimLedgerRow>();
 
     if (predictionIds.length > 0) {
+      const claimSourceIds = predictionIds.map(
+        (predictionId) => `claim:${predictionId}`
+      );
+
       const { data: claimRows } = await getSupabaseAdmin()
         .from("predarc_points_ledger")
         .select("source_id,delta,created_at")
         .eq("wallet", wallet)
         .eq("kind", "claim_credit")
-        .in("source_id", predictionIds);
+        .in("source_id", claimSourceIds);
 
       for (const claim of (claimRows ?? []) as ClaimLedgerRow[]) {
-        if (claim.source_id) claimByPredictionId.set(claim.source_id, claim);
+        if (typeof claim.source_id !== "string") continue;
+
+        const predictionId = claim.source_id.startsWith("claim:")
+          ? claim.source_id.slice("claim:".length)
+          : claim.source_id;
+
+        claimByPredictionId.set(predictionId, claim);
       }
     }
 
@@ -186,4 +196,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return handlePredictionHistory(request);
 }
+
+
 

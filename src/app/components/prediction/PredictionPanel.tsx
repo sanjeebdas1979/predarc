@@ -113,6 +113,7 @@ async function submitServerPrediction(
 ): Promise<{
   balance: string;
   replayed: boolean;
+  entryPrice: number;
 }> {
   const response =
     await fetch(
@@ -163,12 +164,23 @@ async function submitServerPrediction(
     );
   }
 
+  const entryPrice = Number(
+    result.prediction?.entry_price
+  );
+
+  if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+    throw new Error(
+      "Server prediction returned an invalid entry price."
+    );
+  }
+
   return {
     balance:
       result.balance,
     replayed:
       result.replayed ===
       true,
+    entryPrice,
   };
 }
 
@@ -587,6 +599,9 @@ export default function PredictionPanel() {
 
           transactionHash:
             hash,
+
+          entryPrice:
+            serverPrediction.entryPrice,
         },
         selectedMarket as
           PredictionMarket

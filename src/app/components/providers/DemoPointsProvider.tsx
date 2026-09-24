@@ -633,6 +633,62 @@ export function DemoPointsProvider({
   }, []);
 
   /*
+   * Sync the server ledger balance into the active prediction balance.
+   */
+  useEffect(() => {
+    if (!hasLoadedStorage) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function syncServerBalance() {
+      try {
+        const response = await fetch("/api/account", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const result = await response.json();
+        const nextBalance = Number(
+          result?.points ?? result?.balance
+        );
+
+        if (
+          !cancelled &&
+          result?.authenticated === true &&
+          Number.isSafeInteger(nextBalance) &&
+          nextBalance >= 0
+        ) {
+          updateBalance(nextBalance);
+        }
+      } catch {
+        // Keep the local balance if the server is unavailable.
+      }
+    }
+
+    void syncServerBalance();
+
+    function refreshServerBalance() {
+      void syncServerBalance();
+    }
+
+    window.addEventListener(
+      "predarc:server-balance",
+      refreshServerBalance
+    );
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        "predarc:server-balance",
+        refreshServerBalance
+      );
+    };
+  }, [hasLoadedStorage, updateBalance]);
+
+  /*
    * Persist predictions and balance.
    */
   useEffect(() => {
@@ -1273,3 +1329,5 @@ export function useDemoPoints():
 
   return context;
 }
+
+

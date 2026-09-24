@@ -110,6 +110,8 @@ type AddPredictionOnchainData = {
 
   transactionHash?:
     `0x${string}`;
+
+  entryPrice?: number;
 };
 
 type DemoPointsContextValue = {
@@ -824,7 +826,7 @@ export function DemoPointsProvider({
             false,
 
           startPrice:
-            null,
+            onchainData?.entryPrice ?? null,
 
           endPrice:
             null,

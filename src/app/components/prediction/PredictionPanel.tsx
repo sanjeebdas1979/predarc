@@ -51,7 +51,11 @@ function formatDuration(
 
   if (duration === 300) {
     return "5 Minutes";
+  }  if (duration === 3600) {
+    return "1 Hour";
   }
+
+
 
   return "15 Minutes";
 }
@@ -303,6 +307,7 @@ export default function PredictionPanel() {
     60,
     300,
     900,
+            3600,
   ];
 
   const quickStakeOptions = [

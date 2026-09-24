@@ -57,7 +57,8 @@ function isMarket(
 
 async function fetchBinanceClosePrice(
   market: Market,
-  closesAt: string
+  closesAt: string,
+  durationSeconds: number
 ): Promise<{
   price: number;
   observedAt: string;
@@ -68,8 +69,23 @@ async function fetchBinanceClosePrice(
     throw new Error("Prediction close time is invalid.");
   }
 
+  const interval =
+    durationSeconds === 60
+      ? "1m"
+      : durationSeconds === 300
+        ? "5m"
+        : durationSeconds === 900
+          ? "15m"
+          : durationSeconds === 3600
+            ? "1h"
+            : null;
+
+  if (!interval) {
+    throw new Error("Prediction duration is invalid.");
+  }
+
   const candleStart =
-    Math.floor(closeTime / 60000) * 60000;
+    closeTime - durationSeconds * 1000;
 
   let lastError: Error | null = null;
 
@@ -92,7 +108,7 @@ async function fetchBinanceClosePrice(
       );
       url.searchParams.set(
         "interval",
-        "1m"
+        interval
       );
       url.searchParams.set(
         "startTime",
@@ -241,7 +257,7 @@ export async function POST(
     const { data: predictionRecord, error: predictionLookupError } =
       await getSupabaseAdmin()
         .from("predarc_predictions")
-        .select("closes_at")
+        .select("closes_at,duration_seconds")
         .eq("id", input.predictionId)
         .eq("wallet", session.wallet.toLowerCase())
         .maybeSingle();
@@ -263,7 +279,8 @@ export async function POST(
     const quote =
       await fetchBinanceClosePrice(
         input.market,
-        String(predictionRecord.closes_at)
+        String(predictionRecord.closes_at),
+        Number(predictionRecord.duration_seconds)
       );
 
     const { data, error } =

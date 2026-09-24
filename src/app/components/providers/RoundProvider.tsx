@@ -32,7 +32,8 @@ export type RoundStatus =
 export type PredictionDuration =
   | 60
   | 300
-  | 900;
+  | 900
+  | 3600;
 
 type RoundContextValue = {
   roundNumber: number;
@@ -479,6 +480,7 @@ export function RoundProvider({
             60,
             300,
             900,
+            3600,
           ].includes(
             duration
           )
@@ -659,6 +661,8 @@ export function RoundProvider({
         ? "1m"
         : roundDuration === 300
           ? "5m"
+          : roundDuration === 3600
+          ? "1h"
           : "15m";
 
     /*

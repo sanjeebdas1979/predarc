@@ -100,6 +100,10 @@ function formatDuration(
     return "5 Minutes";
   }
 
+  if (duration === 3600) {
+    return "1 Hour";
+  }
+
   if (duration === 900) {
     return "15 Minutes";
   }

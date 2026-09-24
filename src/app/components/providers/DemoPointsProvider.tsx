@@ -23,7 +23,8 @@ export type PredictionStatus =
 export type PredictionDuration =
   | 60
   | 300
-  | 900;
+  | 900
+  | 3600;
 
 export type PredictionMarket =
   | "BTC"
@@ -233,6 +234,7 @@ function normalizeDuration(
   if (
     duration === 60 ||
     duration === 300 ||
+    duration === 3600 ||
     duration === 900
   ) {
     return duration;

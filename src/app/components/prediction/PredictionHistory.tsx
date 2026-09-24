@@ -147,6 +147,7 @@ function formatDuration(
     | 60
     | 300
     | 900
+  | 3600
     | null
 ): string {
   if (duration === 60) {
@@ -155,6 +156,10 @@ function formatDuration(
 
   if (duration === 300) {
     return "5 Minutes";
+  }
+
+  if (duration === 3600) {
+    return "1 Hour";
   }
 
   if (duration === 900) {

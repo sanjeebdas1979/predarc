@@ -50,6 +50,7 @@ const durations =
     60,
     300,
     900,
+            3600,
   ]);
 
 const binanceEndpoints = [

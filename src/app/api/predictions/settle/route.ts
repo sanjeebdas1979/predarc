@@ -55,52 +55,61 @@ function isMarket(
   );
 }
 
-async function fetchBinancePrice(
-  market: Market
+async function fetchBinanceClosePrice(
+  market: Market,
+  closesAt: string
 ): Promise<{
   price: number;
   observedAt: string;
 }> {
-  let lastError:
-    Error | null = null;
+  const closeTime = Date.parse(closesAt);
 
-  for (
-    const baseUrl of binanceEndpoints
-  ) {
-    const controller =
-      new AbortController();
+  if (!Number.isFinite(closeTime)) {
+    throw new Error("Prediction close time is invalid.");
+  }
 
-    const timeout =
-      setTimeout(
-        () => controller.abort(),
-        8000
-      );
+  const candleStart =
+    Math.floor(closeTime / 60000) * 60000;
+
+  let lastError: Error | null = null;
+
+  for (const baseUrl of binanceEndpoints) {
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      8000
+    );
 
     try {
-      const url =
-        new URL(
-          "/api/v3/ticker/price",
-          baseUrl
-        );
+      const url = new URL(
+        "/api/v3/klines",
+        baseUrl
+      );
 
       url.searchParams.set(
         "symbol",
         `${market}USDT`
       );
+      url.searchParams.set(
+        "interval",
+        "1m"
+      );
+      url.searchParams.set(
+        "startTime",
+        String(candleStart)
+      );
+      url.searchParams.set(
+        "limit",
+        "1"
+      );
 
-      const response =
-        await fetch(
-          url,
-          {
-            cache: "no-store",
-            signal:
-              controller.signal,
-            headers: {
-              Accept:
-                "application/json",
-            },
-          }
-        );
+      const response = await fetch(url, {
+        cache: "no-store",
+        signal: controller.signal,
+        headers: {
+          Accept: "application/json",
+        },
+      });
 
       if (!response.ok) {
         throw new Error(
@@ -108,53 +117,38 @@ async function fetchBinancePrice(
         );
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
+      const price = Number(data?.[0]?.[4]);
 
-      const price =
-        Number(
-          data?.price
-        );
-
-      if (
-        !Number.isFinite(
-          price
-        ) ||
-        price <= 0
-      ) {
+      if (!Number.isFinite(price) || price <= 0) {
         throw new Error(
-          "Binance returned an invalid price."
+          "Binance returned an invalid historical price."
         );
       }
 
       return {
         price,
-        observedAt:
-          new Date()
-            .toISOString(),
+        observedAt: closesAt,
       };
     } catch (error) {
       lastError =
         error instanceof Error
           ? error
           : new Error(
-              "Unknown Binance price error."
+              "Unknown Binance historical price error."
             );
     } finally {
-      clearTimeout(
-        timeout
-      );
+      clearTimeout(timeout);
     }
   }
 
   throw (
     lastError ??
     new Error(
-      "All Binance price endpoints failed."
+      "All Binance historical price endpoints failed."
     )
   );
 }
-
 export async function POST(
   request: NextRequest
 ) {
@@ -244,10 +238,32 @@ export async function POST(
         400
       );
     }
+    const { data: predictionRecord, error: predictionLookupError } =
+      await getSupabaseAdmin()
+        .from("predarc_predictions")
+        .select("closes_at")
+        .eq("id", input.predictionId)
+        .eq("wallet", session.wallet.toLowerCase())
+        .maybeSingle();
+
+    if (predictionLookupError) {
+      throw new Error("Prediction close time lookup failed");
+    }
+
+    if (!predictionRecord?.closes_at) {
+      return authReply(
+        {
+          error:
+            "Prediction was not found for this wallet.",
+        },
+        404
+      );
+    }
 
     const quote =
-      await fetchBinancePrice(
-        input.market
+      await fetchBinanceClosePrice(
+        input.market,
+        String(predictionRecord.closes_at)
       );
 
     const { data, error } =
@@ -367,3 +383,7 @@ export async function POST(
     );
   }
 }
+
+
+
+

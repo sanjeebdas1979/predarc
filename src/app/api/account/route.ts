@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import {
-  authReply,
+authChainId,
+authReply,
   localAuthConfigured,
   requestOriginAllowed,
   sessionHash,
@@ -50,7 +51,10 @@ export async function POST(request: NextRequest) {
     const account = accountResult as AccountRpcResult;
 
     return authReply({
+      authenticated: true,
       wallet: account.wallet ?? null,
+      chainId: authChainId,
+      balance: String(account.balance ?? 0),
       points: Number(account.balance ?? 0),
       totalPredictions: 0,
       wins: 0,
@@ -63,3 +67,4 @@ export async function POST(request: NextRequest) {
     return authReply({ error: "Unable to load account." }, 500);
   }
 }
+

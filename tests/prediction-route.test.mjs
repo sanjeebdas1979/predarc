@@ -20,6 +20,29 @@ function loadPostRoute(path) {
     const calls = [];
     const reply = (body, status = 200) => ({ body, status });
     const client = () => ({
+      from() {
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      maybeSingle: async () => ({
+                        data: {
+                          closes_at: '2026-09-23T12:18:39.570939+00:00',
+                        },
+                        error: null,
+                      }),
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+
       rpc(name, args) {
         calls.push({ name, args });
         return {
@@ -72,7 +95,27 @@ async function withMockFetch(result, fn) {
     return {
       ok: result.ok ?? true,
       status: result.status ?? 200,
-      json: async () => result.body ?? { price: '123.45' },
+      json: async () => {
+        if (String(url).includes('/klines')) {
+          if (Array.isArray(result.body)) {
+            return result.body;
+          }
+
+          const price =
+            result.body?.price ?? '1.37';
+
+          return [[
+            0,
+            String(price),
+            String(price),
+            String(price),
+            String(price),
+            '100',
+          ]];
+        }
+
+        return result.body ?? { price: '123.45' };
+      },
     };
   };
   try {
@@ -247,3 +290,6 @@ test('claim route claims through RPC and maps domain failures', async () => {
     assert.equal(JSON.stringify(claimResult).includes('private'), false);
   }
 });
+
+
+

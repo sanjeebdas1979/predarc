@@ -18,6 +18,7 @@ import {
 
 import {
   useBtcPrice,
+  type BtcTimeframe,
 } from "./BtcPriceProvider";
 
 export type RoundDirection =
@@ -122,6 +123,18 @@ function getRemainingSeconds(
         1000
     )
   );
+}
+
+function durationForTimeframe(
+  value: BtcTimeframe
+): PredictionDuration {
+  return value === "1m"
+    ? 60
+    : value === "5m"
+      ? 300
+      : value === "15m"
+        ? 900
+        : 3600;
 }
 const RoundContext =
   createContext<
@@ -298,6 +311,71 @@ export function RoundProvider({
     Boolean(
       currentRoundPrediction
     );
+
+  const chartDuration =
+    durationForTimeframe(
+      timeframe
+    );
+
+  const chartDurationPrediction =
+    predictions.find(
+      (prediction) =>
+        prediction.duration ===
+          chartDuration &&
+        prediction.status ===
+          "pending"
+    );
+
+  useEffect(() => {
+    if (
+      chartDurationPrediction ||
+      roundDuration === chartDuration
+    ) {
+      return;
+    }
+
+    const currentPrice =
+      latestPriceMarketRef.current ===
+        selectedMarket
+        ? latestPriceRef.current
+        : null;
+
+    setRoundDuration(chartDuration);
+    setStatus("open");
+    setResult(null);
+    setEndPrice(null);
+    setStartPrice(currentPrice);
+
+    startPriceRef.current =
+      currentPrice;
+
+    startPriceMarketRef.current =
+      currentPrice !== null
+        ? selectedMarket
+        : null;
+
+    settledRoundRef.current =
+      null;
+
+    const nextBoundary =
+      getNextBoundaryTimestamp(
+        chartDuration
+      );
+
+    roundEndsAtRef.current =
+      nextBoundary;
+
+    setTimeLeft(
+      getRemainingSeconds(
+        nextBoundary
+      )
+    );
+  }, [
+    chartDuration,
+    chartDurationPrediction,
+    roundDuration,
+    selectedMarket,
+  ]);
 
   const canChangeDuration =
     status === "open" &&

@@ -181,15 +181,23 @@ export async function POST(
   }
 
   const origin =
-    process.env
-      .PREDARC_APP_ORIGIN;
+    process.env.PREDARC_APP_ORIGIN;
+
+  const allowedOrigins = new Set([
+    origin,
+  ]);
+
+  if (origin === "https://predarc.xyz") {
+    allowedOrigins.add("https://www.predarc.xyz");
+  }
+
+  if (origin === "https://www.predarc.xyz") {
+    allowedOrigins.add("https://predarc.xyz");
+  }
 
   if (
-    request.headers.get(
-      "origin"
-    ) !== origin ||
-    request.nextUrl.origin !==
-      origin
+    !allowedOrigins.has(request.nextUrl.origin) ||
+    !allowedOrigins.has(request.headers.get("origin") ?? "")
   ) {
     return authReply(
       {

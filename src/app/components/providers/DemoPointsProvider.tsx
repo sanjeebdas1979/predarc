@@ -151,7 +151,8 @@ type DemoPointsContextValue = {
     result: PredictionDirection,
     startPrice: number,
     endPrice: number,
-    market?: PredictionMarket
+    market?: PredictionMarket,
+    duration?: PredictionDuration
   ) => void;
 
   setResolveTransaction: (
@@ -888,7 +889,9 @@ export function DemoPointsProvider({
         startPrice: number,
         endPrice: number,
         market?:
-          PredictionMarket
+          PredictionMarket,
+        duration?:
+          PredictionDuration
       ): void => {
         if (
           !Number.isFinite(
@@ -922,9 +925,16 @@ export function DemoPointsProvider({
                 prediction.market ===
                   market;
 
+              const matchesDuration =
+                duration ===
+                  undefined ||
+                prediction.duration ===
+                  duration;
+
               if (
                 !matchesRound ||
                 !matchesMarket ||
+                !matchesDuration ||
                 prediction.status !==
                   "pending"
               ) {

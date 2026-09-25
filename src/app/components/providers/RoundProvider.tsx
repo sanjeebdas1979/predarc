@@ -288,6 +288,8 @@ export function RoundProvider({
       (prediction) =>
         prediction.roundNumber ===
           roundNumber &&
+        prediction.duration ===
+          roundDuration &&
         prediction.status ===
           "pending"
     );
@@ -874,7 +876,8 @@ export function RoundProvider({
       marketResult,
       openingPrice,
       closingPrice,
-      roundMarket
+      roundMarket,
+      roundDuration
     );
 
     /*

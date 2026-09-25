@@ -15,6 +15,18 @@ function reply(body: object, status = 200) {
 export async function POST(request: NextRequest) {
   try {
     const configuredOrigin = process.env.PREDARC_APP_ORIGIN;
+    const allowedOrigins = new Set([
+      configuredOrigin,
+    ]);
+
+    if (configuredOrigin === "https://predarc.xyz") {
+      allowedOrigins.add("https://www.predarc.xyz");
+    }
+
+    if (configuredOrigin === "https://www.predarc.xyz") {
+      allowedOrigins.add("https://predarc.xyz");
+    }
+
     const chainId = Number(process.env.PREDARC_AUTH_CHAIN_ID);
     if (!configuredOrigin || chainId !== 5042002) {
       return reply({ error: "Arc Testnet login is not configured." }, 503);
@@ -23,7 +35,9 @@ export async function POST(request: NextRequest) {
     if (appUrl.origin !== configuredOrigin) {
       return reply({ error: "Use an app origin without a trailing slash or path." }, 503);
     }
-    if (request.headers.get("origin") !== appUrl.origin) {
+    if (!allowedOrigins.has(
+      request.headers.get("origin") ?? ""
+    )) {
       return reply({ error: "Invalid request origin." }, 403);
     }
     if (!request.headers.get("content-type")?.startsWith("application/json")) {

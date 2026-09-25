@@ -6,8 +6,25 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const configuredOrigin =
+    process.env.PREDARC_APP_ORIGIN;
+
+  const allowedOrigins = new Set([
+    configuredOrigin,
+  ]);
+
+  if (configuredOrigin === "https://predarc.xyz") {
+    allowedOrigins.add("https://www.predarc.xyz");
+  }
+
+  if (configuredOrigin === "https://www.predarc.xyz") {
+    allowedOrigins.add("https://predarc.xyz");
+  }
+
   if (!localAuthConfigured()) return authReply({ error: "Local login is not configured." }, 503);
-  if (request.headers.get("origin") !== process.env.PREDARC_APP_ORIGIN) {
+  if (!allowedOrigins.has(
+      request.headers.get("origin") ?? ""
+    )) {
     return authReply({ error: "Invalid request origin." }, 403);
   }
   try {

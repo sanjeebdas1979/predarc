@@ -18,12 +18,26 @@ function hash(value: string) {
 // Local Arc Testnet prototype. Supports ordinary EOA wallets, not contract wallets.
 export async function POST(request: NextRequest) {
   try {
-    const origin = process.env.PREDARC_APP_ORIGIN;
+    const configuredOrigin = process.env.PREDARC_APP_ORIGIN;
+    const allowedOrigins = new Set([
+      configuredOrigin,
+    ]);
+
+    if (configuredOrigin === "https://predarc.xyz") {
+      allowedOrigins.add("https://www.predarc.xyz");
+    }
+
+    if (configuredOrigin === "https://www.predarc.xyz") {
+      allowedOrigins.add("https://predarc.xyz");
+    }
+
     const chainId = Number(process.env.PREDARC_AUTH_CHAIN_ID);
-    if (!origin || chainId !== 5042002) {
+    if (!configuredOrigin || chainId !== 5042002) {
       return reply({ error: "Arc Testnet login is not configured." }, 503);
     }
-    if (request.headers.get("origin") !== origin) {
+    if (!allowedOrigins.has(
+      request.headers.get("origin") ?? ""
+    )) {
       return reply({ error: "Invalid request origin." }, 403);
     }
     if (!request.headers.get("content-type")?.startsWith("application/json")) {
@@ -78,9 +92,9 @@ export async function POST(request: NextRequest) {
     // Never accept a client-supplied message, address, network or expiry.
     const lines = String(challenge.message).split("\n");
     if (!isAddress(challenge.wallet)
-      || lines[0] !== `${new URL(origin).host} wants you to sign in with your Ethereum account:`
+      || lines[0] !== `${new URL(configuredOrigin).host} wants you to sign in with your Ethereum account:`
       || lines[1]?.toLowerCase() !== challenge.wallet
-      || !lines.includes(`URI: ${origin}`)
+      || !lines.includes(`URI: ${configuredOrigin}`)
       || !lines.includes(`Chain ID: ${chainId}`)
       || !lines.includes(`Expiration Time: ${new Date(challenge.expires_at).toISOString()}`)
       || new Date(challenge.created_at).getTime() > Date.now()) {

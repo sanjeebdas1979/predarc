@@ -11,23 +11,49 @@ export function localAuthConfigured() {
     && /^https?:\/\/[^/]+$/.test(appOrigin)
     && Number(process.env.PREDARC_AUTH_CHAIN_ID) === authChainId;
 }
-export function requestOriginAllowed(request: NextRequest) {
-  const appOrigin = process.env.PREDARC_APP_ORIGIN;
-  if (typeof appOrigin !== "string") return false;
+export function requestOriginAllowed(
+  request: NextRequest
+) {
+  const configuredOrigin =
+    process.env.PREDARC_APP_ORIGIN;
 
-  const requestOrigin = request.headers.get("origin");
-  if (requestOrigin && requestOrigin !== appOrigin) return false;
+  if (typeof configuredOrigin !== "string") {
+    return false;
+  }
+
+  const allowedOrigins = new Set([
+    configuredOrigin,
+    "https://predarc.xyz",
+    "https://www.predarc.xyz",
+  ]);
+
+  const requestOrigin =
+    request.headers.get("origin");
+
+  if (
+    requestOrigin &&
+    !allowedOrigins.has(requestOrigin)
+  ) {
+    return false;
+  }
 
   const forwardedHost =
-    request.headers.get("x-forwarded-host") ?? request.nextUrl.host;
+    request.headers.get("x-forwarded-host") ??
+    request.nextUrl.host;
+
   const forwardedProto =
     request.headers.get("x-forwarded-proto") ??
     request.nextUrl.protocol.replace(":", "");
 
-  if (!forwardedHost) return false;
+  if (!forwardedHost) {
+    return false;
+  }
 
-  return `${forwardedProto}://${forwardedHost}` === appOrigin;
+  return allowedOrigins.has(
+    `${forwardedProto}://${forwardedHost}`
+  );
 }
+
 export function authReply(body: object, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", Vary: "Cookie" } });
 }

@@ -738,7 +738,7 @@ export default function PredictionPanel() {
               )}
           </div>
 
-          <div className="mt-2 grid grid-cols-3 gap-2">
+          <div className="mt-2 grid grid-cols-4 gap-2">
             {durationOptions.map(
               (
                 duration
@@ -774,7 +774,10 @@ export default function PredictionPanel() {
                         : duration ===
                             300
                           ? "5m"
-                          : "15m"}
+                          : duration ===
+                              900
+                            ? "15m"
+                            : "1h"}
                     </span>
 
                     <span className="mt-0.5 block text-[8px] uppercase tracking-wide opacity-60">
@@ -784,7 +787,10 @@ export default function PredictionPanel() {
                         : duration ===
                             300
                           ? "Standard"
-                          : "Extended"}
+                          : duration ===
+                              900
+                            ? "Extended"
+                            : "Long"}
                     </span>
                   </button>
                 );

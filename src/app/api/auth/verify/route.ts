@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
     }
 
     const chainId = Number(process.env.PREDARC_AUTH_CHAIN_ID);
-    if (!configuredOrigin || chainId !== 5042002) {
-      return reply({ error: "Arc Testnet login is not configured." }, 503);
+    if (!configuredOrigin || ![5042002, 5042].includes(chainId)) {
+      return reply({ error: "Arc login is not configured." }, 503);
     }
     if (!allowedOrigins.has(
       request.headers.get("origin") ?? ""

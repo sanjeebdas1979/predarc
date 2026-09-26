@@ -7,12 +7,15 @@ import {
   useWriteContract,
 } from "wagmi";
 
-import { arcTestnet } from "viem/chains";
-
 import {
   FORECAST_REGISTRY_V2_ABI,
-  FORECAST_REGISTRY_V2_ADDRESS,
 } from "../../contracts/forecastRegistryV2";
+
+import {
+  forecastChainId,
+  forecastNetworkLabel,
+  forecastRegistryAddress,
+} from "@/lib/forecast-network";
 
 import {
   useDemoPoints,
@@ -215,7 +218,7 @@ export default function PredictionPanel() {
   const publicClient =
     usePublicClient({
       chainId:
-        arcTestnet.id,
+        forecastChainId,
     });
 
   const {
@@ -505,7 +508,7 @@ export default function PredictionPanel() {
         await writeContractAsync(
           {
             address:
-              FORECAST_REGISTRY_V2_ADDRESS,
+              forecastRegistryAddress,
 
             abi:
               FORECAST_REGISTRY_V2_ABI,
@@ -524,7 +527,7 @@ export default function PredictionPanel() {
             ],
 
             chainId:
-              arcTestnet.id,
+              forecastChainId,
           }
         );
 
@@ -537,7 +540,7 @@ export default function PredictionPanel() {
       );
 
       setMessage(
-        `Waiting for Arc Testnet confirmation for ${selectedMarket} forecast...`
+        `Waiting for ${forecastNetworkLabel} confirmation for ${selectedMarket} forecast...`
       );
 
       const receipt =

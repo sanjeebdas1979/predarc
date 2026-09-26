@@ -13,13 +13,14 @@ import {
 } from "wagmi";
 
 import {
-  arcTestnet,
-} from "viem/chains";
+  FORECAST_REGISTRY_V2_ABI,
+} from "../../contracts/forecastRegistryV2";
 
 import {
-  FORECAST_REGISTRY_V2_ABI,
-  FORECAST_REGISTRY_V2_ADDRESS,
-} from "../../contracts/forecastRegistryV2";
+  forecastChainId,
+  forecastNetworkLabel,
+  forecastRegistryAddress,
+} from "@/lib/forecast-network";
 
 import {
   useDemoPoints,
@@ -280,7 +281,7 @@ export default function PredictionHistory() {
   const publicClient =
     usePublicClient({
       chainId:
-        arcTestnet.id,
+        forecastChainId,
     });
 
   const {
@@ -809,7 +810,7 @@ export default function PredictionHistory() {
     const request =
       publicClient.readContract({
         address:
-          FORECAST_REGISTRY_V2_ADDRESS,
+          forecastRegistryAddress,
 
         abi:
           FORECAST_REGISTRY_V2_ABI,
@@ -994,7 +995,7 @@ export default function PredictionHistory() {
       const onchainForecast =
         await publicClient.readContract({
           address:
-            FORECAST_REGISTRY_V2_ADDRESS,
+            forecastRegistryAddress,
 
           abi:
             FORECAST_REGISTRY_V2_ABI,
@@ -1142,7 +1143,7 @@ export default function PredictionHistory() {
       const hash =
         await writeContractAsync({
           address:
-            FORECAST_REGISTRY_V2_ADDRESS,
+            forecastRegistryAddress,
 
           abi:
             FORECAST_REGISTRY_V2_ABI,
@@ -1159,7 +1160,7 @@ export default function PredictionHistory() {
           ],
 
           chainId:
-            arcTestnet.id,
+            forecastChainId,
         });
 
       setLatestHashes(
@@ -1326,7 +1327,7 @@ export default function PredictionHistory() {
         await writeContractAsync(
           {
             address:
-              FORECAST_REGISTRY_V2_ADDRESS,
+              forecastRegistryAddress,
 
             abi:
               FORECAST_REGISTRY_V2_ABI,
@@ -1341,7 +1342,7 @@ export default function PredictionHistory() {
             ],
 
             chainId:
-              arcTestnet.id,
+              forecastChainId,
           }
         );
 

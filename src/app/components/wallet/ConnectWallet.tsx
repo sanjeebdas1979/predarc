@@ -22,7 +22,7 @@ import {
   type Hash,
 } from "viem";
 
-import { arcTestnet } from "viem/chains";
+import { forecastChainId, forecastNetworkLabel } from "@/lib/forecast-network";
 
 import { useVerification } from "../providers/VerificationProvider";
 
@@ -137,13 +137,13 @@ function getErrorMessage(
       "insufficient funds"
     )
   ) {
-    return "Not enough Arc Testnet USDC for transaction gas.";
+    return `Not enough ${forecastNetworkLabel} USDC for transaction gas.`;
   }
 
   if (
     message.includes("reverted")
   ) {
-    return "The verification transaction reverted on Arc Testnet.";
+    return `The verification transaction reverted on ${forecastNetworkLabel}.`;
   }
 
   return "Verification could not be confirmed. Please check Arc Explorer or try again.";
@@ -163,7 +163,7 @@ export default function ConnectWallet() {
 
   const publicClient =
     usePublicClient({
-      chainId: arcTestnet.id,
+      chainId: forecastChainId,
     });
 
   const {
@@ -381,7 +381,7 @@ export default function ConnectWallet() {
           !address
         ) {
           setVerificationError(
-            "Arc Testnet client is unavailable. Refresh the page and try again."
+            `${forecastNetworkLabel} client is unavailable. Refresh the page and try again.`
           );
 
           return false;
@@ -396,7 +396,7 @@ export default function ConnectWallet() {
         );
 
         setVerificationMessage(
-          "Checking Arc Testnet confirmation..."
+          `Checking ${forecastNetworkLabel} confirmation...`
         );
 
         try {
@@ -450,7 +450,7 @@ export default function ConnectWallet() {
                 );
 
                 setVerificationError(
-                  "The verification transaction reverted on Arc Testnet."
+                  `The verification transaction reverted on ${forecastNetworkLabel}.`
                 );
 
                 return false;
@@ -570,10 +570,10 @@ export default function ConnectWallet() {
 
     if (
       chainId !==
-      arcTestnet.id
+      forecastChainId
     ) {
       setVerificationError(
-        "Switch to Arc Testnet first."
+        `Switch to ${forecastNetworkLabel} first.`
       );
 
       return;
@@ -595,7 +595,7 @@ export default function ConnectWallet() {
               ),
 
             chainId:
-              arcTestnet.id,
+              forecastChainId,
           }
         );
 
@@ -609,7 +609,7 @@ export default function ConnectWallet() {
       );
 
       setVerificationMessage(
-        "Transaction submitted. Checking Arc Testnet..."
+        `Transaction submitted. Checking ${forecastNetworkLabel}...`
       );
 
       await confirmTransaction(
@@ -687,7 +687,7 @@ export default function ConnectWallet() {
       !isConnected ||
       !address ||
       chainId !==
-        arcTestnet.id ||
+        forecastChainId ||
       isVerified
     ) {
       return;
@@ -766,7 +766,7 @@ export default function ConnectWallet() {
 
   if (
     chainId !==
-    arcTestnet.id
+    forecastChainId
   ) {
     return (
       <div className="flex flex-col items-center gap-2">
@@ -784,14 +784,14 @@ export default function ConnectWallet() {
           onClick={() =>
             switchChain({
               chainId:
-                arcTestnet.id,
+                forecastChainId,
             })
           }
           className="rounded-xl bg-yellow-400 px-6 py-3 font-semibold text-black disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSwitching
             ? "Switching..."
-            : "Switch To Arc Testnet"}
+            : `Switch To ${forecastNetworkLabel}`}
         </button>
 
         {switchError && (

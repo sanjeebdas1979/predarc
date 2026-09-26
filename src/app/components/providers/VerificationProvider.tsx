@@ -11,7 +11,7 @@ import {
 } from "react";
 
 import { useAccount } from "wagmi";
-import { arcTestnet } from "viem/chains";
+import { forecastChainId } from "@/lib/forecast-network";
 
 type VerificationContextValue = {
   isVerified: boolean;
@@ -55,7 +55,7 @@ export function VerificationProvider({
     if (
       !isConnected ||
       !address ||
-      chainId !== arcTestnet.id
+      chainId !== forecastChainId
     ) {
       setIsVerified(false);
       return;
@@ -171,7 +171,7 @@ export function VerificationProvider({
 
       if (
         !isConnected ||
-        chainId !== arcTestnet.id
+        chainId !== forecastChainId
       ) {
         setIsVerified(false);
         return;

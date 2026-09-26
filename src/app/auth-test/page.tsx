@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount, useConfig, useConnect, useDisconnect, useSignMessage, useSwitchChain } from "wagmi";
+import { forecastChainId, forecastNetworkLabel } from "@/lib/forecast-network";
 import { getAccount } from "wagmi/actions";
 
 type Session = { wallet: string; chainId: number; expiresAt: string };
 
-const chain = 5042002;
+const chain = forecastChainId;
 const button = "rounded-xl bg-purple-300 hover:bg-purple-200 px-5 py-3 font-bold text-black disabled:opacity-40";
 
 export default function AuthTestPage() {
@@ -98,7 +99,7 @@ export default function AuthTestPage() {
     if (session || sessionStatus !== "Not signed in") return;
     setAccount(null);
     const initial = getAccount(config);
-    if (!initial.address || initial.chainId !== chain) throw new Error("Connect on Arc Testnet first.");
+    if (!initial.address || initial.chainId !== chain) throw new Error(`Connect on ${forecastNetworkLabel} first.`);
     const wallet = initial.address;
     function checkWallet() {
       const current = getAccount(config);
@@ -144,7 +145,7 @@ export default function AuthTestPage() {
     const connected = getAccount(config);
     if (!connected.isConnected || connected.address?.toLowerCase() !== expectedWallet
       || connected.chainId !== chain) {
-      throw new Error("Connect the signed-in wallet on Arc Testnet first.");
+      throw new Error(`Connect the signed-in wallet on ${forecastNetworkLabel} first.`);
     }
     setMessage("Checking your server demo balance…");
     const response = await fetch("/api/account", {
@@ -222,7 +223,7 @@ export default function AuthTestPage() {
             </button>
           ))}
           {!session && sessionStatus === "Not signed in" && isConnected && chainId !== chain && <button className={button} disabled={busy}
-            onClick={() => void run(async () => { await switchChainAsync({ chainId: chain }); })}>Switch to Arc Testnet</button>}
+            onClick={() => void run(async () => { await switchChainAsync({ chainId: chain }); })}>Switch to {forecastNetworkLabel}</button>}
           {!session && sessionStatus === "Not signed in" && isConnected && chainId === chain &&
             <button className={button} disabled={busy}
               onClick={() => void run(signIn)}>{busy ? "Please wait…" : "Sign in with wallet"}</button>}

@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     const chainId = Number(process.env.PREDARC_AUTH_CHAIN_ID);
+    const networkLabel = chainId === 5042 ? "Arc Mainnet" : "Arc Testnet";
     if (!configuredOrigin || ![5042002, 5042].includes(chainId)) {
       return reply({ error: "Arc login is not configured." }, 503);
     }
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
       `${appUrl.host} wants you to sign in with your Ethereum account:`,
       address,
       "",
-      "Sign in to Predarc on Arc Testnet. This does not send a transaction or grant token approval.",
+      `Sign in to Predarc on ${networkLabel}. This does not send a transaction or grant token approval.`,
       "",
       `URI: ${appUrl.origin}`,
       "Version: 1",

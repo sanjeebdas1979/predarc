@@ -212,21 +212,34 @@ export default function ActivePredictionCard() {
   const [isResolvedOnchain, setIsResolvedOnchain] =
     useState(false);
 
-  const currentPrediction = useMemo(
-    () =>
-      predictions.find(
+  const currentPrediction = useMemo(() => {
+    const pending = predictions.filter(
+      (prediction) => prediction.status === "pending"
+    );
+
+    return (
+      pending.find(
         (prediction) =>
           prediction.roundNumber === roundNumber &&
           prediction.market === roundMarket &&
-          prediction.duration === roundDuration &&
-          prediction.status === "pending"
-      ) ?? null,
-    [
-      predictions,
-      roundNumber,
-      roundMarket,
-      roundDuration,
-    ]
+          prediction.duration === roundDuration
+      ) ?? pending[0] ?? null
+    );
+  }, [
+    predictions,
+    roundNumber,
+    roundMarket,
+    roundDuration,
+  ]);
+
+  const otherActivePredictions = useMemo(
+    () =>
+      predictions.filter(
+        (prediction) =>
+          prediction.status === "pending" &&
+          prediction.id !== currentPrediction?.id
+      ),
+    [predictions, currentPrediction?.id]
   );
 
   useEffect(() => {
@@ -509,6 +522,41 @@ export default function ActivePredictionCard() {
 
   return (
     <section className="rounded-2xl border border-white/10 bg-[#0d121a] p-4">
+      {otherActivePredictions.length > 0 && (
+        <div className="mb-4 rounded-xl border border-blue-500/20 bg-blue-500/[0.04] p-3">
+          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-blue-300">
+            Other active predictions
+          </p>
+
+          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {otherActivePredictions.map((prediction) => (
+              <div
+                key={prediction.id}
+                className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-white">
+                    {prediction.market} ? {formatDuration(prediction.duration)}
+                  </span>
+
+                  <span className={
+                    prediction.direction === "higher"
+                      ? "text-xs font-black text-emerald-400"
+                      : "text-xs font-black text-rose-400"
+                  }>
+                    {prediction.direction === "higher" ? "? HIGHER" : "? LOWER"}
+                  </span>
+                </div>
+
+                <p className="mt-1 text-[10px] text-gray-400">
+                  {prediction.points.toLocaleString()} points ? LIVE
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Compact header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5">

@@ -3,7 +3,10 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
-export const authChainId = 5042002;
+export const authChainId =
+  Number(process.env.PREDARC_AUTH_CHAIN_ID) === 5042
+    ? 5042
+    : 5042002;
 export function localAuthConfigured() {
   const appOrigin = process.env.PREDARC_APP_ORIGIN;
 

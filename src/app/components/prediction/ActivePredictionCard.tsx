@@ -9,12 +9,15 @@ import {
   usePublicClient,
   useWriteContract,
 } from "wagmi";
-import { arcTestnet } from "viem/chains";
-
 import {
   FORECAST_REGISTRY_V2_ABI,
-  FORECAST_REGISTRY_V2_ADDRESS,
 } from "../../contracts/forecastRegistryV2";
+
+import {
+  forecastChainId,
+  forecastNetworkLabel,
+  forecastRegistryAddress,
+} from "@/lib/forecast-network";
 
 import { useBtcPrice } from "../providers/BtcPriceProvider";
 import { useDemoPoints } from "../providers/DemoPointsProvider";
@@ -190,7 +193,7 @@ export default function ActivePredictionCard() {
   } = useRound();
 
   const publicClient = usePublicClient({
-    chainId: arcTestnet.id,
+    chainId: forecastChainId,
   });
 
   const {
@@ -387,21 +390,21 @@ export default function ActivePredictionCard() {
 
       const hash = await writeContractAsync({
         address:
-          FORECAST_REGISTRY_V2_ADDRESS,
+          forecastRegistryAddress,
         abi: FORECAST_REGISTRY_V2_ABI,
         functionName: "resolveForecast",
         args: [
           BigInt(forecastId),
           scaledFinalPrice,
         ],
-        chainId: arcTestnet.id,
+        chainId: forecastChainId,
       });
 
       setLatestTransactionHash(hash);
       setIsConfirmingTransaction(true);
 
       setTransactionMessage(
-        "Waiting for Arc Testnet resolution confirmation..."
+        `Waiting for ${forecastNetworkLabel} resolution confirmation...`
       );
 
       const receipt =
@@ -464,18 +467,18 @@ export default function ActivePredictionCard() {
 
       const hash = await writeContractAsync({
         address:
-          FORECAST_REGISTRY_V2_ADDRESS,
+          forecastRegistryAddress,
         abi: FORECAST_REGISTRY_V2_ABI,
         functionName: "claimReward",
         args: [BigInt(forecastId)],
-        chainId: arcTestnet.id,
+        chainId: forecastChainId,
       });
 
       setLatestTransactionHash(hash);
       setIsConfirmingTransaction(true);
 
       setTransactionMessage(
-        "Waiting for Arc Testnet claim confirmation..."
+        `Waiting for ${forecastNetworkLabel} claim confirmation...`
       );
 
       const receipt =

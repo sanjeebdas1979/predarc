@@ -8,6 +8,8 @@ import {
   useBtcPrice,
 } from "../providers/BtcPriceProvider";
 
+import MarketLogo from "../market/MarketLogo";
+
 function getPriceDecimals(
   market: string
 ): number {
@@ -135,6 +137,11 @@ export default function HeroLivePreview() {
           </p>
 
           <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-1">
+            <MarketLogo
+              market={selectedMarket}
+              className="h-9 w-9"
+            />
+
             <h2 className="text-2xl font-black">
               {market?.pair ??
                 `${selectedMarket}/USDT`}

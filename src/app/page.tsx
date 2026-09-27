@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import PredarcBrand from "./components/brand/PredarcBrand";
 import HeroLivePreview from "./components/home/HeroLivePreview";
+import MarketLogo from "./components/market/MarketLogo";
 import { useBtcPrice } from "./components/providers/BtcPriceProvider";
 
 const SUPPORTED_MARKETS = [
@@ -268,12 +269,10 @@ export default function Home() {
                       className="flex items-center justify-between rounded-xl px-3 py-2 text-xs text-gray-400"
                     >
                       <span className="flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-[9px] font-black text-white">
-                          {market.symbol.slice(
-                            0,
-                            1
-                          )}
-                        </span>
+                        <MarketLogo
+                          market={market.symbol}
+                          className="h-6 w-6"
+                        />
 
                         {market.name}
                       </span>
@@ -332,12 +331,10 @@ export default function Home() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-sm font-black">
-                            {market.symbol.slice(
-                              0,
-                              1
-                            )}
-                          </div>
+                          <MarketLogo
+                            market={market.symbol}
+                            className="h-10 w-10 rounded-xl border border-white/10 bg-white/[0.035] p-2"
+                          />
 
                           <div>
                             <p className="text-sm font-black">

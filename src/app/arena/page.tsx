@@ -43,6 +43,12 @@ export default function Home() {
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <PredarcBrand />
 
+          <Link
+            href="/auth-test"
+            className="rounded-lg border border-orange-400/40 bg-orange-400/10 px-3 py-2 text-[11px] font-bold text-orange-300 transition hover:bg-orange-400/20"
+          >
+            Auth test
+          </Link>
           <Link href="/daily" className="text-sm font-bold text-orange-300 hover:text-white">Daily access preview</Link>
           <Link href="/receipts" className="text-sm font-bold text-orange-300 hover:text-white">Payment receipts</Link>
           <ConnectWallet />

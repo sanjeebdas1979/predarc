@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import Image from "next/image";
 
@@ -10,7 +11,9 @@ export default function PredarcBrand({
   compact = false,
 }: PredarcBrandProps) {
   return (
-    <div className="flex items-center gap-3.5">
+    <Link href="/" aria-label="Predarc home" className="inline-flex rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70">
+      <div className="flex items-center gap-3.5">
+
       <div
         className={`relative shrink-0 overflow-hidden rounded-full border border-white/10 bg-black/30 shadow-[0_0_28px_rgba(249,115,22,0.12)] ${
           compact
@@ -49,6 +52,7 @@ export default function PredarcBrand({
           </p>
         )}
       </div>
-    </div>
+          </div>
+    </Link>
   );
 }

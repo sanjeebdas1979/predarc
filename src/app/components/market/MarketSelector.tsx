@@ -247,8 +247,8 @@ export default function MarketSelector() {
                 isSelected
                   ? "border-orange-500/80 bg-gradient-to-br from-orange-500/[0.16] via-orange-500/[0.07] to-transparent shadow-[0_0_0_1px_rgba(249,115,22,0.08),0_18px_45px_rgba(0,0,0,0.28)]"
                   : isDisabled
-                    ? "cursor-not-allowed border-white/[0.05] bg-[#0c1118] opacity-35"
-                    : "border-white/[0.08] bg-[#10161f] hover:-translate-y-0.5 hover:border-white/[0.18] hover:bg-[#131a24]"
+                    ? "cursor-not-allowed border-white/[0.05] bg-[#0d121a] opacity-35"
+                    : "border-white/[0.08] bg-[#0d121a] hover:-translate-y-0.5 hover:border-white/[0.18] hover:bg-[#0d121a]"
               }`}
             >
               {isSelected && (

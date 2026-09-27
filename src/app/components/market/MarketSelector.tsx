@@ -9,6 +9,8 @@ import {
   useRound,
 } from "../providers/RoundProvider";
 
+import MarketLogo from "./MarketLogo";
+
 type MarketMeta = {
   symbol: MarketSymbol;
   name: string;
@@ -267,7 +269,10 @@ export default function MarketSelector() {
                       : "border-white/10 bg-black/20 text-gray-200"
                   }`}
                 >
-                  {market.icon}
+                  <MarketLogo
+                    market={market.symbol}
+                    className="h-7 w-7"
+                  />
                 </div>
 
                 {isSelected && (
@@ -316,7 +321,10 @@ export default function MarketSelector() {
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-orange-500/30 bg-gradient-to-br from-orange-500/20 to-orange-500/[0.04] text-2xl font-black text-orange-300">
-              {selectedMeta.icon}
+              <MarketLogo
+                market={selectedMeta.symbol}
+                className="h-9 w-9"
+              />
             </div>
 
             <div>

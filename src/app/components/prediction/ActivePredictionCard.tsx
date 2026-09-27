@@ -21,6 +21,7 @@ import {
 
 import { useBtcPrice } from "../providers/BtcPriceProvider";
 import { useDemoPoints } from "../providers/DemoPointsProvider";
+import MarketLogo from "../market/MarketLogo";
 
 import {
   useRound,
@@ -538,8 +539,14 @@ export default function ActivePredictionCard() {
                 className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-white">
-                    {prediction.market} ? {formatDuration(prediction.duration)}
+                  <span className="flex items-center gap-2 text-xs font-bold text-white">
+                    <MarketLogo
+                      market={prediction.market}
+                      className="h-5 w-5"
+                    />
+                    <span>
+                      {prediction.market} ? {formatDuration(prediction.duration)}
+                    </span>
                   </span>
 
                   <span className={
@@ -568,6 +575,11 @@ export default function ActivePredictionCard() {
               ? "Prediction Settled"
               : "Your Active Prediction"}
           </p>
+
+          <MarketLogo
+            market={currentPrediction.market}
+            className="h-7 w-7"
+          />
 
           <span className="text-base font-bold text-white">
             Round #{currentPrediction.roundNumber}

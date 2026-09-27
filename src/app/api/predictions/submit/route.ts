@@ -370,6 +370,20 @@ export async function POST(
 
       if (
         error.message.includes(
+          "PREDICTION_SLOT_ACTIVE"
+        )
+      ) {
+        return authReply(
+          {
+            error:
+              "This market and timeframe already has an active prediction.",
+          },
+          409
+        );
+      }
+
+      if (
+        error.message.includes(
           "INVALID_OR_STALE_PRICE"
         )
       ) {

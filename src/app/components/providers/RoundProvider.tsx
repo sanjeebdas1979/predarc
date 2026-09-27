@@ -292,45 +292,14 @@ export function RoundProvider({
       number | null
     >(null);
 
-  /*
-   * Find a pending prediction
-   * for this exact round.
-   */
-  const currentRoundPrediction =
-    predictions.find(
-      (prediction) =>
-        prediction.roundNumber ===
-          roundNumber &&
-        prediction.duration ===
-          roundDuration &&
-        prediction.status ===
-          "pending"
-    );
-
-  const hasCurrentRoundPrediction =
-    Boolean(
-      currentRoundPrediction
-    );
-
   const chartDuration =
     durationForTimeframe(
       timeframe
     );
 
-  const chartDurationPrediction =
-    predictions.find(
-      (prediction) =>
-        prediction.duration ===
-          chartDuration &&
-        prediction.status ===
-          "pending"
-    );
 
   useEffect(() => {
-    if (
-      chartDurationPrediction ||
-      roundDuration === chartDuration
-    ) {
+    if (roundDuration === chartDuration) {
       return;
     }
 
@@ -372,18 +341,15 @@ export function RoundProvider({
     );
   }, [
     chartDuration,
-    chartDurationPrediction,
     roundDuration,
     selectedMarket,
   ]);
 
   const canChangeDuration =
-    status === "open" &&
-    !hasCurrentRoundPrediction;
+    status === "open";
 
   const canChangeMarket =
-    status === "open" &&
-    !hasCurrentRoundPrediction;
+    status === "open";
 
   /*
    * Keep latest live price together
@@ -413,30 +379,6 @@ export function RoundProvider({
     selectedMarket,
   ]);
 
-  /*
-   * When there is already an active
-   * prediction, the round belongs to
-   * the market saved with that prediction.
-   */
-  useEffect(() => {
-    if (
-      !currentRoundPrediction
-    ) {
-      return;
-    }
-
-    if (
-      roundMarket !==
-      currentRoundPrediction.market
-    ) {
-      setRoundMarket(
-        currentRoundPrediction.market
-      );
-    }
-  }, [
-    currentRoundPrediction,
-    roundMarket,
-  ]);
 
   /*
    * User can freely switch markets
@@ -448,7 +390,6 @@ export function RoundProvider({
   useEffect(() => {
     if (
       status !== "open" ||
-      hasCurrentRoundPrediction ||
       selectedMarket ===
         roundMarket
     ) {
@@ -495,7 +436,6 @@ export function RoundProvider({
     selectedMarket,
     roundMarket,
     status,
-    hasCurrentRoundPrediction,
     roundDuration,
   ]);
 
@@ -553,9 +493,20 @@ export function RoundProvider({
         duration:
           PredictionDuration
       ): void => {
+        const hasPendingTargetPrediction =
+          predictions.some(
+            (prediction) =>
+              prediction.status ===
+                "pending" &&
+              prediction.market ===
+                roundMarket &&
+              prediction.duration ===
+                duration
+          );
+
         if (
           status !== "open" ||
-          hasCurrentRoundPrediction ||
+          hasPendingTargetPrediction ||
           ![
             60,
             300,
@@ -617,7 +568,7 @@ export function RoundProvider({
       },
       [
         status,
-        hasCurrentRoundPrediction,
+        predictions,
         roundMarket,
       ]
     );

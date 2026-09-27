@@ -125,7 +125,7 @@ export default function Home() {
           <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/[0.07] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-300">
             <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
 
-            Built on Arc Testnet
+            Built on Arc
           </div>
 
           <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.96] tracking-[-0.045em] sm:text-6xl lg:text-[4.6rem]">
@@ -452,7 +452,7 @@ export default function Home() {
       <footer className="relative z-10">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4 px-4 py-8 text-xs text-gray-600 sm:px-6">
           <span>
-            Predarc · Built on Arc Testnet
+            Predarc · Built on Arc
           </span>
 
           <span>

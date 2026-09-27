@@ -45,7 +45,7 @@ export default function PredarcBrand({
 
         {!compact && (
           <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-orange-400">
-            Built on Arc Testnet
+            Built on Arc
           </p>
         )}
       </div>

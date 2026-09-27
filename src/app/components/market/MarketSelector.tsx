@@ -243,6 +243,7 @@ export default function MarketSelector() {
                   market.symbol
                 )
               }
+              style={{ backgroundColor: "#0d121a", backgroundImage: "none", color: "#ffffff" }}
               className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200 ${
                 isSelected
                   ? "border-orange-500/80 bg-gradient-to-br from-orange-500/[0.16] via-orange-500/[0.07] to-transparent shadow-[0_0_0_1px_rgba(249,115,22,0.08),0_18px_45px_rgba(0,0,0,0.28)]"

@@ -915,26 +915,18 @@ export function DemoPointsProvider({
               prediction
             ):
               PredictionRecord => {
-              const matchesRound =
-                prediction.roundNumber ===
-                roundNumber;
-
-              const matchesMarket =
-                market ===
-                  undefined ||
-                prediction.market ===
-                  market;
-
-              const matchesDuration =
-                duration ===
-                  undefined ||
-                prediction.duration ===
-                  duration;
+              const matchesSlot =
+                market !== undefined &&
+                duration !== undefined
+                  ? prediction.market ===
+                      market &&
+                    prediction.duration ===
+                      duration
+                  : prediction.roundNumber ===
+                    roundNumber;
 
               if (
-                !matchesRound ||
-                !matchesMarket ||
-                !matchesDuration ||
+                !matchesSlot ||
                 prediction.status !==
                   "pending"
               ) {

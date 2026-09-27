@@ -194,6 +194,7 @@ async function submitServerPrediction(
 export default function PredictionPanel() {
   const {
     balance,
+    predictions,
     spendPoints,
     addPrediction,
   } = useDemoPoints();
@@ -305,6 +306,17 @@ export default function PredictionPanel() {
     canChangeDuration &&
     !isOnchainBusy;
 
+  const hasActiveSlotPrediction =
+    predictions.some(
+      (prediction) =>
+        prediction.status ===
+          "pending" &&
+        prediction.market ===
+          selectedMarket &&
+        prediction.duration ===
+          roundDuration
+    );
+
   const durationOptions:
     PredictionDuration[] = [
     60,
@@ -347,6 +359,24 @@ export default function PredictionPanel() {
     if (!canChangeDuration) {
       setMessage(
         "Timeframe is locked for the active prediction."
+      );
+
+      return;
+    }
+
+    if (
+      predictions.some(
+        (prediction) =>
+          prediction.status ===
+            "pending" &&
+          prediction.market ===
+            selectedMarket &&
+          prediction.duration ===
+            duration
+      )
+    ) {
+      setMessage(
+        "This market and timeframe already has an active prediction."
       );
 
       return;
@@ -421,6 +451,14 @@ export default function PredictionPanel() {
     if (isOnchainBusy) {
       setMessage(
         "An onchain transaction is already in progress."
+      );
+
+      return;
+    }
+
+    if (hasActiveSlotPrediction) {
+      setMessage(
+        "This market and timeframe already has an active prediction."
       );
 
       return;

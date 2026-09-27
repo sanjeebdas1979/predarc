@@ -72,7 +72,7 @@ export default function Home() {
             </p>
 
             <div className="mt-8 inline-flex rounded-full border border-orange-500 px-5 py-3 text-sm text-orange-400">
-              Arc Testnet • Demo Points • No Cash
+              Arc • Demo Points • No Cash
               Value
             </div>
 

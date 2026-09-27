@@ -238,7 +238,7 @@ export default function MarketSelector() {
               key={market.symbol}
               type="button"
               disabled={isDisabled}
-              onClick={() =>
+              onClick={() = style={{ backgroundColor: "#0d121a", color: "#ffffff" }}>
                 selectMarket(
                   market.symbol
                 )

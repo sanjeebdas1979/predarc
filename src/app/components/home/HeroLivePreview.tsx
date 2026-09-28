@@ -8,6 +8,8 @@ import {
   useBtcPrice,
 } from "../providers/BtcPriceProvider";
 
+import { useAccount } from "wagmi";
+
 import MarketLogo from "../market/MarketLogo";
 
 function getPriceDecimals(
@@ -54,6 +56,21 @@ export default function HeroLivePreview() {
     isConnected,
     marketOptions,
   } = useBtcPrice();
+
+  const {
+    chainId: walletChainId,
+    isConnected: isWalletConnected,
+  } = useAccount();
+
+  const walletNetworkLabel =
+    !isWalletConnected ||
+    walletChainId === undefined
+      ? "Wallet not connected"
+      : walletChainId === 5042
+        ? "Arc Mainnet"
+        : walletChainId === 5042002
+          ? "Arc Testnet"
+          : `Chain ${walletChainId}`;
 
   const market =
     marketOptions.find(
@@ -315,7 +332,7 @@ export default function HeroLivePreview() {
           </p>
 
           <p className="mt-1 text-sm font-black text-orange-400">
-            Arc Testnet
+            {walletNetworkLabel}
           </p>
         </div>
       </div>

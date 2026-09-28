@@ -209,13 +209,13 @@ export default function DemoBalanceCard() {
                 ).toLocaleString()
               : "—"}
 
-            <span className="ml-2 text-sm text-purple-200">
+            <span className="ml-2 text-sm text-orange-200">
               POINTS
             </span>
           </h2>
         </div>
 
-        <span className="rounded-full border border-purple-300/30 bg-purple-300/10 px-3 py-1 text-[9px] font-bold uppercase tracking-wide text-purple-200">
+        <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-[9px] font-bold uppercase tracking-wide text-orange-200">
           Server
         </span>
       </div>
@@ -226,7 +226,7 @@ export default function DemoBalanceCard() {
         cannot be transferred or redeemed.
       </p>
 
-      <div className="mt-4 rounded-2xl border border-purple-300/20 bg-purple-300/5 p-4">
+      <div className="mt-4 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4">
         <button
           type="button"
           onClick={() => {
@@ -241,7 +241,7 @@ export default function DemoBalanceCard() {
         </button>
 
         {serverBalanceMessage ? (
-          <p className="mt-3 text-xs leading-5 text-purple-100">
+          <p className="mt-3 text-xs leading-5 text-orange-100">
             {serverBalanceMessage}
           </p>
         ) : null}
@@ -332,7 +332,7 @@ export default function DemoBalanceCard() {
         <button
           type="button"
           onClick={resetPoints}
-          className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-400 transition hover:border-purple-300/50 hover:text-purple-200"
+          className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-400 transition hover:border-orange-500/50 hover:text-orange-200"
         >
           Reset Legacy Local Points
         </button>

@@ -181,7 +181,7 @@ export default function AuthTestPage() {
   return (
     <main className="min-h-screen bg-[#080c12] px-5 py-12 text-white">
       <div className="mx-auto max-w-2xl space-y-6">
-        <Link href="/arena" className="text-purple-300">← Prediction arena</Link>
+        <Link href="/arena" className="text-orange-300">← Prediction arena</Link>
         <h1 className="text-3xl font-bold">Predarc sign in</h1>
         <p>Arc Testnet · Sign a login message. No gas fee, payment or token approval.</p>
         <p className="text-gray-400">Login lasts up to one hour. Connecting your wallet is the first step; signing the message logs you in. Logout ends this session and disconnects your wallet from Predarc.</p>
@@ -203,7 +203,7 @@ export default function AuthTestPage() {
           </div>
         </section>
         {session && sessionStatus === "Signed in" && (
-          <section className="space-y-3 rounded-xl border border-purple-300/25 p-4" aria-live="polite">
+          <section className="space-y-3 rounded-xl border border-orange-500/25 p-4" aria-live="polite">
             <h2 className="text-lg font-bold">Server demo balance</h2>
             <p className="text-sm text-gray-400">Your first check creates 1,000 testnet demo points once per wallet. Checking again does not add more points. These points have no cash value and are separate from the current arena demo balance.</p>
             <button type="button" className={button}
@@ -211,7 +211,7 @@ export default function AuthTestPage() {
               onClick={() => void run(checkBalance)}>Check balance</button>
             {account?.wallet === session.wallet && isConnected
               && address?.toLowerCase() === session.wallet && chainId === chain && (
-              <p className="text-xl font-bold text-purple-200">
+              <p className="text-xl font-bold text-orange-200">
                 Server balance: {account.balance} demo points
               </p>
             )}
@@ -231,7 +231,7 @@ export default function AuthTestPage() {
               onClick={() => void run(signIn)}>{busy ? "Please wait…" : "Sign in with wallet"}</button>}
         </div>
         {!isConnected && connectors.length === 0 && <p>Open this page in your wallet-enabled browser.</p>}
-        <p role="status" className="break-words text-purple-200">{message}</p>
+        <p role="status" className="break-words text-orange-200">{message}</p>
       </div>
     </main>
   );

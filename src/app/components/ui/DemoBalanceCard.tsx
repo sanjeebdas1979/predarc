@@ -1,5 +1,7 @@
 "use client";
 
+import { colorfulButtonClass } from "@/app/components/ui/button-colorful";
+
 import { colorfulButtonClass } from "./button-colorful";
 
 import {

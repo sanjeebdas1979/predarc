@@ -41,7 +41,7 @@ export default function Home() {
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute left-[-12rem] top-[-10rem] h-[34rem] w-[34rem] rounded-full bg-blue-600/10 blur-[120px]" />
 
-        <div className="absolute right-[-10rem] top-[5rem] h-[34rem] w-[34rem] rounded-full bg-violet-600/10 blur-[120px]" />
+        <div className="absolute right-[-10rem] top-[5rem] h-[34rem] w-[34rem] rounded-full bg-orange-600/10 blur-[120px]" />
 
         <div className="absolute left-1/2 top-[20rem] h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-orange-500/[0.06] blur-[130px]" />
       </div>

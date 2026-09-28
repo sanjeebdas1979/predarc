@@ -1658,10 +1658,10 @@ export default function PredictionHistory() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-purple-300/20 bg-purple-300/[0.04] p-5">
+      <div className="mt-6 rounded-2xl border border-orange-500/20 bg-orange-500/[0.04] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-purple-200">
+            <p className="text-sm font-semibold text-orange-200">
               Your recent forecasts
             </p>
 
@@ -1691,7 +1691,7 @@ export default function PredictionHistory() {
         </div>
 
         {serverHistoryMessage ? (
-          <p className="mt-3 text-xs text-purple-100">
+          <p className="mt-3 text-xs text-orange-100">
             {serverHistoryMessage}
           </p>
         ) : null}
@@ -1786,7 +1786,7 @@ export default function PredictionHistory() {
                   </div>
 
                   {serverRecordMessage ? (
-                    <p className="mt-3 text-xs text-purple-100">
+                    <p className="mt-3 text-xs text-orange-100">
                       {
                         serverRecordMessage
                       }

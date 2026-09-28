@@ -25,29 +25,42 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Predarc action buttons: shared light-purple palette across app pages. */
+/* Predarc action buttons: shared colorful gradient style across app pages. */
 :root {
-  --predarc-button: #d8b4fe;
-  --predarc-button-hover: #e9d5ff;
-  --predarc-button-text: #241238;
+  --predarc-button-start: #4f46e5;
+  --predarc-button-mid: #9333ea;
+  --predarc-button-end: #ec4899;
+  --predarc-button-text: #ffffff;
 }
 
 :is(button, input[type="button"], input[type="submit"], [role="button"], a[class*="bg-orange"], a[class*="bg-gradient"]) {
-  background-color: var(--predarc-button);
-  background-image: none;
-  color: var(--predarc-button-text);
+  background-color: #18181b !important;
+  background-image: linear-gradient(
+    110deg,
+    var(--predarc-button-start),
+    var(--predarc-button-mid) 52%,
+    var(--predarc-button-end)
+  ) !important;
+  color: var(--predarc-button-text) !important;
+  border-color: rgba(168, 85, 247, 0.45);
 }
 
 :is(button, [role="button"], a[class*="bg-orange"], a[class*="bg-gradient"]) :is(span, p) {
-  color: inherit;
+  color: inherit !important;
 }
 
 :is(button, input[type="button"], input[type="submit"], [role="button"], a[class*="bg-orange"], a[class*="bg-gradient"]):hover:not(:disabled):not([aria-disabled="true"]) {
-  background-color: var(--predarc-button-hover);
+  background-image: linear-gradient(
+    110deg,
+    #6366f1,
+    #a855f7 52%,
+    #f472b6
+  ) !important;
+  filter: brightness(1.08);
 }
 
 :is(button, input[type="button"], input[type="submit"], [role="button"], a[class*="bg-orange"], a[class*="bg-gradient"]):focus-visible {
-  outline: 2px solid #e9d5ff;
+  outline: 2px solid #fb923c;
   outline-offset: 3px;
 }
 
@@ -57,6 +70,7 @@ body {
   cursor: not-allowed;
 }
 
-button[aria-pressed="true"], [role="tab"][aria-selected="true"] {
-  box-shadow: 0 0 0 2px #7e22ce;
+button[aria-pressed="true"],
+[role="tab"][aria-selected="true"] {
+  box-shadow: 0 0 0 2px #f97316;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { colorfulButtonClass } from "../components/ui/button-colorful";
+
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount, useConfig, useConnect, useDisconnect, useSignMessage, useSwitchChain } from "wagmi";
@@ -9,7 +11,7 @@ import { getAccount } from "wagmi/actions";
 type Session = { wallet: string; chainId: number; expiresAt: string };
 
 const chain = forecastChainId;
-const button = "rounded-xl bg-purple-300 hover:bg-purple-200 px-5 py-3 font-bold text-black disabled:opacity-40";
+const button = `${colorfulButtonClass} rounded-xl px-5 py-3 font-bold text-white disabled:opacity-40`;
 
 export default function AuthTestPage() {
   const config = useConfig();

@@ -1,5 +1,7 @@
 "use client";
 
+import { colorfulButtonClass } from "../ui/button-colorful";
+
 import {
   useCallback,
   useEffect,
@@ -1680,7 +1682,7 @@ export default function PredictionHistory() {
             onClick={() => {
               void loadServerHistory();
             }}
-            className="rounded-xl bg-purple-300 px-4 py-2 text-xs font-bold text-black transition hover:bg-purple-200 disabled:cursor-wait disabled:opacity-50"
+            className={`${colorfulButtonClass} rounded-xl px-4 py-2 text-xs font-bold text-white transition disabled:cursor-wait disabled:opacity-50`}
           >
             {isLoadingServerHistory
               ? "Refreshing..."
@@ -1802,7 +1804,7 @@ export default function PredictionHistory() {
                           prediction
                         );
                       }}
-                      className="mt-3 w-full rounded-xl bg-purple-300 px-4 py-2 text-xs font-bold uppercase text-black transition hover:bg-purple-200 disabled:cursor-wait disabled:opacity-50"
+                      className={`${colorfulButtonClass} mt-3 w-full rounded-xl px-4 py-2 text-xs font-bold uppercase text-white transition disabled:cursor-wait disabled:opacity-50`}
                     >
                       {isServerProcessing
                         ? "Settling..."
@@ -1821,7 +1823,7 @@ export default function PredictionHistory() {
                           prediction
                         );
                       }}
-                      className="mt-3 w-full rounded-xl bg-purple-300 px-4 py-2 text-xs font-bold uppercase text-black transition hover:bg-purple-200 disabled:cursor-wait disabled:opacity-50"
+                      className={`${colorfulButtonClass} mt-3 w-full rounded-xl px-4 py-2 text-xs font-bold uppercase text-white transition disabled:cursor-wait disabled:opacity-50`}
                     >
                       {isServerProcessing
                         ? "Claiming..."

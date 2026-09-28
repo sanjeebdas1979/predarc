@@ -1,5 +1,7 @@
 "use client";
 
+import { colorfulButtonClass } from "./button-colorful";
+
 import {
   useEffect,
   useState,
@@ -231,7 +233,7 @@ export default function DemoBalanceCard() {
             void checkServerBalance();
           }}
           disabled={isCheckingServerBalance}
-          className="mt-3 w-full rounded-xl bg-purple-300 px-4 py-3 text-sm font-bold text-black transition hover:bg-purple-200 disabled:cursor-wait disabled:opacity-50"
+          className={`${colorfulButtonClass} mt-3 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition disabled:cursor-wait disabled:opacity-50`}
         >
           {isCheckingServerBalance
             ? "Checking Balance..."

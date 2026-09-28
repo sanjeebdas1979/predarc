@@ -285,7 +285,7 @@ export default function Home() {
 
               <div className="my-3 border-t border-white/[0.06]" />
 
-              <div className="rounded-xl border border-violet-500/15 bg-gradient-to-br from-violet-500/[0.08] to-blue-500/[0.05] p-3">
+              <div className="rounded-xl border border-orange-500/15 bg-gradient-to-br from-orange-500/[0.08] to-blue-500/[0.05] p-3">
                 <p className="text-[10px] font-black text-white">
                   More markets coming
                 </p>

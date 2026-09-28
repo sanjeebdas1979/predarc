@@ -85,6 +85,7 @@ function parsePrediction(
       value.status,
     points,
     claimed:
+      "claimed" in value &&
       value.claimed === true,
   };
 }

@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -63,11 +64,8 @@ function parsePrediction(
     ) ||
     !(
       "points" in value
-    ) ||
-    !(
-      "claimed" in value
     )
-  ) {
+) {
     return null;
   }
 
@@ -126,9 +124,14 @@ export function useServerPredictionStats(): ServerStats {
   ] =
     useState("");
 
+  const hasServerSnapshotRef = useRef(false);
+  const refreshRequestRef = useRef(0);
+
   const refresh =
     useCallback(
       async () => {
+        const requestId = ++refreshRequestRef.current;
+
         setIsLoading(true);
 
         try {
@@ -200,42 +203,50 @@ export function useServerPredictionStats(): ServerStats {
               ? predictionsResult.predictions
               : [];
 
-          setBalance(
-            parsedBalance
-          );
-          setPredictions(
+          const parsedPredictions =
             rows.flatMap(
-              (
-                row: unknown
-              ) => {
-                const parsed =
-                  parsePrediction(
-                    row
-                  );
-
-                return parsed
-                  ? [parsed]
-                  : [];
+              (row: unknown) => {
+                const parsed = parsePrediction(row);
+                return parsed ? [parsed] : [];
               }
-            )
-          );
-          setIsAuthenticated(
-            true
-          );
+            );
+
+          if (requestId !== refreshRequestRef.current) {
+            return;
+          }
+
+          setBalance(parsedBalance);
+
+          if (
+            parsedPredictions.length > 0 ||
+            !hasServerSnapshotRef.current
+          ) {
+            setPredictions(parsedPredictions);
+          }
+
+          hasServerSnapshotRef.current = true;
+          setIsAuthenticated(true);
           setMessage(
             "Server stats synced."
           );
         } catch (error) {
-          setIsAuthenticated(
-            false
-          );
+          if (requestId !== refreshRequestRef.current) {
+            return;
+          }
+
+          if (!hasServerSnapshotRef.current) {
+            setIsAuthenticated(false);
+          }
+
           setMessage(
             error instanceof Error
               ? error.message
               : "Server stats unavailable."
           );
         } finally {
-          setIsLoading(false);
+          if (requestId === refreshRequestRef.current) {
+            setIsLoading(false);
+          }
         }
       },
       []

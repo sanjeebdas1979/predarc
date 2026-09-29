@@ -50,6 +50,7 @@ export default function Home() {
             Auth test
           </Link>
           <Link href="/daily" className="text-sm font-bold text-orange-300 hover:text-white">Daily access preview</Link>
+          <Link href="/bridge" className="text-sm font-bold text-orange-300 hover:text-white">Bridge USDC</Link>
           <Link href="/receipts" className="text-sm font-bold text-orange-300 hover:text-white">Payment receipts</Link>
           <ConnectWallet />
         </div>

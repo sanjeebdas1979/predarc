@@ -137,7 +137,7 @@ export default function Home() {
 
           <p className="mt-7 max-w-2xl text-base leading-7 text-gray-400 sm:text-lg">
             Live crypto forecast rounds powered by Arc
-            Testnet. Track real market movement, choose
+            Mainnet. Track real market movement, choose
             Higher or Lower, and follow your prediction
             through onchain resolution.
           </p>
@@ -361,7 +361,7 @@ export default function Home() {
                       <p className="mt-1 text-[10px] leading-5 text-gray-500">
                         Forecast the direction of the
                         next Binance candle on Arc
-                        Testnet.
+                        Mainnet.
                       </p>
 
                       <div className="mt-4 flex gap-2">

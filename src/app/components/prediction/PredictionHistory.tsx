@@ -20,6 +20,7 @@ import {
 
 import {
   forecastChainId,
+  forecastExplorerBaseUrl,
   forecastNetworkLabel,
   forecastRegistryAddress,
 } from "@/lib/forecast-network";
@@ -805,7 +806,7 @@ export default function PredictionHistory() {
   ): Promise<boolean> {
     if (!publicClient) {
       throw new Error(
-        "Arc Testnet client unavailable."
+        `${forecastNetworkLabel} client unavailable.`
       );
     }
 
@@ -856,7 +857,7 @@ export default function PredictionHistory() {
       updateMessage(
         prediction.id,
 
-        "Arc Testnet client is unavailable."
+        `${forecastNetworkLabel} client is unavailable.`
       );
 
       return;
@@ -874,7 +875,7 @@ export default function PredictionHistory() {
       updateMessage(
         prediction.id,
 
-        "Checking claim status on Arc Testnet..."
+        `Checking claim status on ${forecastNetworkLabel}...`
       );
 
       const hasClaimed =
@@ -940,7 +941,7 @@ export default function PredictionHistory() {
         updateMessage(
           prediction.id,
 
-          "Could not read claim status from Arc Testnet."
+          `Could not read claim status from ${forecastNetworkLabel}.`
         );
       }
     } finally {
@@ -974,7 +975,7 @@ export default function PredictionHistory() {
     if (!publicClient) {
       updateMessage(
         prediction.id,
-        "Arc Testnet client is unavailable."
+        `${forecastNetworkLabel} client is unavailable.`
       );
 
       return;
@@ -991,7 +992,7 @@ export default function PredictionHistory() {
 
       updateMessage(
         prediction.id,
-        "Checking forecast state on Arc Testnet..."
+        `Checking forecast state on ${forecastNetworkLabel}...`
       );
 
       const onchainForecast =
@@ -1304,7 +1305,7 @@ export default function PredictionHistory() {
       updateMessage(
         prediction.id,
 
-        "Arc Testnet client is unavailable."
+        `${forecastNetworkLabel} client is unavailable.`
       );
 
       return;

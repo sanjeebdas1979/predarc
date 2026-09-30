@@ -208,7 +208,7 @@ export default function Home() {
               <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
                 Choose an asset and enter a live
                 candle-synced Higher or Lower round
-                on Arc Testnet.
+                on Arc Mainnet.
               </p>
             </div>
 
@@ -432,7 +432,7 @@ export default function Home() {
                     <p className="mt-3 text-xs leading-5 text-gray-500">
                       Predictions are submitted and
                       resolved through Predarc&apos;s
-                      Arc Testnet flow.
+                      Arc Mainnet flow.
                     </p>
                   </div>
 

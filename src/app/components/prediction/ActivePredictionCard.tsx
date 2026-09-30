@@ -15,6 +15,7 @@ import {
 
 import {
   forecastChainId,
+  forecastExplorerBaseUrl,
   forecastNetworkLabel,
   forecastRegistryAddress,
 } from "@/lib/forecast-network";
@@ -373,7 +374,7 @@ export default function ActivePredictionCard() {
 
     if (!publicClient) {
       setTransactionMessage(
-        "Arc Testnet client is not ready."
+        `${forecastNetworkLabel} client is not ready.`
       );
       return;
     }
@@ -454,7 +455,7 @@ export default function ActivePredictionCard() {
 
     if (!publicClient) {
       setTransactionMessage(
-        "Arc Testnet client is not ready."
+        `${forecastNetworkLabel} client is not ready.`
       );
       return;
     }
@@ -777,7 +778,7 @@ export default function ActivePredictionCard() {
 
           {latestTransactionHash && (
             <a
-              href={`https://testnet.arcscan.app/tx/${latestTransactionHash}`}
+              href={`${forecastExplorerBaseUrl}/tx/${latestTransactionHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[9px] font-semibold text-blue-300 hover:text-blue-200"

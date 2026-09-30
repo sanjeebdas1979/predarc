@@ -70,7 +70,9 @@ export default function HeroLivePreview() {
         ? "Arc Mainnet"
         : walletChainId === 5042002
           ? "Arc Testnet"
-          : `Chain ${walletChainId}`;
+          : walletChainId === 1
+            ? "Ethereum Mainnet"
+            : `Chain ${walletChainId}`;
 
   const market =
     marketOptions.find(

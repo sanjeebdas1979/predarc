@@ -24,3 +24,8 @@ export const forecastNetworkLabel =
   forecastNetwork === "mainnet"
     ? "Arc Mainnet"
     : "Arc Testnet";
+
+export const forecastExplorerBaseUrl =
+  forecastNetwork === "mainnet"
+    ? "https://arcscan.app"
+    : "https://testnet.arcscan.app";

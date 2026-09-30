@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useAccount, useChainId, useSwitchChain } from "wagmi";
+import { useAccount, useChainId, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import type { EIP1193Provider } from "viem";
 import { mainnet } from "viem/chains";
 import { AppKit } from "@circle-fin/app-kit";
 import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import { arcMainnet } from "@/lib/daily";
-import ConnectWallet from "../components/wallet/ConnectWallet";
 
 type Direction = "arc-eth" | "eth-arc";
 type CircleChain = "Arc" | "Ethereum";
@@ -17,6 +16,17 @@ export default function BridgePage() {
   const { address, connector, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  const currentNetwork =
+    chainId === arcMainnet.id
+      ? "Arc Mainnet"
+      : chainId === mainnet.id
+        ? "Ethereum Mainnet"
+        : chainId === 5042002
+          ? "Arc Testnet"
+          : "Unknown network (" + chainId + ")";
 
   const [route, setRoute] = useState<Direction>("arc-eth");
   const [amount, setAmount] = useState("0.01");
@@ -119,8 +129,32 @@ export default function BridgePage() {
             Bridge native USDC between Arc Mainnet and Ethereum Mainnet.
           </p>
 
-          <div className="mt-6">
-            <ConnectWallet />
+          <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
+            <p className="text-sm text-gray-400">Connected wallet</p>
+            <p className="mt-2 break-all font-mono text-sm">
+              {address ?? "Not connected"}
+            </p>
+
+            <p className="mt-4 text-sm text-gray-400">
+              Connected network
+            </p>
+            <p className="mt-2 font-bold text-orange-300">
+              {isConnected ? currentNetwork : "Not connected"}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (isConnected) {
+                  disconnect();
+                } else if (connectors[0]) {
+                  connect({ connector: connectors[0] });
+                }
+              }}
+              className="predarc-gradient-button mt-5 w-full"
+            >
+              {isConnected ? "Disconnect" : "Connect wallet"}
+            </button>
           </div>
 
           <label className="mt-6 block text-sm text-gray-400">

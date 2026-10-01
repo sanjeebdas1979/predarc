@@ -9,38 +9,49 @@ import {
   useDisconnect,
   useSwitchChain,
 } from "wagmi";
+import { AppKit } from "@circle-fin/app-kit";
+import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
+import type { EIP1193Provider } from "viem";
 import { arcMainnet } from "@/lib/daily";
 
-type TokenKey = "USDC" | "cirBTC";
+type TokenKey = "USDC" | "EURC" | "cirBTC";
 
 const tokens: Record<
   TokenKey,
   {
-    symbol: string;
     name: string;
     color: string;
   }
 > = {
   USDC: {
-    symbol: "USDC",
     name: "USD Coin",
     color: "bg-blue-500",
   },
+  EURC: {
+    name: "Euro Coin",
+    color: "bg-emerald-500",
+  },
   cirBTC: {
-    symbol: "cirBTC",
     name: "Circle Bitcoin",
     color: "bg-orange-500",
   },
 };
 
-const slippageOptions = ["0.1", "0.5", "1", "2.5"];
+type QuoteState = {
+  amount: string;
+  fromToken: TokenKey;
+  toToken: TokenKey;
+  slippage: string;
+  estimatedOutput: string;
+  gasFee: string;
+};
 
 function TokenIcon({ token }: { token: TokenKey }) {
   return (
     <span
       className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-black text-white ${tokens[token].color}`}
     >
-      {token === "USDC" ? "$" : "₿"}
+      {token === "USDC" ? "$" : token === "EURC" ? "E" : "B"}
     </span>
   );
 }
@@ -64,7 +75,7 @@ function TokenInput({
     <div className="rounded-2xl border border-white/[0.08] bg-[#080d14] p-4">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-gray-500">{label}</span>
-        <span className="text-xs text-gray-600">Balance —</span>
+        <span className="text-xs text-gray-600">Balance --</span>
       </div>
 
       <div className="mt-4 flex items-center gap-3">
@@ -85,6 +96,7 @@ function TokenInput({
           className="rounded-xl border border-white/10 bg-[#151d29] px-3 py-2 text-sm font-bold text-white outline-none"
         >
           <option value="USDC">USDC</option>
+          <option value="EURC">EURC</option>
           <option value="cirBTC">cirBTC</option>
         </select>
       </div>
@@ -98,20 +110,23 @@ function TokenInput({
 }
 
 export default function SwapPage() {
-  const { address, isConnected } = useAccount();
+  const { address, connector, isConnected } = useAccount();
   const chainId = useChainId();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChainAsync, isPending: isSwitching } = useSwitchChain();
 
   const [fromToken, setFromToken] = useState<TokenKey>("USDC");
-  const [toToken, setToToken] = useState<TokenKey>("cirBTC");
+  const [toToken, setToToken] = useState<TokenKey>("EURC");
   const [amount, setAmount] = useState("0.01");
   const [slippage, setSlippage] = useState("0.5");
-  const [message, setMessage] = useState("");
+  const [quote, setQuote] = useState<QuoteState | null>(null);
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const onArcMainnet = chainId === arcMainnet.id;
-  const validAmount = Number.isFinite(Number(amount)) && Number(amount) > 0;
+  const validAmount =
+    Number.isFinite(Number(amount)) && Number(amount) > 0;
 
   function connectWallet() {
     if (connectors[0]) {
@@ -119,8 +134,19 @@ export default function SwapPage() {
     }
   }
 
-  async function prepareSwap() {
-    setMessage("");
+  function clearQuote() {
+    setQuote(null);
+    setStatus("");
+  }
+
+  function reverseTokens() {
+    setFromToken(toToken);
+    setToToken(fromToken);
+    clearQuote();
+  }
+
+  async function handleSwap() {
+    setStatus("");
 
     if (!isConnected) {
       connectWallet();
@@ -130,24 +156,122 @@ export default function SwapPage() {
     if (!onArcMainnet) {
       if (switchChainAsync) {
         await switchChainAsync({ chainId: arcMainnet.id });
-        setMessage("Wallet switched to Arc Mainnet.");
+        setStatus("Wallet switched to Arc Mainnet.");
       }
       return;
     }
 
     if (!validAmount) {
-      setMessage("Enter a valid amount first.");
+      setStatus("Enter a valid amount first.");
       return;
     }
 
-    setMessage(
-      "Wallet and network are ready. Live Uniswap quote integration will be connected next; no transaction was submitted."
-    );
-  }
+    if (fromToken === toToken) {
+      setStatus("Choose two different tokens.");
+      return;
+    }
 
-  function reverseTokens() {
-    setFromToken(toToken);
-    setToToken(fromToken);
+    if (slippage === "custom") {
+      setStatus("Choose a fixed slippage option first.");
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      const browserProvider = (
+        window as Window & {
+          ethereum?: EIP1193Provider;
+        }
+      ).ethereum;
+
+      const provider = connector
+        ? ((await connector.getProvider()) as EIP1193Provider)
+        : browserProvider;
+
+      if (!provider) {
+        throw new Error("No connected wallet provider found.");
+      }
+
+      const adapter = await createViemAdapterFromProvider({
+        provider,
+      });
+
+      const kit = new AppKit();
+
+      const params = {
+        from: {
+          adapter,
+          chain: "Arc" as const,
+        },
+        tokenIn: fromToken,
+        tokenOut: toToken,
+        amountIn: amount,
+        config: {
+          slippageBps: Math.round(Number(slippage) * 100),
+        },
+      };
+
+      const quoteMatches =
+        quote &&
+        quote.amount === amount &&
+        quote.fromToken === fromToken &&
+        quote.toToken === toToken &&
+        quote.slippage === slippage;
+
+      if (!quoteMatches) {
+        const estimate = (await kit.estimateSwap(params)) as {
+          estimatedOutput?: string | { amount?: string };
+          fees?: Array<{
+            amount?: string;
+            type?: string;
+          }>;
+        };
+
+        const estimatedOutput =
+          typeof estimate.estimatedOutput === "string"
+            ? estimate.estimatedOutput
+            : estimate.estimatedOutput?.amount ?? "--";
+
+        const gasFee =
+          estimate.fees?.find((fee) => fee.type === "gas")?.amount ?? "--";
+
+        setQuote({
+          amount,
+          fromToken,
+          toToken,
+          slippage,
+          estimatedOutput,
+          gasFee,
+        });
+
+        setStatus("Quote ready. Review the details, then execute the swap.");
+        return;
+      }
+
+      const result = (await kit.swap(params)) as {
+        txHash?: string;
+        explorerUrl?: string;
+      };
+
+      setQuote(null);
+
+      const receiptLink = result.explorerUrl ?? result.txHash;
+
+      setStatus(
+        receiptLink
+          ? "Swap submitted: " + receiptLink
+          : "Swap submitted. Confirm it in your wallet."
+      );
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Swap failed. Please retry."
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   const buttonLabel = !isConnected
@@ -156,7 +280,9 @@ export default function SwapPage() {
       ? isSwitching
         ? "Switching network..."
         : "Switch to Arc Mainnet"
-      : "Get live quote";
+      : quote
+        ? "Execute swap"
+        : "Get live quote";
 
   return (
     <main className="min-h-screen bg-[#060a11] px-4 py-8 text-white sm:px-6">
@@ -211,7 +337,7 @@ export default function SwapPage() {
             </h1>
 
             <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-gray-500">
-              Swap supported tokens on Arc Mainnet with a clear quote,
+              Swap supported tokens on Arc Mainnet with a live quote,
               slippage controls and wallet confirmation.
             </p>
           </div>
@@ -251,8 +377,14 @@ export default function SwapPage() {
               label="You pay"
               token={fromToken}
               amount={amount}
-              onAmountChange={setAmount}
-              onTokenChange={setFromToken}
+              onAmountChange={(value) => {
+                setAmount(value);
+                clearQuote();
+              }}
+              onTokenChange={(value) => {
+                setFromToken(value);
+                clearQuote();
+              }}
             />
 
             <div className="relative z-10 -my-3 flex justify-center">
@@ -269,9 +401,12 @@ export default function SwapPage() {
             <TokenInput
               label="You receive"
               token={toToken}
-              amount="—"
+              amount="--"
               readOnly
-              onTokenChange={setToToken}
+              onTokenChange={(value) => {
+                setToToken(value);
+                clearQuote();
+              }}
             />
 
             <div className="mt-6">
@@ -285,11 +420,14 @@ export default function SwapPage() {
               </div>
 
               <div className="grid grid-cols-5 gap-2">
-                {slippageOptions.map((option) => (
+                {["0.1", "0.5", "1", "2.5"].map((option) => (
                   <button
                     key={option}
                     type="button"
-                    onClick={() => setSlippage(option)}
+                    onClick={() => {
+                      setSlippage(option);
+                      clearQuote();
+                    }}
                     className={`rounded-xl border px-2 py-2 text-xs font-bold transition ${
                       slippage === option
                         ? "border-orange-400/50 bg-orange-400/[0.12] text-orange-200"
@@ -302,7 +440,10 @@ export default function SwapPage() {
 
                 <button
                   type="button"
-                  onClick={() => setSlippage("custom")}
+                  onClick={() => {
+                    setSlippage("custom");
+                    clearQuote();
+                  }}
                   className={`rounded-xl border px-2 py-2 text-xs font-bold transition ${
                     slippage === "custom"
                       ? "border-orange-400/50 bg-orange-400/[0.12] text-orange-200"
@@ -317,42 +458,56 @@ export default function SwapPage() {
             <div className="mt-6 space-y-3 rounded-2xl border border-white/[0.07] bg-black/20 p-4 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Estimated swap rate</span>
-                <span className="font-semibold text-gray-300">—</span>
+                <span className="font-semibold text-gray-300">
+                  {quote
+                    ? "1 " +
+                      fromToken +
+                      " ~= " +
+                      quote.estimatedOutput +
+                      " " +
+                      toToken
+                    : "--"}
+                </span>
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Minimum received</span>
-                <span className="font-semibold text-gray-300">—</span>
+                <span className="font-semibold text-gray-300">
+                  {quote ? quote.estimatedOutput + " " + toToken : "--"}
+                </span>
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Price impact</span>
-                <span className="font-semibold text-gray-300">—</span>
+                <span className="font-semibold text-gray-300">--</span>
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Network gas fee</span>
-                <span className="font-semibold text-gray-300">— USDC</span>
+                <span className="font-semibold text-gray-300">
+                  {quote ? quote.gasFee + " USDC" : "-- USDC"}
+                </span>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={() => void prepareSwap()}
-              className="predarc-gradient-button mt-6 w-full py-3.5 text-sm"
+              onClick={() => void handleSwap()}
+              disabled={busy}
+              className="predarc-gradient-button mt-6 w-full py-3.5 text-sm disabled:cursor-wait disabled:opacity-60"
             >
-              {buttonLabel}
+              {busy ? "Processing..." : buttonLabel}
             </button>
 
-            {message && (
-              <p className="mt-4 rounded-2xl border border-orange-400/20 bg-orange-400/[0.06] p-4 text-sm leading-6 text-orange-100">
-                {message}
+            {status && (
+              <p className="mt-4 break-words rounded-2xl border border-orange-400/20 bg-orange-400/[0.06] p-4 text-sm leading-6 text-orange-100">
+                {status}
               </p>
             )}
 
             <p className="mt-5 text-center text-xs leading-5 text-gray-600">
               Always review the token, amount, route and slippage before
-              signing a transaction.
+              signing.
             </p>
           </section>
         </div>

@@ -1,16 +1,16 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { useAccount, useChainId, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import type { EIP1193Provider } from "viem";
-import { mainnet } from "viem/chains";
+import { base, mainnet } from "viem/chains";
 import { AppKit } from "@circle-fin/app-kit";
 import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import { arcMainnet } from "@/lib/daily";
 
-type Direction = "arc-eth" | "eth-arc";
-type CircleChain = "Arc" | "Ethereum";
+type Direction = "arc-eth" | "eth-arc" | "arc-base" | "base-arc";
+type CircleChain = "Arc" | "Ethereum" | "Base";
 
 export default function BridgePage() {
   const { address, connector, isConnected } = useAccount();
@@ -24,6 +24,8 @@ export default function BridgePage() {
       ? "Arc Mainnet"
       : chainId === mainnet.id
         ? "Ethereum Mainnet"
+        : chainId === base.id
+          ? "Base Mainnet"
         : chainId === 5042002
           ? "Arc Testnet"
           : "Unknown network (" + chainId + ")";
@@ -33,12 +35,34 @@ export default function BridgePage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const fromArc = route === "arc-eth";
-  const fromChain: CircleChain = fromArc ? "Arc" : "Ethereum";
-  const toChain: CircleChain = fromArc ? "Ethereum" : "Arc";
-  const fromLabel = fromArc ? "Arc Mainnet" : "Ethereum Mainnet";
-  const toLabel = fromArc ? "Ethereum Mainnet" : "Arc Mainnet";
-  const fromId = fromArc ? arcMainnet.id : mainnet.id;
+  const fromChain: CircleChain = route.startsWith("arc")
+    ? "Arc"
+    : route.startsWith("eth")
+      ? "Ethereum"
+      : "Base";
+
+  const toChain: CircleChain = route.endsWith("arc")
+    ? "Arc"
+    : route.endsWith("eth")
+      ? "Ethereum"
+      : "Base";
+
+  const chainLabel: Record<CircleChain, string> = {
+    Arc: "Arc Mainnet",
+    Ethereum: "Ethereum Mainnet",
+    Base: "Base Mainnet",
+  };
+
+  const chainIdByName: Record<CircleChain, number> = {
+    Arc: arcMainnet.id,
+    Ethereum: mainnet.id,
+    Base: base.id,
+  };
+
+  const fromLabel = chainLabel[fromChain];
+  const toLabel = chainLabel[toChain];
+  const fromId = chainIdByName[fromChain];
+
   async function bridge() {
     setMessage("");
 
@@ -126,7 +150,7 @@ export default function BridgePage() {
           </h1>
 
           <p className="mt-3 text-gray-400">
-            Bridge native USDC between Arc Mainnet and Ethereum Mainnet.
+            Bridge native USDC between Arc Mainnet, Ethereum Mainnet and Base Mainnet.
           </p>
 
           <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
@@ -172,6 +196,12 @@ export default function BridgePage() {
               </option>
               <option value="eth-arc">
                 Ethereum Mainnet → Arc Mainnet
+              </option>
+              <option value="arc-base">
+                Arc Mainnet -&gt; Base Mainnet
+              </option>
+              <option value="base-arc">
+                Base Mainnet -&gt; Arc Mainnet
               </option>
             </select>
           </label>

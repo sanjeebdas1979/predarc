@@ -1,10 +1,10 @@
 import { createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { arcTestnet, mainnet } from "viem/chains";
+import { arcTestnet, base, mainnet } from "viem/chains";
 import { arcMainnet } from "./daily";
 
 export const wagmiConfig = createConfig({
-  chains: [arcTestnet, arcMainnet, mainnet],
+  chains: [arcTestnet, arcMainnet, mainnet, base],
 
   connectors: [
     injected({
@@ -20,6 +20,10 @@ export const wagmiConfig = createConfig({
 
     [mainnet.id]: http(
       "https://cloudflare-eth.com"
+    ),
+
+    [base.id]: http(
+      "https://mainnet.base.org"
     ),
   },
 

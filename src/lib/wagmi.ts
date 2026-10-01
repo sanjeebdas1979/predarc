@@ -1,10 +1,10 @@
 import { createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { arcTestnet, base, mainnet } from "viem/chains";
+import { arbitrum, arcTestnet, base, mainnet, polygon } from "viem/chains";
 import { arcMainnet } from "./daily";
 
 export const wagmiConfig = createConfig({
-  chains: [arcTestnet, arcMainnet, mainnet, base],
+  chains: [arcTestnet, arcMainnet, mainnet, base, arbitrum, polygon],
 
   connectors: [
     injected({
@@ -24,6 +24,14 @@ export const wagmiConfig = createConfig({
 
     [base.id]: http(
       "https://mainnet.base.org"
+    ),
+
+    [arbitrum.id]: http(
+      "https://arb1.arbitrum.io/rpc"
+    ),
+
+    [polygon.id]: http(
+      "https://polygon-rpc.com"
     ),
   },
 

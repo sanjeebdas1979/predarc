@@ -4,13 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAccount, useChainId, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import type { EIP1193Provider } from "viem";
-import { base, mainnet } from "viem/chains";
+import { arbitrum, base, mainnet, polygon } from "viem/chains";
 import { AppKit } from "@circle-fin/app-kit";
 import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import { arcMainnet } from "@/lib/daily";
 
-type Direction = "arc-eth" | "eth-arc" | "arc-base" | "base-arc";
-type CircleChain = "Arc" | "Ethereum" | "Base";
+type Direction = "arc-eth" | "eth-arc" | "arc-base" | "base-arc" | "arc-arbitrum" | "arbitrum-arc" | "arc-polygon" | "polygon-arc";
+type CircleChain = "Arc" | "Ethereum" | "Base" | "Arbitrum" | "Polygon";
 
 export default function BridgePage() {
   const { address, connector, isConnected } = useAccount();
@@ -26,9 +26,13 @@ export default function BridgePage() {
         ? "Ethereum Mainnet"
         : chainId === base.id
           ? "Base Mainnet"
-        : chainId === 5042002
-          ? "Arc Testnet"
-          : "Unknown network (" + chainId + ")";
+          : chainId === arbitrum.id
+            ? "Arbitrum One"
+            : chainId === polygon.id
+              ? "Polygon PoS"
+              : chainId === 5042002
+                ? "Arc Testnet"
+                : "Unknown network (" + chainId + ")";
 
   const [route, setRoute] = useState<Direction>("arc-eth");
   const [amount, setAmount] = useState("0.01");
@@ -39,30 +43,41 @@ export default function BridgePage() {
     ? "Arc"
     : route.startsWith("eth")
       ? "Ethereum"
-      : "Base";
+      : route.startsWith("base")
+        ? "Base"
+        : route.startsWith("arbitrum")
+          ? "Arbitrum"
+          : "Polygon";
 
   const toChain: CircleChain = route.endsWith("arc")
     ? "Arc"
     : route.endsWith("eth")
       ? "Ethereum"
-      : "Base";
+      : route.endsWith("base")
+        ? "Base"
+        : route.endsWith("arbitrum")
+          ? "Arbitrum"
+          : "Polygon";
 
   const chainLabel: Record<CircleChain, string> = {
     Arc: "Arc Mainnet",
     Ethereum: "Ethereum Mainnet",
     Base: "Base Mainnet",
+    Arbitrum: "Arbitrum One",
+    Polygon: "Polygon PoS",
   };
 
   const chainIdByName: Record<CircleChain, number> = {
     Arc: arcMainnet.id,
     Ethereum: mainnet.id,
     Base: base.id,
+    Arbitrum: arbitrum.id,
+    Polygon: polygon.id,
   };
 
   const fromLabel = chainLabel[fromChain];
   const toLabel = chainLabel[toChain];
   const fromId = chainIdByName[fromChain];
-
   async function bridge() {
     setMessage("");
 
@@ -150,7 +165,7 @@ export default function BridgePage() {
           </h1>
 
           <p className="mt-3 text-gray-400">
-            Bridge native USDC between Arc Mainnet, Ethereum Mainnet and Base Mainnet.
+            Bridge native USDC between Arc Mainnet, Ethereum Mainnet, Base Mainnet, Arbitrum One and Polygon PoS.
           </p>
 
           <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
@@ -202,6 +217,18 @@ export default function BridgePage() {
               </option>
               <option value="base-arc">
                 Base Mainnet -&gt; Arc Mainnet
+              </option>
+              <option value="arc-arbitrum">
+                Arc Mainnet -&gt; Arbitrum One
+              </option>
+              <option value="arbitrum-arc">
+                Arbitrum One -&gt; Arc Mainnet
+              </option>
+              <option value="arc-polygon">
+                Arc Mainnet -&gt; Polygon PoS
+              </option>
+              <option value="polygon-arc">
+                Polygon PoS -&gt; Arc Mainnet
               </option>
             </select>
           </label>

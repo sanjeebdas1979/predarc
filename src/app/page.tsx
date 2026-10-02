@@ -77,6 +77,10 @@ export default function Home() {
             Payment receipts
           </Link>
 
+          <Link href="/markets" className="text-sm font-bold text-orange-300 hover:text-white">
+            Community markets
+          </Link>
+
           {/* Navigation */}
           <nav className="hidden items-center gap-6 xl:flex">
             <a
@@ -156,6 +160,13 @@ export default function Home() {
             >
               Explore Markets
             </a>
+
+            <Link
+              href="/markets"
+              className="rounded-xl border border-orange-400/25 bg-orange-400/[0.05] px-6 py-3.5 text-sm font-bold text-orange-200 transition hover:border-orange-300/50"
+            >
+              Community Markets
+            </Link>
           </div>
 
           {/* Product badges */}

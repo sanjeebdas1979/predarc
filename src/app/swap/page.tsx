@@ -13,8 +13,11 @@ import { AppKit } from "@circle-fin/app-kit";
 import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import type { EIP1193Provider } from "viem";
 import { arcMainnet } from "@/lib/daily";
+import PredarcSessionCard from "../components/auth/PredarcSessionCard";
+import { usePredarcSession } from "../components/providers/PredarcSessionProvider";
 
 type TokenKey = "USDC" | "EURC" | "cirBTC";
+type StatusTone = "info" | "success" | "error";
 
 const tokens: Record<
   TokenKey,
@@ -61,6 +64,7 @@ function TokenInput({
   token,
   amount,
   readOnly,
+  disabled,
   onAmountChange,
   onTokenChange,
 }: {
@@ -68,6 +72,7 @@ function TokenInput({
   token: TokenKey;
   amount: string;
   readOnly?: boolean;
+  disabled?: boolean;
   onAmountChange?: (value: string) => void;
   onTokenChange?: (value: TokenKey) => void;
 }) {
@@ -82,6 +87,7 @@ function TokenInput({
         <input
           value={amount}
           readOnly={readOnly}
+          disabled={disabled}
           onChange={(event) => onAmountChange?.(event.target.value)}
           inputMode="decimal"
           placeholder="0.00"
@@ -90,6 +96,7 @@ function TokenInput({
 
         <select
           value={token}
+          disabled={disabled}
           onChange={(event) =>
             onTokenChange?.(event.target.value as TokenKey)
           }
@@ -115,6 +122,7 @@ export default function SwapPage() {
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChainAsync, isPending: isSwitching } = useSwitchChain();
+  const { isSignedIn } = usePredarcSession();
 
   const [fromToken, setFromToken] = useState<TokenKey>("USDC");
   const [toToken, setToToken] = useState<TokenKey>("EURC");
@@ -122,6 +130,7 @@ export default function SwapPage() {
   const [slippage, setSlippage] = useState("0.5");
   const [quote, setQuote] = useState<QuoteState | null>(null);
   const [status, setStatus] = useState("");
+  const [statusTone, setStatusTone] = useState<StatusTone>("info");
   const [busy, setBusy] = useState(false);
 
   const onArcMainnet = chainId === arcMainnet.id;
@@ -137,6 +146,7 @@ export default function SwapPage() {
   function clearQuote() {
     setQuote(null);
     setStatus("");
+    setStatusTone("info");
   }
 
   function reverseTokens() {
@@ -147,9 +157,15 @@ export default function SwapPage() {
 
   async function handleSwap() {
     setStatus("");
+    setStatusTone("info");
 
     if (!isConnected) {
       connectWallet();
+      return;
+    }
+
+    if (!isSignedIn) {
+      setStatus("Sign in to Predarc before using Swap.");
       return;
     }
 
@@ -249,21 +265,34 @@ export default function SwapPage() {
         return;
       }
 
-      const result = (await kit.swap(params)) as {
-        txHash?: string;
-        explorerUrl?: string;
-      };
+      const result = await kit.swap(params);
 
       setQuote(null);
 
       const receiptLink = result.explorerUrl ?? result.txHash;
 
-      setStatus(
-        receiptLink
-          ? "Swap submitted: " + receiptLink
-          : "Swap submitted. Confirm it in your wallet."
-      );
+      if (result.progress.status === "DONE") {
+        setStatusTone("success");
+        setStatus(
+          receiptLink
+            ? "Swap success. Transaction: " + receiptLink
+            : "Swap success."
+        );
+      } else if (
+        result.progress.status === "FAILED" ||
+        result.progress.status === "NOT_FOUND"
+      ) {
+        setStatusTone("error");
+        setStatus("Swap failed. Please retry.");
+      } else {
+        setStatus(
+          receiptLink
+            ? "Swap submitted. Confirmation is pending: " + receiptLink
+            : "Swap submitted. Confirmation is pending."
+        );
+      }
     } catch (error) {
+      setStatusTone("error");
       setStatus(
         error instanceof Error
           ? error.message
@@ -276,13 +305,15 @@ export default function SwapPage() {
 
   const buttonLabel = !isConnected
     ? "Connect wallet"
-    : !onArcMainnet
-      ? isSwitching
-        ? "Switching network..."
-        : "Switch to Arc Mainnet"
-      : quote
-        ? "Execute swap"
-        : "Get live quote";
+    : !isSignedIn
+      ? "Sign in to activate swap"
+      : !onArcMainnet
+        ? isSwitching
+          ? "Switching network..."
+          : "Switch to Arc Mainnet"
+        : quote
+          ? "Execute swap"
+          : "Get live quote";
 
   return (
     <main className="min-h-screen bg-[#060a11] px-4 py-8 text-white sm:px-6">
@@ -342,6 +373,10 @@ export default function SwapPage() {
             </p>
           </div>
 
+          <div className="mb-4">
+            <PredarcSessionCard feature="Swap" />
+          </div>
+
           <div className="mb-4 grid grid-cols-2 rounded-2xl border border-white/[0.08] bg-[#0d121a] p-1">
             <button
               type="button"
@@ -377,6 +412,7 @@ export default function SwapPage() {
               label="You pay"
               token={fromToken}
               amount={amount}
+              disabled={!isSignedIn || busy}
               onAmountChange={(value) => {
                 setAmount(value);
                 clearQuote();
@@ -391,7 +427,8 @@ export default function SwapPage() {
               <button
                 type="button"
                 onClick={reverseTokens}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-[#182231] text-lg text-orange-300 transition hover:border-orange-400/40 hover:text-white"
+                disabled={!isSignedIn || busy}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-[#182231] text-lg text-orange-300 transition hover:border-orange-400/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Reverse tokens"
               >
                 ↕
@@ -403,6 +440,7 @@ export default function SwapPage() {
               token={toToken}
               amount="--"
               readOnly
+              disabled={!isSignedIn || busy}
               onTokenChange={(value) => {
                 setToToken(value);
                 clearQuote();
@@ -424,11 +462,12 @@ export default function SwapPage() {
                   <button
                     key={option}
                     type="button"
+                    disabled={!isSignedIn || busy}
                     onClick={() => {
                       setSlippage(option);
                       clearQuote();
                     }}
-                    className={`rounded-xl border px-2 py-2 text-xs font-bold transition ${
+                    className={`rounded-xl border px-2 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
                       slippage === option
                         ? "border-orange-400/50 bg-orange-400/[0.12] text-orange-200"
                         : "border-white/[0.08] bg-black/20 text-gray-500 hover:border-white/20 hover:text-white"
@@ -440,11 +479,12 @@ export default function SwapPage() {
 
                 <button
                   type="button"
+                  disabled={!isSignedIn || busy}
                   onClick={() => {
                     setSlippage("custom");
                     clearQuote();
                   }}
-                  className={`rounded-xl border px-2 py-2 text-xs font-bold transition ${
+                  className={`rounded-xl border px-2 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
                     slippage === "custom"
                       ? "border-orange-400/50 bg-orange-400/[0.12] text-orange-200"
                       : "border-white/[0.08] bg-black/20 text-gray-500 hover:border-white/20 hover:text-white"
@@ -493,14 +533,24 @@ export default function SwapPage() {
             <button
               type="button"
               onClick={() => void handleSwap()}
-              disabled={busy}
+              disabled={busy || (isConnected && !isSignedIn)}
               className="predarc-gradient-button mt-6 w-full py-3.5 text-sm disabled:cursor-wait disabled:opacity-60"
             >
               {busy ? "Processing..." : buttonLabel}
             </button>
 
             {status && (
-              <p className="mt-4 break-words rounded-2xl border border-orange-400/20 bg-orange-400/[0.06] p-4 text-sm leading-6 text-orange-100">
+              <p
+                role="status"
+                aria-live="polite"
+                className={`mt-4 break-words rounded-2xl border p-4 text-sm leading-6 ${
+                  statusTone === "success"
+                    ? "border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-200"
+                    : statusTone === "error"
+                      ? "border-red-400/30 bg-red-400/[0.08] text-red-200"
+                      : "border-orange-400/20 bg-orange-400/[0.06] text-orange-100"
+                }`}
+              >
                 {status}
               </p>
             )}

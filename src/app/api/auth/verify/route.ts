@@ -2,6 +2,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { isAddress, verifyMessage, type Address, type Hex } from "viem";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import {
+  authCookieOptions,
+  authSessionMaxAgeSeconds,
+} from "@/lib/auth-session";
 
 export const runtime = "nodejs";
 
@@ -135,7 +139,9 @@ export async function POST(request: NextRequest) {
       if (revokeError) return reply({ error: "Start sign-in again." }, 503);
     }
     const token = randomBytes(32).toString("hex");
-    const expiresAt = new Date(now.getTime() + 60 * 60 * 1000);
+    const expiresAt = new Date(
+      now.getTime() + authSessionMaxAgeSeconds * 1000
+    );
     const { error: sessionError } = await db.from("predarc_auth_sessions").insert({
       token_hash: hash(token), wallet: challenge.wallet, chain_id: chainId,
       created_at: now.toISOString(), expires_at: expiresAt.toISOString(),
@@ -146,18 +152,19 @@ export async function POST(request: NextRequest) {
       authenticated: true, wallet: challenge.wallet, chainId,
       expiresAt: expiresAt.toISOString(),
     });
-    response.cookies.set("predarc_session", token, {
-      httpOnly: true, sameSite: "strict", secure: false,
-      path: "/", maxAge: 3600,
-    });
-    response.cookies.set("predarc_challenge", "", {
-      httpOnly: true, sameSite: "strict", secure: false,
-      path: "/", maxAge: 0,
-    });
+    response.cookies.set(
+      "predarc_session",
+      token,
+      authCookieOptions(authSessionMaxAgeSeconds)
+    );
+    response.cookies.set(
+      "predarc_challenge",
+      "",
+      authCookieOptions(0)
+    );
     return response;
   } catch {
     return reply({ error: "Sign-in service is temporarily unavailable." }, 503);
   }
 }
-
 

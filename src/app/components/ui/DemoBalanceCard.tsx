@@ -3,11 +3,6 @@
 import { colorfulButtonClass } from "./button-colorful";
 
 import {
-  useEffect,
-  useState,
-} from "react";
-
-import {
   useAccount,
   useBalance,
   useChainId,
@@ -16,6 +11,7 @@ import { formatUnits } from "viem";
 import { arcTestnet } from "viem/chains";
 
 import { useDemoPoints } from "../providers/DemoPointsProvider";
+import { usePredarcSession } from "../providers/PredarcSessionProvider";
 
 function formatDisplayedBalance(
   value: bigint | undefined,
@@ -42,23 +38,20 @@ function formatDisplayedBalance(
   });
 }
 
-const SERVER_BALANCE_EVENT =
-  "predarc:server-balance";
-
 export default function DemoBalanceCard() {
   const { balance, resetPoints } = useDemoPoints();
-  const [
-    serverBalance,
-    setServerBalance,
-  ] = useState<string | null>(null);
-  const [
-    serverBalanceMessage,
-    setServerBalanceMessage,
-  ] = useState("");
-  const [
-    isCheckingServerBalance,
-    setIsCheckingServerBalance,
-  ] = useState(false);
+  const {
+    accountBalance,
+    status,
+    message: sessionMessage,
+    isBusy: isSessionBusy,
+    isAuthenticated,
+    isSignedIn,
+    hasWalletMismatch,
+    signIn,
+    signOut,
+    refreshAccount,
+  } = usePredarcSession();
 
   const {
     address,
@@ -99,100 +92,6 @@ export default function DemoBalanceCard() {
     await refetch();
   }
 
-  async function checkServerBalance(): Promise<void> {
-    setIsCheckingServerBalance(true);
-    setServerBalanceMessage("");
-
-    try {
-      const response =
-        await fetch("/api/account", {
-          method: "POST",
-          credentials: "same-origin",
-        });
-
-      const result =
-        await response.json();      const nextServerBalance =
-        typeof result?.points === "number" && Number.isFinite(result.points)
-          ? String(result.points)
-          : typeof result?.balance === "string" &&
-              /^(0|[1-9][0-9]*)$/.test(result.balance)
-            ? result.balance
-            : null;
-
-      if (!response.ok || nextServerBalance === null) {
-        throw new Error(
-          typeof result?.error === "string"
-            ? result.error
-            : "Server balance check failed."
-        );
-      }
-
-      setServerBalance(nextServerBalance);
-
-      setServerBalanceMessage(
-        `Server balance checked successfully (HTTP ${response.status}).`
-      );
-    } catch (error) {
-      setServerBalanceMessage(
-        error instanceof Error
-          ? error.message
-          : "Server balance check failed."
-      );
-    } finally {
-      setIsCheckingServerBalance(false);
-    }
-  }
-
-  useEffect(() => {
-    function handleServerBalance(
-      event: Event
-    ) {
-      const detail =
-        (event as CustomEvent<{
-          balance?: unknown;
-          message?: unknown;
-        }>).detail;
-
-      if (
-        typeof detail?.balance !==
-          "string" ||
-        !/^(0|[1-9][0-9]*)$/.test(
-          detail.balance
-        )
-      ) {
-        void checkServerBalance();
-        return;
-      }
-
-      setServerBalance(
-        detail.balance
-      );
-
-      setServerBalanceMessage(
-        typeof detail.message ===
-          "string"
-          ? detail.message
-          : "Server balance updated after prediction."
-      );
-    }
-
-    window.addEventListener(
-      SERVER_BALANCE_EVENT,
-      handleServerBalance
-    );
-
-    return () => {
-      window.removeEventListener(
-        SERVER_BALANCE_EVENT,
-        handleServerBalance
-      );
-    };
-  }, []);
-
-  useEffect(() => {
-    void checkServerBalance();
-  }, []);
-
   return (
     <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-5">
       {/* Server demo balance */}
@@ -203,9 +102,9 @@ export default function DemoBalanceCard() {
           </p>
 
           <h2 className="mt-2 text-3xl font-black text-white">
-            {serverBalance !== null
-              ? Number(
-                  serverBalance
+            {isSignedIn && accountBalance !== null
+              ? BigInt(
+                  accountBalance
                 ).toLocaleString()
               : "—"}
 
@@ -221,28 +120,45 @@ export default function DemoBalanceCard() {
       </div>
 
       <p className="mt-3 text-xs leading-5 text-gray-500">
-        Supabase-backed testnet points are used for the
-        current Predarc demo. They have no cash value and
-        cannot be transferred or redeemed.
+        Your first Predarc sign-in creates 1,000 server points once per
+        wallet. They load automatically and are used for predictions.
       </p>
 
       <div className="mt-4 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4">
         <button
           type="button"
           onClick={() => {
-            void checkServerBalance();
+            if (hasWalletMismatch) {
+              void signOut();
+            } else if (!isAuthenticated) {
+              void signIn();
+            } else {
+              void refreshAccount();
+            }
           }}
-          disabled={isCheckingServerBalance}
+          disabled={
+            isSessionBusy ||
+            status === "checking" ||
+            !isConnected
+          }
           className={`${colorfulButtonClass} mt-3 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition disabled:cursor-wait disabled:opacity-50`}
         >
-          {isCheckingServerBalance
-            ? "Checking Balance..."
-            : "Check Server Balance"}
+          {status === "checking"
+            ? "Checking Sign-in..."
+            : isSessionBusy
+              ? "Check Your Wallet..."
+              : !isConnected
+                ? "Connect Wallet Above"
+                : hasWalletMismatch
+                  ? "Sign Out Different Wallet"
+                  : !isAuthenticated
+                    ? "Sign In & Load Server Points"
+                    : "Refresh Server Points"}
         </button>
 
-        {serverBalanceMessage ? (
+        {sessionMessage ? (
           <p className="mt-3 text-xs leading-5 text-orange-100">
-            {serverBalanceMessage}
+            {sessionMessage}
           </p>
         ) : null}
 
@@ -347,4 +263,3 @@ export default function DemoBalanceCard() {
     </section>
   );
 }
-

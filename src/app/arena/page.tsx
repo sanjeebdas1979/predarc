@@ -21,6 +21,7 @@ import DemoBalanceCard from "../components/ui/DemoBalanceCard";
 
 import ConnectWallet from "../components/wallet/ConnectWallet";
 import PredarcBrand from "../components/brand/PredarcBrand";
+import { usePredarcSession } from "../components/providers/PredarcSessionProvider";
 
 const MARKET_NAMES = {
   BTC: "Bitcoin",
@@ -32,6 +33,7 @@ const MARKET_NAMES = {
 
 export default function Home() {
   const { selectedMarket } = useBtcPrice();
+  const { isSignedIn } = usePredarcSession();
 
   const marketName =
     MARKET_NAMES[selectedMarket];
@@ -43,15 +45,29 @@ export default function Home() {
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <PredarcBrand />
 
-          <Link
-            href="/auth-test"
-            className="text-sm font-bold text-orange-300 hover:text-white"
-          >
-            Auth test
-          </Link>
           <Link href="/daily" className="text-sm font-bold text-orange-300 hover:text-white">Daily access preview</Link>
-          <Link href="/bridge" className="text-sm font-bold text-orange-300 hover:text-white">Bridge USDC</Link>
-          <Link href="/swap" className="text-sm font-bold text-orange-300 hover:text-white">Swap</Link>
+          {isSignedIn ? (
+            <Link href="/bridge" className="text-sm font-bold text-orange-300 hover:text-white">Bridge</Link>
+          ) : (
+            <span
+              aria-disabled="true"
+              title="Sign in to Predarc to activate Bridge"
+              className="cursor-not-allowed text-sm font-bold text-gray-600"
+            >
+              Bridge · Locked
+            </span>
+          )}
+          {isSignedIn ? (
+            <Link href="/swap" className="text-sm font-bold text-orange-300 hover:text-white">Swap</Link>
+          ) : (
+            <span
+              aria-disabled="true"
+              title="Sign in to Predarc to activate Swap"
+              className="cursor-not-allowed text-sm font-bold text-gray-600"
+            >
+              Swap · Locked
+            </span>
+          )}
           <Link href="/receipts" className="text-sm font-bold text-orange-300 hover:text-white">Payment receipts</Link>
           <ConnectWallet />
         </div>

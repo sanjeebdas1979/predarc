@@ -8,6 +8,8 @@ import {
   useState,
 } from "react";
 
+import { usePredarcSession } from "../providers/PredarcSessionProvider";
+
 const SERVER_BALANCE_EVENT =
   "predarc:server-balance";
 
@@ -91,13 +93,16 @@ function parsePrediction(
 }
 
 export function useServerPredictionStats(): ServerStats {
-  const [
-    balance,
-    setBalance,
-  ] =
-    useState<
-      number | null
-    >(null);
+  const {
+    accountBalance,
+    isAuthenticated: hasSession,
+  } = usePredarcSession();
+
+  const balance =
+    parseBalance(accountBalance);
+
+  const isAuthenticated =
+    hasSession && balance !== null;
 
   const [
     predictions,
@@ -110,12 +115,6 @@ export function useServerPredictionStats(): ServerStats {
   const [
     isLoading,
     setIsLoading,
-  ] =
-    useState(false);
-
-  const [
-    isAuthenticated,
-    setIsAuthenticated,
   ] =
     useState(false);
 
@@ -133,42 +132,25 @@ export function useServerPredictionStats(): ServerStats {
       async () => {
         const requestId = ++refreshRequestRef.current;
 
+        if (!isAuthenticated) {
+          hasServerSnapshotRef.current = false;
+          setPredictions([]);
+          setIsLoading(false);
+          setMessage("Sign in to load server stats.");
+          return;
+        }
+
         setIsLoading(true);
 
         try {
-          const [
-            accountResponse,
-            predictionsResponse,
-          ] = await Promise.all([
-            fetch("/api/account", {
-              method: "POST",
+          const predictionsResponse =
+            await fetch("/api/predictions", {
+              cache: "no-store",
               credentials: "include",
-            }),
-            fetch("/api/predictions", {
-              cache:
-                "no-store",
-              credentials: "include",
-            }),
-          ]);
+            });
 
-          const [
-            accountResult,
-            predictionsResult,
-          ] = await Promise.all([
-            accountResponse.json(),
-            predictionsResponse.json(),
-          ]);
-
-          if (
-            !accountResponse.ok
-          ) {
-            throw new Error(
-              typeof accountResult?.error ===
-                "string"
-                ? accountResult.error
-                : "Server balance unavailable."
-            );
-          }
+          const predictionsResult =
+            await predictionsResponse.json();
 
           if (
             !predictionsResponse.ok
@@ -178,21 +160,6 @@ export function useServerPredictionStats(): ServerStats {
                 "string"
                 ? predictionsResult.error
                 : "Server prediction stats unavailable."
-            );
-          }
-
-          const parsedBalance =
-            parseBalance(
-              accountResult?.balance
-            );
-
-          if (
-            accountResult?.authenticated !==
-              true ||
-            parsedBalance === null
-          ) {
-            throw new Error(
-              "Sign in to load server stats."
             );
           }
 
@@ -216,8 +183,6 @@ export function useServerPredictionStats(): ServerStats {
             return;
           }
 
-          setBalance(parsedBalance);
-
           if (
             parsedPredictions.length > 0 ||
             !hasServerSnapshotRef.current
@@ -226,17 +191,12 @@ export function useServerPredictionStats(): ServerStats {
           }
 
           hasServerSnapshotRef.current = true;
-          setIsAuthenticated(true);
           setMessage(
             "Server stats synced."
           );
         } catch (error) {
           if (requestId !== refreshRequestRef.current) {
             return;
-          }
-
-          if (!hasServerSnapshotRef.current) {
-            setIsAuthenticated(false);
           }
 
           setMessage(
@@ -250,11 +210,17 @@ export function useServerPredictionStats(): ServerStats {
           }
         }
       },
-      []
+      [isAuthenticated]
     );
 
   useEffect(() => {
-    void refresh();
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -367,6 +333,4 @@ export function useServerPredictionStats(): ServerStats {
     refresh,
   };
 }
-
-
 

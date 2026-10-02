@@ -25,6 +25,8 @@ import {
 import { forecastChainId, forecastNetworkLabel } from "@/lib/forecast-network";
 
 import { useVerification } from "../providers/VerificationProvider";
+import PredarcSessionCard from "../auth/PredarcSessionCard";
+import { usePredarcSession } from "../providers/PredarcSessionProvider";
 
 const LEGACY_PENDING_VERIFICATION_KEY =
   "prederc-pending-verification-transaction";
@@ -160,6 +162,8 @@ export default function ConnectWallet() {
     isVerified,
     setVerified,
   } = useVerification();
+
+  const { isSignedIn } = usePredarcSession();
 
   const publicClient =
     usePublicClient({
@@ -560,6 +564,14 @@ export default function ConnectWallet() {
 
     resetTransaction();
 
+    if (!isSignedIn) {
+      setVerificationError(
+        "Sign in to Predarc before onchain verification."
+      );
+
+      return;
+    }
+
     if (!address) {
       setVerificationError(
         "Connect your wallet first."
@@ -688,6 +700,7 @@ export default function ConnectWallet() {
       !address ||
       chainId !==
         forecastChainId ||
+      !isSignedIn ||
       isVerified
     ) {
       return;
@@ -723,6 +736,7 @@ export default function ConnectWallet() {
     address,
     chainId,
     isConnected,
+    isSignedIn,
     isVerified,
     confirmTransaction,
   ]);
@@ -843,6 +857,8 @@ export default function ConnectWallet() {
         </button>
       </div>
 
+      <PredarcSessionCard />
+
       {isVerified ? (
         <div className="w-full max-w-md rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
           <p className="font-bold text-emerald-400">
@@ -875,10 +891,12 @@ export default function ConnectWallet() {
             onClick={() => {
               void verifyOnchain();
             }}
-            disabled={isBusy}
+            disabled={isBusy || !isSignedIn}
             className="mt-4 w-full rounded-xl bg-orange-500 px-5 py-3 font-bold text-white transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isWaitingForWallet
+            {!isSignedIn
+              ? "Sign In First"
+              : isWaitingForWallet
               ? "Confirm In MetaMask..."
               : isCheckingReceipt
                 ? "Checking Arc Confirmation..."

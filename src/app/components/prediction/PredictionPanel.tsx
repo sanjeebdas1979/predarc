@@ -34,6 +34,8 @@ import {
   useRound,
   type PredictionDuration,
 } from "../providers/RoundProvider";
+import { usePredarcSession } from "../providers/PredarcSessionProvider";
+import { pointsAsSafeNumber } from "@/lib/predarc-session-core";
 
 type Direction =
   | "higher"
@@ -193,7 +195,6 @@ async function submitServerPrediction(
 
 export default function PredictionPanel() {
   const {
-    balance,
     predictions,
     spendPoints,
     addPrediction,
@@ -206,6 +207,14 @@ export default function PredictionPanel() {
   const {
     isVerified,
   } = useVerification();
+
+  const {
+    isSignedIn,
+    accountBalance,
+  } = usePredarcSession();
+
+  const availablePoints =
+    pointsAsSafeNumber(accountBalance);
 
   const {
     roundNumber,
@@ -297,11 +306,13 @@ export default function PredictionPanel() {
     isConfirmingTransaction;
 
   const canUsePredictionPanel =
+    isSignedIn &&
     isVerified &&
     isPredictionOpen &&
     !isOnchainBusy;
 
   const canUseTimeframe =
+    isSignedIn &&
     isVerified &&
     canChangeDuration &&
     !isOnchainBusy;
@@ -340,6 +351,14 @@ export default function PredictionPanel() {
     duration:
       PredictionDuration
   ): void {
+    if (!isSignedIn) {
+      setMessage(
+        "Sign in to Predarc before selecting a prediction timeframe."
+      );
+
+      return;
+    }
+
     if (!isVerified) {
       setMessage(
         "Complete Arc Testnet verification first."
@@ -393,6 +412,14 @@ export default function PredictionPanel() {
     selectedDirection:
       Direction
   ): void {
+    if (!isSignedIn) {
+      setMessage(
+        "Sign in to Predarc before selecting a prediction."
+      );
+
+      return;
+    }
+
     if (!isVerified) {
       setMessage(
         "Complete Arc Testnet verification first."
@@ -431,6 +458,14 @@ export default function PredictionPanel() {
     setTransactionHash(
       null
     );
+
+    if (!isSignedIn) {
+      setMessage(
+        "Sign in to Predarc before predicting."
+      );
+
+      return;
+    }
 
     if (!isVerified) {
       setMessage(
@@ -487,10 +522,10 @@ export default function PredictionPanel() {
 
     if (
       stake >
-      balance
+      availablePoints
     ) {
       setMessage(
-        "Not enough demo points."
+        "Not enough server points."
       );
 
       return;
@@ -611,18 +646,9 @@ export default function PredictionPanel() {
           roundDuration
         );
 
-      const pointsSpent =
-        spendPoints(
-          stake
-        );
-
-      if (!pointsSpent) {
-        setMessage(
-          "Transaction confirmed, but demo points could not be deducted."
-        );
-
-        return;
-      }
+      // Keep legacy browser history in sync when possible. The server
+      // ledger remains authoritative and already completed the debit.
+      spendPoints(stake);
 
       /*
        * IMPORTANT:
@@ -738,18 +764,20 @@ export default function PredictionPanel() {
 
           <span
             className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-bold ${
-              isVerified
+              isSignedIn && isVerified
                 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
                 : "border-orange-500/30 bg-orange-500/10 text-orange-400"
             }`}
           >
-            {isVerified
+            {isSignedIn && isVerified
               ? "✓ ONCHAIN READY"
-              : "🔒 LOCKED"}
+              : !isSignedIn
+                ? "🔒 SIGN IN"
+                : "🔒 VERIFY"}
           </span>
         </div>
 
-        {!isVerified && (
+        {(!isSignedIn || !isVerified) && (
           <div className="mt-3 rounded-xl border border-orange-500/30 bg-orange-500/[0.08] p-3 text-center">
             <p className="text-xs font-semibold text-orange-400">
               Prediction access
@@ -757,9 +785,9 @@ export default function PredictionPanel() {
             </p>
 
             <p className="mt-1 text-[10px] leading-4 text-gray-400">
-              Connect and verify
-              your Arc Testnet
-              wallet.
+              {!isSignedIn
+                ? "Connect and sign in above to load your server points."
+                : "Complete the existing Arc Testnet onchain verification."}
             </p>
           </div>
         )}
@@ -940,7 +968,9 @@ export default function PredictionPanel() {
             <p className="text-[9px] text-gray-500">
               Available:{" "}
               <span className="font-semibold text-gray-300">
-                {balance.toLocaleString()}
+                {isSignedIn
+                  ? availablePoints.toLocaleString()
+                  : "—"}
               </span>
             </p>
           </div>
@@ -986,7 +1016,7 @@ export default function PredictionPanel() {
                   disabled={
                     !canUsePredictionPanel ||
                     amount >
-                      balance
+                      availablePoints
                   }
                   onClick={() =>
                     setStake(
@@ -1004,11 +1034,11 @@ export default function PredictionPanel() {
               type="button"
               disabled={
                 !canUsePredictionPanel ||
-                balance < 10
+                availablePoints < 10
               }
               onClick={() =>
                 setStake(
-                  balance
+                  availablePoints
                 )
               }
               className="rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-[9px] font-semibold text-gray-400 transition hover:border-orange-500/40 hover:text-orange-400 disabled:cursor-not-allowed disabled:opacity-30"
@@ -1034,24 +1064,27 @@ export default function PredictionPanel() {
             submitPrediction
           }
           disabled={
+            !isSignedIn ||
             !isVerified ||
-            balance < 10 ||
+            availablePoints < 10 ||
             !isPredictionOpen ||
             isOnchainBusy
           }
           className="mt-3 w-full rounded-xl border border-orange-400/40 bg-gradient-to-r from-orange-600 to-orange-500 px-4 py-3.5 text-[11px] font-black tracking-wide text-white transition hover:-translate-y-0.5 hover:from-orange-500 hover:to-orange-400 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-none disabled:bg-white/5 disabled:text-gray-500 disabled:hover:translate-y-0"
         >
-          {!isVerified
-            ? "VERIFY ONCHAIN TO PREDICT"
-            : isWaitingForWallet
-              ? "CONFIRM IN METAMASK..."
-              : isConfirmingTransaction
-                ? "WAITING FOR ARC CONFIRMATION..."
-                : !isPredictionOpen
-                  ? "ROUND CLOSED"
-                  : direction
-                    ? `SUBMIT ${selectedMarket} ${direction.toUpperCase()} ONCHAIN`
-                    : "SELECT HIGHER OR LOWER"}
+          {!isSignedIn
+            ? "SIGN IN TO PREDICT"
+            : !isVerified
+              ? "VERIFY ONCHAIN TO PREDICT"
+              : isWaitingForWallet
+                ? "CONFIRM IN METAMASK..."
+                : isConfirmingTransaction
+                  ? "WAITING FOR ARC CONFIRMATION..."
+                  : !isPredictionOpen
+                    ? "ROUND CLOSED"
+                    : direction
+                      ? `SUBMIT ${selectedMarket} ${direction.toUpperCase()} ONCHAIN`
+                      : "SELECT HIGHER OR LOWER"}
         </button>
 
         {/* Status */}

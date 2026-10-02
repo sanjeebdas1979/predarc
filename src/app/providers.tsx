@@ -13,6 +13,7 @@ import { DemoPointsProvider } from "./components/providers/DemoPointsProvider";
 import { VerificationProvider } from "./components/providers/VerificationProvider";
 import { BtcPriceProvider } from "./components/providers/BtcPriceProvider";
 import { RoundProvider } from "./components/providers/RoundProvider";
+import { PredarcSessionProvider } from "./components/providers/PredarcSessionProvider";
 
 type ProvidersProps = {
   children: ReactNode;
@@ -28,15 +29,17 @@ export default function Providers({
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <DemoPointsProvider>
-          <VerificationProvider>
-            <BtcPriceProvider>
-              <RoundProvider>
-                {children}
-              </RoundProvider>
-            </BtcPriceProvider>
-          </VerificationProvider>
-        </DemoPointsProvider>
+        <PredarcSessionProvider>
+          <DemoPointsProvider>
+            <VerificationProvider>
+              <BtcPriceProvider>
+                <RoundProvider>
+                  {children}
+                </RoundProvider>
+              </BtcPriceProvider>
+            </VerificationProvider>
+          </DemoPointsProvider>
+        </PredarcSessionProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

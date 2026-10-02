@@ -46,6 +46,7 @@ export default function Home() {
           <PredarcBrand />
 
           <Link href="/daily" className="text-sm font-bold text-orange-300 hover:text-white">Daily access preview</Link>
+          <Link href="/markets" className="text-sm font-bold text-orange-300 hover:text-white">Community markets</Link>
           {isSignedIn ? (
             <Link href="/bridge" className="text-sm font-bold text-orange-300 hover:text-white">Bridge</Link>
           ) : (

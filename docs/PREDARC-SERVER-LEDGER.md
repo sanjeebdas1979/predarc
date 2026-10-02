@@ -33,6 +33,11 @@ Run migrations in this order:
 2. `supabase/migrations/202609190001_prediction_ledger_rpc.sql`
 3. `supabase/migrations/202609200001_prediction_settlement_rpc.sql`
 4. `supabase/migrations/202609200002_prediction_claim_rpc.sql`
+5. `supabase/migrations/202609240001_candle_aligned_timeframes.sql`
+6. `supabase/migrations/202609270001_network_aware_prediction_rpc.sql`
+7. `supabase/migrations/202609270002_prevent_duplicate_prediction_slots.sql`
+8. `supabase/migrations/202610020001_community_markets.sql`
+9. `supabase/migrations/202610020002_community_ledger_reference.sql`
 
 Backend-only RPCs:
 
@@ -40,6 +45,10 @@ Backend-only RPCs:
 - `predarc_submit_prediction_v1(...)`
 - `predarc_settle_prediction_v1(...)`
 - `predarc_claim_prediction_v1(p_session_hash, p_prediction_id)`
+- `predarc_create_community_market_v1(...)`
+- `predarc_submit_community_prediction_v1(...)`
+- `predarc_settle_community_market_v1(...)`
+- `predarc_claim_community_prediction_v1(...)`
 
 Expected privilege check:
 
@@ -79,6 +88,9 @@ Server ledger:
 - `POST /api/predictions/claim`
   - Calls `predarc_claim_prediction_v1`.
   - Credits `points * 2` once for settled `won` predictions.
+- `/api/community-markets/*`
+  - Creates, lists, enters, settles and collects results for deterministic user-created crypto markets.
+  - See `docs/COMMUNITY-MARKETS.md` for the full flow and migration checklist.
 
 All local server-ledger routes enforce configured local origin and require signed wallet session cookies.
 

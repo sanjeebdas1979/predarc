@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getAddress, isAddress, zeroAddress } from "viem";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { authCookieOptions } from "@/lib/auth-session";
 
 export const runtime = "nodejs";
 
@@ -101,13 +102,13 @@ export async function POST(request: NextRequest) {
       .single();
     if (error || !data) return reply({ error: "Could not create a sign-in challenge." }, 503);
     const response = reply({ challengeId: data.id, message, chainId });
-    response.cookies.set("predarc_challenge", browserToken, {
-      httpOnly: true, sameSite: "strict", secure: false,
-      path: "/", maxAge: 300,
-    });
+    response.cookies.set(
+      "predarc_challenge",
+      browserToken,
+      authCookieOptions(300)
+    );
     return response;
   } catch {
     return reply({ error: "Sign-in service is temporarily unavailable." }, 503);
   }
 }
-

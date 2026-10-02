@@ -7,6 +7,23 @@ export const authChainId =
   Number(process.env.PREDARC_AUTH_CHAIN_ID) === 5042
     ? 5042
     : 5042002;
+
+export const authSessionMaxAgeSeconds =
+  30 * 24 * 60 * 60;
+
+export const authSessionRenewalWindowSeconds =
+  7 * 24 * 60 * 60;
+
+export function authCookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    sameSite: "strict" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge,
+  };
+}
+
 export function localAuthConfigured() {
   const appOrigin = process.env.PREDARC_APP_ORIGIN;
 

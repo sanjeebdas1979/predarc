@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     const tokenHash = sessionHash(request);
     if (!tokenHash) {
-      return authReply({ error: "Connect wallet first." }, 401);
+      return authReply({ error: "Sign in with your wallet first." }, 401);
     }
 
     const { data: accountResult, error: accountError } =
@@ -67,4 +67,3 @@ export async function POST(request: NextRequest) {
     return authReply({ error: "Unable to load account." }, 500);
   }
 }
-

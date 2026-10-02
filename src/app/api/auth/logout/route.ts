@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import { NextRequest } from "next/server";
-import { authReply, localAuthConfigured, sessionHash } from "@/lib/auth-session";
+import {
+  authCookieOptions,
+  authReply,
+  localAuthConfigured,
+  sessionHash,
+} from "@/lib/auth-session";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
@@ -42,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
     const response = authReply({ authenticated: false });
     for (const name of ["predarc_session", "predarc_challenge"]) {
-      response.cookies.set(name, "", { httpOnly: true, sameSite: "strict", secure: false, path: "/", maxAge: 0 });
+      response.cookies.set(name, "", authCookieOptions(0));
     }
     return response;
   } catch {

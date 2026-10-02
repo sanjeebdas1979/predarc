@@ -8,9 +8,12 @@ import { arbitrum, base, mainnet, polygon } from "viem/chains";
 import { AppKit } from "@circle-fin/app-kit";
 import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import { arcMainnet } from "@/lib/daily";
+import PredarcSessionCard from "../components/auth/PredarcSessionCard";
+import { usePredarcSession } from "../components/providers/PredarcSessionProvider";
 
 type Direction = "arc-eth" | "eth-arc" | "arc-base" | "base-arc" | "arc-arbitrum" | "arbitrum-arc" | "arc-polygon" | "polygon-arc";
 type CircleChain = "Arc" | "Ethereum" | "Base" | "Arbitrum" | "Polygon";
+type MessageTone = "info" | "success" | "error";
 
 export default function BridgePage() {
   const { address, connector, isConnected } = useAccount();
@@ -18,6 +21,7 @@ export default function BridgePage() {
   const { switchChainAsync } = useSwitchChain();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
+  const { isSignedIn } = usePredarcSession();
 
   const currentNetwork =
     chainId === arcMainnet.id
@@ -37,6 +41,7 @@ export default function BridgePage() {
   const [route, setRoute] = useState<Direction>("arc-eth");
   const [amount, setAmount] = useState("0.01");
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<MessageTone>("info");
   const [busy, setBusy] = useState(false);
 
   const fromChain: CircleChain = route.startsWith("arc")
@@ -80,6 +85,12 @@ export default function BridgePage() {
   const fromId = chainIdByName[fromChain];
   async function bridge() {
     setMessage("");
+    setMessageTone("info");
+
+    if (!isSignedIn) {
+      setMessage("Sign in to Predarc before starting a bridge.");
+      return;
+    }
 
     if (!isConnected || !address || !connector) {
       setMessage("Connect your wallet first.");
@@ -126,26 +137,23 @@ export default function BridgePage() {
         },
       });
 
-      const state =
-        typeof result === "object" &&
-        result !== null &&
-        "state" in result
-          ? String(
-              (result as { state?: unknown }).state ??
-                "submitted"
-            )
-          : "submitted";
-
-      setMessage(
-        "Bridge submitted: " +
-          fromLabel +
-          " → " +
-          toLabel +
-          " (" +
-          state +
-          ")"
-      );
+      if (result.state === "success") {
+        setMessageTone("success");
+        setMessage("Bridge success: " + fromLabel + " → " + toLabel + ".");
+      } else if (result.state === "error") {
+        setMessageTone("error");
+        setMessage("Bridge failed. Please retry.");
+      } else {
+        setMessage(
+          "Bridge submitted: " +
+            fromLabel +
+            " → " +
+            toLabel +
+            ". Confirmation is pending."
+        );
+      }
     } catch (error) {
+      setMessageTone("error");
       setMessage(
         error instanceof Error
           ? error.message
@@ -169,7 +177,7 @@ export default function BridgePage() {
           </p>
 
           <h1 className="mt-3 text-4xl font-black">
-            Bridge USDC
+            Bridge
           </h1>
 
           <p className="mt-3 text-gray-400">
@@ -204,6 +212,10 @@ export default function BridgePage() {
             </button>
           </div>
 
+          <div className="mt-4">
+            <PredarcSessionCard feature="Bridge" />
+          </div>
+
           <label className="mt-6 block text-sm text-gray-400">
             Route
             <select
@@ -211,7 +223,7 @@ export default function BridgePage() {
               onChange={(event) =>
                 setRoute(event.target.value as Direction)
               }
-              disabled={busy}
+              disabled={!isSignedIn || busy}
               className="mt-2 w-full rounded-xl bg-black/30 p-3 text-white"
             >
               <option value="arc-eth">
@@ -246,7 +258,7 @@ export default function BridgePage() {
             <input
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
-              disabled={busy}
+              disabled={!isSignedIn || busy}
               inputMode="decimal"
               className="mt-2 w-full rounded-xl bg-black/30 p-3 text-white"
             />
@@ -280,17 +292,27 @@ export default function BridgePage() {
           <button
             type="button"
             onClick={() => void bridge()}
-            disabled={!isConnected || busy}
+            disabled={!isConnected || !isSignedIn || busy}
             className="predarc-gradient-button mt-3 w-full disabled:opacity-50"
           >
-            {busy ? "Waiting for wallet..." : "Start 2-step bridge"}
+            {busy
+              ? "Waiting for wallet..."
+              : !isSignedIn
+                ? "Sign in to activate bridge"
+                : "Start 2-step bridge"}
           </button>
 
           {message && (
             <p
               role="status"
               aria-live="polite"
-              className="mt-5 rounded-xl border border-orange-400/20 p-4 text-sm text-orange-100"
+              className={`mt-5 rounded-xl border p-4 text-sm ${
+                messageTone === "success"
+                  ? "border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-200"
+                  : messageTone === "error"
+                    ? "border-red-400/30 bg-red-400/[0.08] text-red-200"
+                    : "border-orange-400/20 bg-orange-400/[0.06] text-orange-100"
+              }`}
             >
               {message}
             </p>

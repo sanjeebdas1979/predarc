@@ -102,7 +102,11 @@ export default function BridgePage() {
         await switchChainAsync({ chainId: fromId });
       }
 
-      setMessage("Confirm the bridge transaction in MetaMask.");
+      setMessage(
+        "Step 1 of 2: Approve exactly " +
+          amount +
+          " USDC in MetaMask. The bridge confirmation will follow."
+      );
 
       const provider =
         (await connector.getProvider()) as EIP1193Provider;
@@ -116,6 +120,10 @@ export default function BridgePage() {
         from: { adapter, chain: fromChain },
         to: { adapter, chain: toChain },
         amount,
+        config: {
+          // Keep approval and transfer reviewable as separate wallet prompts.
+          batchTransactions: false,
+        },
       });
 
       const state =
@@ -244,17 +252,40 @@ export default function BridgePage() {
             />
           </label>
 
+          <div className="mt-5 rounded-2xl border border-sky-400/20 bg-sky-400/5 p-4">
+            <p className="font-bold text-sky-200">
+              What MetaMask will ask you to do
+            </p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-gray-300">
+              <li>
+                Approve exactly {amount || "the entered amount"} USDC for
+                Circle&apos;s bridge contract.
+              </li>
+              <li>Confirm the bridge transfer.</li>
+            </ol>
+            <p className="mt-3 text-xs leading-5 text-gray-400">
+              MetaMask may label the Circle contract as an &quot;unknown
+              address&quot; on Arc. Treat that as a security review: continue
+              only when the approval amount matches the amount entered above.
+              Predarc never asks for an unlimited approval in this flow.
+            </p>
+          </div>
+
           <button
             type="button"
             onClick={() => void bridge()}
             disabled={!isConnected || busy}
             className="predarc-gradient-button mt-6 w-full disabled:opacity-50"
           >
-            {busy ? "Bridge in progress..." : "Bridge USDC"}
+            {busy ? "Waiting for wallet..." : "Start 2-step bridge"}
           </button>
 
           {message && (
-            <p className="mt-5 rounded-xl border border-orange-400/20 p-4 text-sm text-orange-100">
+            <p
+              role="status"
+              aria-live="polite"
+              className="mt-5 rounded-xl border border-orange-400/20 p-4 text-sm text-orange-100"
+            >
               {message}
             </p>
           )}

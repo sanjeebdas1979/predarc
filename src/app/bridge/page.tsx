@@ -252,30 +252,36 @@ export default function BridgePage() {
             />
           </label>
 
-          <div className="mt-5 rounded-2xl border border-sky-400/20 bg-sky-400/5 p-4">
-            <p className="font-bold text-sky-200">
-              What MetaMask will ask you to do
-            </p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-gray-300">
-              <li>
-                Approve exactly {amount || "the entered amount"} USDC for
-                Circle&apos;s bridge contract.
-              </li>
-              <li>Confirm the bridge transfer.</li>
-            </ol>
-            <p className="mt-3 text-xs leading-5 text-gray-400">
-              MetaMask may label the Circle contract as an &quot;unknown
-              address&quot; on Arc. Treat that as a security review: continue
-              only when the approval amount matches the amount entered above.
-              Predarc never asks for an unlimited approval in this flow.
-            </p>
-          </div>
+          <details className="group relative mt-4">
+            <summary className="mx-auto flex w-fit cursor-pointer list-none items-center gap-1 border-b border-dashed border-sky-300/50 text-xs text-sky-200 outline-none transition hover:text-sky-100 focus-visible:ring-2 focus-visible:ring-sky-300/60 [&::-webkit-details-marker]:hidden">
+              Details
+            </summary>
+
+            <div className="absolute bottom-full left-0 z-10 mb-2 hidden w-full rounded-2xl border border-sky-400/20 bg-[#101923] p-4 shadow-2xl group-hover:block group-focus-within:block group-open:block">
+              <p className="font-bold text-sky-200">
+                What MetaMask will ask you to do
+              </p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-gray-300">
+                <li>
+                  Approve exactly {amount || "the entered amount"} USDC for
+                  Circle&apos;s bridge contract.
+                </li>
+                <li>Confirm the bridge transfer.</li>
+              </ol>
+              <p className="mt-3 text-xs leading-5 text-gray-400">
+                MetaMask may label the Circle contract as an &quot;unknown
+                address&quot; on Arc. Treat that as a security review: continue
+                only when the approval amount matches the amount entered above.
+                Predarc never asks for an unlimited approval in this flow.
+              </p>
+            </div>
+          </details>
 
           <button
             type="button"
             onClick={() => void bridge()}
             disabled={!isConnected || busy}
-            className="predarc-gradient-button mt-6 w-full disabled:opacity-50"
+            className="predarc-gradient-button mt-3 w-full disabled:opacity-50"
           >
             {busy ? "Waiting for wallet..." : "Start 2-step bridge"}
           </button>

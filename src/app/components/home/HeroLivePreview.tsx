@@ -124,13 +124,6 @@ export default function HeroLivePreview() {
   const range =
     maxPrice - minPrice;
 
-  const latestCandle =
-    recentCandles.length > 0
-      ? recentCandles[
-          recentCandles.length - 1
-        ]
-      : null;
-
   const change24h =
     data &&
     Number.isFinite(
@@ -172,8 +165,23 @@ export default function HeroLivePreview() {
             </span>
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <p className="font-mono text-lg font-black tracking-tight text-white sm:text-xl">
+        </div>
+
+        <div className="flex shrink-0 flex-col items-end gap-2 text-right">
+          <span
+            className={`rounded-full border px-3 py-1 text-[9px] font-black shadow-[0_0_24px_rgba(16,185,129,0.08)] ${
+              isConnected
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                : "border-yellow-500/20 bg-yellow-500/10 text-yellow-300"
+            }`}
+          >
+            {isConnected
+              ? "LIVE"
+              : "CONNECTING"}
+          </span>
+
+          <div>
+            <p className="font-mono text-base font-black tracking-tight text-white sm:text-lg">
               {formatPrice(
                 data?.price ?? null,
                 selectedMarket
@@ -181,7 +189,7 @@ export default function HeroLivePreview() {
             </p>
 
             <span
-              className={`text-xs font-black ${changeClass}`}
+              className={`text-[10px] font-black ${changeClass}`}
             >
               {change24h === null
                 ? "Waiting..."
@@ -195,18 +203,6 @@ export default function HeroLivePreview() {
             </span>
           </div>
         </div>
-
-        <span
-          className={`rounded-full border px-3 py-1 text-[9px] font-black shadow-[0_0_24px_rgba(16,185,129,0.08)] ${
-            isConnected
-              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-              : "border-yellow-500/20 bg-yellow-500/10 text-yellow-300"
-          }`}
-        >
-          {isConnected
-            ? "LIVE"
-            : "CONNECTING"}
-        </span>
       </div>
 
       {/* Real candle mini chart */}
@@ -283,27 +279,6 @@ export default function HeroLivePreview() {
           {timeframe}
         </div>
 
-        {latestCandle && (
-          <div className="absolute right-4 top-4 rounded-lg border border-white/10 bg-black/40 px-3 py-2 backdrop-blur">
-            <p className="text-[8px] uppercase tracking-wide text-gray-600">
-              Latest candle
-            </p>
-
-            <p
-              className={`mt-1 font-mono text-xs font-black ${
-                latestCandle.close >=
-                latestCandle.open
-                  ? "text-emerald-400"
-                  : "text-rose-400"
-              }`}
-            >
-              {formatPrice(
-                latestCandle.close,
-                selectedMarket
-              )}
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Summary */}

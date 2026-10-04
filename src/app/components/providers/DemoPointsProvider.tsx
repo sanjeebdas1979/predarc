@@ -40,6 +40,11 @@ export type PredictionOnchainStatus =
   | "claimable"
   | "claimed";
 
+export type PredictionServerSyncStatus =
+  | "pending"
+  | "synced"
+  | "failed";
+
 export type PredictionRecord = {
   id: number;
 
@@ -102,6 +107,13 @@ export type PredictionRecord = {
 
   onchainStatus:
     PredictionOnchainStatus;
+
+  serverRequestId:
+    | string
+    | null;
+
+  serverSyncStatus:
+    PredictionServerSyncStatus;
 };
 
 type AddPredictionOnchainData = {
@@ -113,6 +125,11 @@ type AddPredictionOnchainData = {
     `0x${string}`;
 
   entryPrice?: number;
+
+  serverRequestId?: string;
+
+  serverSyncStatus?:
+    PredictionServerSyncStatus;
 };
 
 type DemoPointsContextValue = {
@@ -138,6 +155,13 @@ type DemoPointsContextValue = {
     onchainData?: AddPredictionOnchainData,
     market?: PredictionMarket
   ) => number;
+
+  setPredictionServerSync: (
+    predictionId: number,
+    status:
+      PredictionServerSyncStatus,
+    entryPrice?: number
+  ) => boolean;
 
   /*
    * Market is optional temporarily for
@@ -332,6 +356,24 @@ function normalizeOnchainStatus(
   return "local";
 }
 
+function normalizeServerSyncStatus(
+  value: unknown
+): PredictionServerSyncStatus {
+  if (
+    value === "pending" ||
+    value === "synced" ||
+    value === "failed"
+  ) {
+    return value;
+  }
+
+  /*
+   * Records created before server-sync tracking
+   * already completed the old submission flow.
+   */
+  return "synced";
+}
+
 function normalizePrediction(
   prediction:
     Partial<PredictionRecord>
@@ -497,6 +539,20 @@ function normalizePrediction(
         status,
         claimed,
         resolveTransactionHash
+      ),
+
+    serverRequestId:
+      typeof prediction.serverRequestId ===
+        "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        prediction.serverRequestId
+      )
+        ? prediction.serverRequestId
+        : null,
+
+    serverSyncStatus:
+      normalizeServerSyncStatus(
+        prediction.serverSyncStatus
       ),
   };
 }
@@ -800,6 +856,16 @@ export function DemoPointsProvider({
             transactionHash
               ? "submitted"
               : "local",
+
+          serverRequestId:
+            onchainData
+              ?.serverRequestId ??
+            null,
+
+          serverSyncStatus:
+            onchainData
+              ?.serverSyncStatus ??
+            "synced",
         };
 
         updatePredictions([
@@ -808,6 +874,64 @@ export function DemoPointsProvider({
         ]);
 
         return predictionId;
+      },
+      [
+        updatePredictions,
+      ]
+    );
+
+  const setPredictionServerSync =
+    useCallback(
+      (
+        predictionId: number,
+        status:
+          PredictionServerSyncStatus,
+        entryPrice?: number
+      ): boolean => {
+        let becameSynced =
+          false;
+
+        const nextPredictions =
+          predictionsRef.current.map(
+            (
+              prediction
+            ): PredictionRecord => {
+              if (
+                prediction.id !==
+                predictionId
+              ) {
+                return prediction;
+              }
+
+              becameSynced =
+                status === "synced" &&
+                prediction.serverSyncStatus !==
+                  "synced";
+
+              return {
+                ...prediction,
+
+                serverSyncStatus:
+                  status,
+
+                startPrice:
+                  typeof entryPrice ===
+                    "number" &&
+                  Number.isFinite(
+                    entryPrice
+                  ) &&
+                  entryPrice > 0
+                    ? entryPrice
+                    : prediction.startPrice,
+              };
+            }
+          );
+
+        updatePredictions(
+          nextPredictions
+        );
+
+        return becameSynced;
       },
       [
         updatePredictions,
@@ -1216,6 +1340,8 @@ export function DemoPointsProvider({
 
         addPrediction,
 
+        setPredictionServerSync,
+
         settleRound,
 
         setResolveTransaction,
@@ -1238,6 +1364,8 @@ export function DemoPointsProvider({
         spendPoints,
 
         addPrediction,
+
+        setPredictionServerSync,
 
         settleRound,
 
@@ -1279,4 +1407,3 @@ export function useDemoPoints():
 
   return context;
 }
-

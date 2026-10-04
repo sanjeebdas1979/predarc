@@ -36,6 +36,7 @@ import {
 } from "../providers/RoundProvider";
 import { usePredarcSession } from "../providers/PredarcSessionProvider";
 import { pointsAsSafeNumber } from "@/lib/predarc-session-core";
+import { submitServerPrediction } from "@/lib/prediction-client";
 
 type Direction =
   | "higher"
@@ -114,90 +115,12 @@ function getErrorMessage(
   return "Onchain prediction failed. Please try again.";
 }
 
-async function submitServerPrediction(
-  market: PredictionMarket,
-  direction: Direction,
-  points: number,
-  durationSeconds: PredictionDuration
-): Promise<{
-  balance: string;
-  replayed: boolean;
-  entryPrice: number;
-}> {
-  const response =
-    await fetch(
-      "/api/predictions/submit",
-      {
-        method: "POST",
-        credentials:
-          "same-origin",
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-        body:
-          JSON.stringify(
-            {
-              requestId:
-                crypto
-                  .randomUUID(),
-              market,
-              direction,
-              points,
-              durationSeconds,
-            }
-          ),
-      }
-    );
-
-  const result =
-    await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      typeof result?.error ===
-        "string"
-        ? result.error
-        : "Server prediction failed."
-    );
-  }
-
-  if (
-    result?.authenticated !==
-      true ||
-    typeof result.balance !==
-      "string"
-  ) {
-    throw new Error(
-      "Server prediction returned an unexpected result."
-    );
-  }
-
-  const entryPrice = Number(
-    result.prediction?.entry_price
-  );
-
-  if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
-    throw new Error(
-      "Server prediction returned an invalid entry price."
-    );
-  }
-
-  return {
-    balance:
-      result.balance,
-    replayed:
-      result.replayed ===
-      true,
-    entryPrice,
-  };
-}
-
 export default function PredictionPanel() {
   const {
     predictions,
     spendPoints,
     addPrediction,
+    setPredictionServerSync,
   } = useDemoPoints();
 
   const {
@@ -344,8 +267,9 @@ export default function PredictionPanel() {
   ];
 
   const isSuccessfulSubmission =
-    message ===
-    "Onchain prediction confirmed successfully.";
+    message.startsWith(
+      "Onchain prediction confirmed and server ledger recorded."
+    );
 
   function selectDuration(
     duration:
@@ -554,9 +478,31 @@ export default function PredictionPanel() {
       return;
     }
 
+    const submittedMarketValue =
+      selectedMarket as
+        PredictionMarket;
+
+    const submittedDirectionValue =
+      direction;
+
+    const submittedStakeValue =
+      stake;
+
+    const submittedDurationValue =
+      roundDuration;
+
+    const submittedRoundNumber =
+      roundNumber;
+
+    const submittedStartPrice =
+      startPrice;
+
+    const serverRequestId =
+      crypto.randomUUID();
+
     try {
       setMessage(
-        `Confirm the ${selectedMarket} forecast transaction in MetaMask.`
+        `Confirm the ${submittedMarketValue} forecast transaction in MetaMask.`
       );
 
       const onchainForecastId =
@@ -567,12 +513,12 @@ export default function PredictionPanel() {
       const scaledStartPrice =
         BigInt(
           Math.round(
-            startPrice * PRICE_SCALE
+            submittedStartPrice * PRICE_SCALE
           )
         );
 
       const directionValue =
-        direction ===
+        submittedDirectionValue ===
         "higher"
           ? 0
           : 1;
@@ -592,9 +538,9 @@ export default function PredictionPanel() {
             args: [
               onchainForecastId,
               directionValue,
-              roundDuration,
+              submittedDurationValue,
               BigInt(
-                stake
+                submittedStakeValue
               ),
               scaledStartPrice,
             ],
@@ -613,7 +559,7 @@ export default function PredictionPanel() {
       );
 
       setMessage(
-        `Waiting for ${forecastNetworkLabel} confirmation for ${selectedMarket} forecast...`
+        `Waiting for ${forecastNetworkLabel} confirmation for ${submittedMarketValue} forecast...`
       );
 
       const receipt =
@@ -634,87 +580,118 @@ export default function PredictionPanel() {
       }
 
       setMessage(
-        "Arc transaction confirmed. Recording prediction in server ledger..."
+        "Arc transaction confirmed. Saving the active prediction and syncing the server ledger..."
       );
-
-      const serverPrediction =
-        await submitServerPrediction(
-          selectedMarket as
-            PredictionMarket,
-          direction,
-          stake,
-          roundDuration
-        );
-
-      // Keep legacy browser history in sync when possible. The server
-      // ledger remains authoritative and already completed the debit.
-      spendPoints(stake);
 
       /*
-       * IMPORTANT:
-       *
-       * selectedMarket is stored with the
-       * local prediction record.
-       *
-       * BTC / ETH / SOL / BNB / XRP
-       * will now remain attached to this
-       * prediction permanently.
+       * Persist the confirmed Arc transaction before the
+       * server request. If the network request fails, the
+       * user can safely retry with the same request ID.
        */
-      addPrediction(
-        roundNumber,
-        direction,
-        stake,
-        roundDuration,
-        {
-          forecastId:
-            onchainForecastId,
+      const localPredictionId =
+        addPrediction(
+          submittedRoundNumber,
+          submittedDirectionValue,
+          submittedStakeValue,
+          submittedDurationValue,
+          {
+            forecastId:
+              onchainForecastId,
 
-          transactionHash:
-            hash,
+            transactionHash:
+              hash,
 
-          entryPrice:
-            serverPrediction.entryPrice,
-        },
-        selectedMarket as
-          PredictionMarket
-      );
+            entryPrice:
+              submittedStartPrice,
+
+            serverRequestId,
+
+            serverSyncStatus:
+              "pending",
+          },
+          submittedMarketValue
+        );
 
       setSubmittedDirection(
-        direction
+        submittedDirectionValue
       );
 
       setSubmittedStake(
-        stake
+        submittedStakeValue
       );
 
       setSubmittedDuration(
-        roundDuration
+        submittedDurationValue
       );
 
       setSubmittedMarket(
-        selectedMarket as
-          PredictionMarket
+        submittedMarketValue
       );
 
-      window.dispatchEvent(
-        new CustomEvent(
-          SERVER_BALANCE_EVENT,
-          {
-            detail: {
-              balance:
-                serverPrediction.balance,
-              message:
-                "Server balance updated after prediction.",
-            },
-          }
-        )
-      );
+      try {
+        const serverPrediction =
+          await submitServerPrediction(
+            {
+              requestId:
+                serverRequestId,
+              market:
+                submittedMarketValue,
+              direction:
+                submittedDirectionValue,
+              points:
+                submittedStakeValue,
+              durationSeconds:
+                submittedDurationValue,
+            }
+          );
 
-      setMessage(
-        `Onchain prediction confirmed and server ledger recorded. Server balance: ${Number(
-          serverPrediction.balance
-        ).toLocaleString()} points.`
-      );
+        const becameSynced =
+          setPredictionServerSync(
+            localPredictionId,
+            "synced",
+            serverPrediction.entryPrice
+          );
+
+        if (becameSynced) {
+          spendPoints(
+            submittedStakeValue
+          );
+        }
+
+        window.dispatchEvent(
+          new CustomEvent(
+            SERVER_BALANCE_EVENT,
+            {
+              detail: {
+                balance:
+                  serverPrediction.balance,
+                message:
+                  "Server balance updated after prediction.",
+              },
+            }
+          )
+        );
+
+        setMessage(
+          `Onchain prediction confirmed and server ledger recorded. Server balance: ${Number(
+            serverPrediction.balance
+          ).toLocaleString()} points.`
+        );
+      } catch (serverError) {
+        setPredictionServerSync(
+          localPredictionId,
+          "failed"
+        );
+
+        console.error(
+          "Server ledger sync failed after confirmed Arc transaction:",
+          serverError
+        );
+
+        setMessage(
+          "Arc transaction confirmed and the active prediction was preserved. Server ledger sync needs a retry from the active prediction card."
+        );
+      }
     } catch (error) {
       console.error(
         "Onchain prediction submission failed:",

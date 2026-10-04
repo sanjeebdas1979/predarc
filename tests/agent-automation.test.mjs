@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 import {
   buildAgentAuthorizationTypedData,
+  buildAgentPredictionsEndpoint,
   canonicalAgentPolicy,
   normalizeAgentAutomationPolicy,
   normalizeAgentPredictionInput,
@@ -25,6 +26,21 @@ const policyInput = {
   minimumConfidence: 70,
   expiresAt,
 };
+
+test("agent config uses the canonical production endpoint without redirects", () => {
+  assert.equal(
+    buildAgentPredictionsEndpoint("https://predarc.xyz"),
+    "https://www.predarc.xyz/api/agents/predictions"
+  );
+  assert.equal(
+    buildAgentPredictionsEndpoint("https://www.predarc.xyz"),
+    "https://www.predarc.xyz/api/agents/predictions"
+  );
+  assert.equal(
+    buildAgentPredictionsEndpoint("http://localhost:3000"),
+    "http://localhost:3000/api/agents/predictions"
+  );
+});
 
 test("agent policy normalizes bounded wallet authorization", () => {
   const policy = normalizeAgentAutomationPolicy(policyInput, now);

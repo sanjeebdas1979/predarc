@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: "/markets", label: "Community Markets" },
   { href: "/bridge", label: "Bridge" },
   { href: "/swap", label: "Swap" },
+  { href: "/agents", label: "AI Agents" },
   { href: "/receipts", label: "Receipts" },
 ] as const;
 
@@ -71,6 +72,18 @@ const PRODUCT_LINKS = [
       "border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-200",
     iconAccent:
       "border-emerald-400/25 bg-emerald-400/10 text-emerald-300",
+  },
+  {
+    href: "/agents",
+    icon: "✦",
+    eyebrow: "Optional automation",
+    title: "Connect your AI agent",
+    description:
+      "Authorize bounded server-points predictions with strict limits, expiry and instant revoke controls.",
+    accent:
+      "border-fuchsia-400/20 bg-fuchsia-400/[0.06] text-fuchsia-200",
+    iconAccent:
+      "border-fuchsia-400/25 bg-fuchsia-400/10 text-fuchsia-300",
   },
 ] as const;
 
@@ -170,6 +183,7 @@ export default function Home() {
           <span className="shrink-0">Native USDC bridge</span>
           <span className="shrink-0">USDC · EURC · cirBTC swaps</span>
           <span className="shrink-0">Community-created markets</span>
+          <span className="shrink-0">Wallet-authorized AI agents</span>
         </div>
       </div>
 
@@ -259,7 +273,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {PRODUCT_LINKS.map((item) => (
             <Link
               key={item.href}
@@ -575,6 +589,12 @@ export default function Home() {
               className="rounded-full border border-white/15 bg-[#111d35] px-7 py-3.5 text-center text-xs font-black uppercase tracking-[0.1em] text-white transition hover:bg-[#172747]"
             >
               Community Markets
+            </Link>
+            <Link
+              href="/agents"
+              className="rounded-full border border-fuchsia-300/20 bg-fuchsia-400/[0.08] px-7 py-3.5 text-center text-xs font-black uppercase tracking-[0.1em] text-fuchsia-100 transition hover:bg-fuchsia-400/[0.14]"
+            >
+              Connect AI Agent
             </Link>
           </div>
         </div>

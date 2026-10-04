@@ -623,6 +623,15 @@ export default function Home() {
                   {item.label}
                 </Link>
               ))}
+
+              <a
+                href="https://faucet.circle.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border border-blue-400/20 bg-blue-400/[0.06] px-3 py-1.5 text-blue-300 transition hover:border-blue-300/40 hover:bg-blue-400/[0.12] hover:text-blue-100"
+              >
+                Arc Testnet Faucet ↗
+              </a>
             </nav>
           </div>
 

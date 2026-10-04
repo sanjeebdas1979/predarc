@@ -19,15 +19,28 @@ import {
   forecastNetworkLabel,
   forecastRegistryAddress,
 } from "@/lib/forecast-network";
+import {
+  parseServerActivePrediction,
+  selectActivePrediction,
+  selectServerActivePrediction,
+  type ServerActivePrediction,
+} from "@/lib/prediction-active-core";
+import { submitServerPrediction } from "@/lib/prediction-client";
 
 import { useBtcPrice } from "../providers/BtcPriceProvider";
-import { useDemoPoints } from "../providers/DemoPointsProvider";
+import {
+  useDemoPoints,
+  type PredictionRecord,
+} from "../providers/DemoPointsProvider";
 import MarketLogo from "../market/MarketLogo";
 
 import {
   useRound,
   type PredictionDuration,
 } from "../providers/RoundProvider";
+
+const SERVER_BALANCE_EVENT =
+  "predarc:server-balance";
 
 function getPriceDecimals(
   market: string
@@ -177,6 +190,8 @@ function getTransactionError(
 export default function ActivePredictionCard() {
   const {
     predictions,
+    spendPoints,
+    setPredictionServerSync,
     setResolveTransaction,
     claimRewardLocally,
   } = useDemoPoints();
@@ -217,25 +232,186 @@ export default function ActivePredictionCard() {
   const [isResolvedOnchain, setIsResolvedOnchain] =
     useState(false);
 
-  const currentPrediction = useMemo(() => {
-    const pending = predictions.filter(
-      (prediction) => prediction.status === "pending"
+  const [isSyncingServer, setIsSyncingServer] =
+    useState(false);
+
+  const [serverActivePredictions, setServerActivePredictions] =
+    useState<ServerActivePrediction[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadServerActivePredictions(): Promise<void> {
+      try {
+        const response = await fetch(
+          "/api/predictions",
+          {
+            cache: "no-store",
+            credentials: "include",
+          }
+        );
+
+        const result =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            typeof result?.error === "string"
+              ? result.error
+              : "Active server predictions could not be loaded."
+          );
+        }
+
+        const records = Array.isArray(
+          result?.predictions
+        )
+          ? result.predictions
+          : [];
+
+        const parsed = records.flatMap(
+          (record: unknown) => {
+            const prediction =
+              parseServerActivePrediction(
+                record
+              );
+
+            return prediction
+              ? [prediction]
+              : [];
+          }
+        );
+
+        if (!cancelled) {
+          setServerActivePredictions(
+            parsed
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Active server prediction refresh failed:",
+          error
+        );
+      }
+    }
+
+    function refreshServerActivePredictions() {
+      void loadServerActivePredictions();
+    }
+
+    void loadServerActivePredictions();
+
+    window.addEventListener(
+      SERVER_BALANCE_EVENT,
+      refreshServerActivePredictions
+    );
+    window.addEventListener(
+      "focus",
+      refreshServerActivePredictions
     );
 
-    return (
-      pending.find(
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        SERVER_BALANCE_EVENT,
+        refreshServerActivePredictions
+      );
+      window.removeEventListener(
+        "focus",
+        refreshServerActivePredictions
+      );
+    };
+  }, []);
+
+  const pendingPredictions = useMemo(
+    () =>
+      predictions.filter(
         (prediction) =>
-          prediction.roundNumber === roundNumber &&
-          prediction.market === roundMarket &&
-          prediction.duration === roundDuration
-      ) ?? pending[0] ?? null
+          prediction.status === "pending"
+      ),
+    [predictions]
+  );
+
+  const localPrediction = useMemo(
+    () =>
+      selectActivePrediction(
+        predictions,
+        roundMarket,
+        roundDuration,
+        roundNumber
+      ),
+    [
+      predictions,
+      roundNumber,
+      roundMarket,
+      roundDuration,
+    ]
+  );
+
+  const serverPrediction = useMemo(
+    () =>
+      selectServerActivePrediction(
+        serverActivePredictions,
+        roundMarket,
+        roundDuration
+      ),
+    [
+      serverActivePredictions,
+      roundMarket,
+      roundDuration,
+    ]
+  );
+
+  const serverBackedPrediction =
+    useMemo<PredictionRecord | null>(
+      () => {
+        if (!serverPrediction) {
+          return null;
+        }
+
+        return {
+          id: -1,
+          roundNumber,
+          market:
+            serverPrediction.market,
+          direction:
+            serverPrediction.direction,
+          duration:
+            serverPrediction.durationSeconds,
+          points:
+            serverPrediction.points,
+          submittedAt:
+            serverPrediction.acceptedAt,
+          status: "pending",
+          result: null,
+          reward: 0,
+          claimableReward: 0,
+          claimed: false,
+          startPrice:
+            serverPrediction.entryPrice,
+          endPrice: null,
+          priceDifference: null,
+          forecastId: null,
+          transactionHash: null,
+          resolveTransactionHash: null,
+          claimTransactionHash: null,
+          onchainStatus: "submitted",
+          serverRequestId: null,
+          serverSyncStatus: "synced",
+        };
+      },
+      [
+        serverPrediction,
+        roundNumber,
+      ]
     );
-  }, [
-    predictions,
-    roundNumber,
-    roundMarket,
-    roundDuration,
-  ]);
+
+  const currentPrediction =
+    localPrediction ??
+    serverBackedPrediction;
+
+  const isServerBackedPrediction =
+    localPrediction === null &&
+    serverBackedPrediction !== null;
 
   const otherActivePredictions = useMemo(
     () =>
@@ -258,6 +434,7 @@ export default function ActivePredictionCard() {
     setLatestTransactionHash(null);
   }, [
     currentPrediction?.id,
+    currentPrediction?.market,
     currentPrediction?.resolveTransactionHash,
   ]);
 
@@ -269,13 +446,14 @@ export default function ActivePredictionCard() {
         </p>
 
         <h2 className="mt-2 text-xl font-bold text-white">
-          No active prediction
+          No active {roundMarket} prediction
         </h2>
 
         <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-5 text-center">
           <p className="text-xs leading-5 text-gray-400">
-            Submit a Higher or Lower prediction to track
-            your position here.
+            {pendingPredictions.length > 0
+              ? `You have ${pendingPredictions.length} active prediction${pendingPredictions.length === 1 ? "" : "s"} in other markets.`
+              : "Submit a Higher or Lower prediction to track your position here."}
           </p>
         </div>
       </section>
@@ -322,29 +500,42 @@ export default function ActivePredictionCard() {
   const forecastId =
     currentPrediction.forecastId;
 
+  const serverSyncStatus =
+    currentPrediction.serverSyncStatus ??
+    "synced";
+
   const isOnchainBusy =
     isWaitingForWallet ||
-    isConfirmingTransaction;
+    isConfirmingTransaction ||
+    isSyncingServer;
 
   const statusText =
-    currentPrediction.status === "won"
-      ? isClaimed
-        ? "CLAIMED"
-        : "WON"
-      : currentPrediction.status === "lost"
-        ? "LOST"
-        : status === "resolving"
-          ? "RESOLVING"
-          : "LIVE";
+    serverSyncStatus === "pending"
+      ? "SYNCING"
+      : serverSyncStatus === "failed"
+        ? "SYNC NEEDED"
+        : currentPrediction.status === "won"
+          ? isClaimed
+            ? "CLAIMED"
+            : "WON"
+          : currentPrediction.status === "lost"
+            ? "LOST"
+            : status === "resolving"
+              ? "RESOLVING"
+              : "LIVE";
 
   const statusStyles =
-    currentPrediction.status === "won"
-      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-      : currentPrediction.status === "lost"
-        ? "border-rose-500/30 bg-rose-500/10 text-rose-400"
-        : status === "resolving"
-          ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-400"
-          : "border-blue-500/30 bg-blue-500/10 text-blue-400";
+    serverSyncStatus === "pending"
+      ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-300"
+      : serverSyncStatus === "failed"
+        ? "border-orange-500/30 bg-orange-500/10 text-orange-300"
+        : currentPrediction.status === "won"
+          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+          : currentPrediction.status === "lost"
+            ? "border-rose-500/30 bg-rose-500/10 text-rose-400"
+            : status === "resolving"
+              ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-400"
+              : "border-blue-500/30 bg-blue-500/10 text-blue-400";
 
   const movementStyles =
     priceDifference === null
@@ -352,6 +543,95 @@ export default function ActivePredictionCard() {
       : priceDifference >= 0
         ? "text-emerald-400"
         : "text-rose-400";
+
+  async function retryServerSync(): Promise<void> {
+    const serverRequestId =
+      activePrediction.serverRequestId;
+
+    if (!serverRequestId) {
+      setTransactionMessage(
+        "This prediction does not have a server retry ID."
+      );
+      return;
+    }
+
+    setIsSyncingServer(true);
+    setPredictionServerSync(
+      activePrediction.id,
+      "pending"
+    );
+    setTransactionMessage(
+      `Syncing the confirmed ${activePrediction.market} prediction with the server ledger...`
+    );
+
+    try {
+      const serverPrediction =
+        await submitServerPrediction({
+          requestId:
+            serverRequestId,
+          market:
+            activePrediction.market,
+          direction:
+            activePrediction.direction,
+          points:
+            activePrediction.points,
+          durationSeconds:
+            activePrediction.duration ??
+            roundDuration,
+        });
+
+      const becameSynced =
+        setPredictionServerSync(
+          activePrediction.id,
+          "synced",
+          serverPrediction.entryPrice
+        );
+
+      if (becameSynced) {
+        spendPoints(
+          activePrediction.points
+        );
+      }
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "predarc:server-balance",
+          {
+            detail: {
+              balance:
+                serverPrediction.balance,
+              message:
+                "Server balance updated after prediction sync.",
+            },
+          }
+        )
+      );
+
+      setTransactionMessage(
+        `Server ledger synced successfully. Balance: ${Number(
+          serverPrediction.balance
+        ).toLocaleString()} points.`
+      );
+    } catch (error) {
+      setPredictionServerSync(
+        activePrediction.id,
+        "failed"
+      );
+
+      console.error(
+        "Confirmed prediction server retry failed:",
+        error
+      );
+
+      setTransactionMessage(
+        error instanceof Error
+          ? error.message
+          : "Server ledger sync failed. Retry."
+      );
+    } finally {
+      setIsSyncingServer(false);
+    }
+  }
 
   async function resolveRewardOnchain(): Promise<void> {
     if (!forecastId) {
@@ -367,7 +647,7 @@ export default function ActivePredictionCard() {
       finalPrice <= 0
     ) {
       setTransactionMessage(
-        "Final BTC price is not ready yet."
+        `Final ${activePrediction.market} price is not ready yet.`
       );
       return;
     }
@@ -583,7 +863,9 @@ export default function ActivePredictionCard() {
           />
 
           <span className="text-base font-bold text-white">
-            Round #{currentPrediction.roundNumber}
+            {isServerBackedPrediction
+              ? `${currentPrediction.market} server position`
+              : `Round #${currentPrediction.roundNumber}`}
           </span>
 
           <span
@@ -705,6 +987,35 @@ export default function ActivePredictionCard() {
           </p>
         </div>
       </div>
+
+      {serverSyncStatus !== "synced" && (
+        <div className="mt-3 rounded-xl border border-orange-500/25 bg-orange-500/[0.06] p-3">
+          <p className="text-[10px] font-bold text-orange-200">
+            Arc transaction confirmed
+          </p>
+
+          <p className="mt-1 text-[10px] leading-4 text-gray-400">
+            {serverSyncStatus === "pending"
+              ? "Syncing this prediction with the server ledger..."
+              : "The active prediction is preserved locally. Retry the same idempotent request to finish the server ledger sync."}
+          </p>
+
+          {serverSyncStatus === "failed" && (
+            <button
+              type="button"
+              onClick={() => {
+                void retryServerSync();
+              }}
+              disabled={isSyncingServer}
+              className="mt-2.5 w-full rounded-lg border border-orange-400/40 bg-orange-500/15 px-3 py-2 text-[10px] font-black text-orange-200 transition hover:bg-orange-500/25 disabled:cursor-wait disabled:opacity-50"
+            >
+              {isSyncingServer
+                ? "SYNCING SERVER LEDGER..."
+                : "RETRY SERVER SYNC"}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Compact reward controls only after a win */}
       {isWinner && (

@@ -8,7 +8,12 @@ import {
   useChainId,
 } from "wagmi";
 import { formatUnits } from "viem";
-import { arcTestnet } from "viem/chains";
+
+import {
+  forecastChainId,
+  forecastNetwork,
+  forecastNetworkLabel,
+} from "@/lib/forecast-network";
 
 import { useDemoPoints } from "../providers/DemoPointsProvider";
 import { usePredarcSession } from "../providers/PredarcSessionProvider";
@@ -60,8 +65,8 @@ export default function DemoBalanceCard() {
 
   const connectedChainId = useChainId();
 
-  const isArcTestnet =
-    connectedChainId === arcTestnet.id;
+  const isForecastNetwork =
+    connectedChainId === forecastChainId;
 
   const {
     data: walletBalance,
@@ -71,7 +76,7 @@ export default function DemoBalanceCard() {
     refetch,
   } = useBalance({
     address,
-    chainId: arcTestnet.id,
+    chainId: forecastChainId,
     query: {
       enabled: Boolean(address),
       refetchInterval: 15_000,
@@ -179,16 +184,16 @@ export default function DemoBalanceCard() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-              Arc Testnet Gas Balance
+              {forecastNetworkLabel} Gas Balance
             </p>
 
             {!isConnected ? (
               <p className="mt-2 text-sm font-semibold text-gray-400">
                 Connect wallet to view balance
               </p>
-            ) : !isArcTestnet ? (
+            ) : !isForecastNetwork ? (
               <p className="mt-2 text-sm font-semibold text-orange-400">
-                Switch your wallet to Arc Testnet
+                Switch your wallet to {forecastNetworkLabel}
               </p>
             ) : isLoading ? (
               <p className="mt-2 text-sm font-semibold text-gray-400">
@@ -211,14 +216,14 @@ export default function DemoBalanceCard() {
 
           <span
             className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-              isConnected && isArcTestnet
+              isConnected && isForecastNetwork
                 ? "bg-emerald-400"
                 : "bg-orange-400"
             }`}
           />
         </div>
 
-        {isConnected && isArcTestnet ? (
+        {isConnected && isForecastNetwork ? (
           <button
             type="button"
             onClick={() => {
@@ -236,14 +241,23 @@ export default function DemoBalanceCard() {
 
       {/* Actions */}
       <div className="mt-4 grid gap-2">
-        <a
-          href="https://faucet.circle.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-300 transition hover:border-blue-400 hover:bg-blue-500/20"
-        >
-          💧 Get Arc Testnet USDC ↗
-        </a>
+        {forecastNetwork === "mainnet" ? (
+          <a
+            href="/bridge"
+            className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-300 transition hover:border-blue-400 hover:bg-blue-500/20"
+          >
+            Bridge to Arc Mainnet ↗
+          </a>
+        ) : (
+          <a
+            href="https://faucet.circle.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-300 transition hover:border-blue-400 hover:bg-blue-500/20"
+          >
+            💧 Get Arc Testnet USDC ↗
+          </a>
+        )}
 
         <button
           type="button"
@@ -256,8 +270,9 @@ export default function DemoBalanceCard() {
 
       <div className="mt-3 rounded-xl border border-white/10 bg-black/10 p-3">
         <p className="text-[10px] leading-4 text-gray-500">
-          Arc Testnet USDC is used only for test-network
-          transaction gas. It has no real-world value.
+          {forecastNetwork === "mainnet"
+            ? "Arc Mainnet uses native USDC for transaction gas. Mainnet USDC has real-world value."
+            : "Arc Testnet USDC is used only for test-network transaction gas. It has no real-world value."}
         </p>
       </div>
     </section>

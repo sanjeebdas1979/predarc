@@ -69,6 +69,17 @@ export default function Home() {
               Swap · Locked
             </span>
           )}
+          {isSignedIn ? (
+            <Link href="/agents" className="text-sm font-bold text-violet-300 hover:text-white">AI Agent</Link>
+          ) : (
+            <span
+              aria-disabled="true"
+              title="Sign in to Predarc to connect an AI agent"
+              className="cursor-not-allowed text-sm font-bold text-gray-600"
+            >
+              AI Agent · Locked
+            </span>
+          )}
           <Link href="/receipts" className="text-sm font-bold text-orange-300 hover:text-white">Payment receipts</Link>
           <ConnectWallet />
         </div>

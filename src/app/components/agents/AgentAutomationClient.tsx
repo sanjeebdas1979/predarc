@@ -17,6 +17,7 @@ import {
   AGENT_AUTOMATION_DURATIONS,
   AGENT_AUTOMATION_MARKETS,
   buildAgentAuthorizationTypedData,
+  buildAgentPredictionsEndpoint,
   normalizeAgentAutomationPolicy,
   parseAgentConnectionsResponse,
   type AgentAutomationDuration,
@@ -77,7 +78,7 @@ function shortWallet(value: string): string {
 function buildAgentConfigExample(token: string, origin: string): string {
   return JSON.stringify(
     {
-      endpoint: `${origin}/api/agents/predictions`,
+      endpoint: buildAgentPredictionsEndpoint(origin),
       authorization: `Bearer ${token}`,
       method: "POST",
       body: {

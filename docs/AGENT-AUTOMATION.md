@@ -14,8 +14,10 @@ phrases.
    onchain transaction or token approval.
 4. Save the API token when it is displayed. Predarc stores only its SHA-256
    hash and cannot display the token again.
-5. Configure the external agent to call `POST /api/agents/predictions` with the
-   token in an `Authorization: Bearer ...` header.
+5. Configure the external agent to call
+   `POST https://www.predarc.xyz/api/agents/predictions` with the token in an
+   `Authorization: Bearer ...` header. The canonical `www` endpoint avoids a
+   redirect that some POST clients do not follow.
 6. Pause, resume or permanently revoke the connection from `/agents`.
 
 ## Prediction request

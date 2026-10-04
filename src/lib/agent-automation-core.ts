@@ -58,6 +58,26 @@ export type AgentPredictionInput = {
   rationale: string;
 };
 
+const AGENT_PREDICTIONS_PATH = "/api/agents/predictions";
+const PREDARC_CANONICAL_ORIGIN = "https://www.predarc.xyz";
+
+export function buildAgentPredictionsEndpoint(origin: string): string {
+  const trimmedOrigin = origin.trim().replace(/\/+$/, "");
+
+  try {
+    const parsedOrigin = new URL(trimmedOrigin);
+    const hostname = parsedOrigin.hostname.toLowerCase();
+
+    if (hostname === "predarc.xyz" || hostname === "www.predarc.xyz") {
+      return `${PREDARC_CANONICAL_ORIGIN}${AGENT_PREDICTIONS_PATH}`;
+    }
+
+    return `${parsedOrigin.origin}${AGENT_PREDICTIONS_PATH}`;
+  } catch {
+    return `${trimmedOrigin}${AGENT_PREDICTIONS_PATH}`;
+  }
+}
+
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

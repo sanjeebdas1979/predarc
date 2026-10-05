@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import PredarcBrand from "./components/brand/PredarcBrand";
+import BuilderExplorerSearch from "./components/builders/BuilderExplorerSearch";
 import HeroLivePreview from "./components/home/HeroLivePreview";
 import MarketLogo from "./components/market/MarketLogo";
 import { useBtcPrice } from "./components/providers/BtcPriceProvider";
@@ -18,6 +19,7 @@ const SUPPORTED_MARKETS = [
 const NAV_ITEMS = [
   { href: "/arena", label: "Arena" },
   { href: "/markets", label: "Community Markets" },
+  { href: "/builders", label: "Builders" },
   { href: "/bridge", label: "Bridge" },
   { href: "/swap", label: "Swap" },
   { href: "/agents", label: "AI Agents" },
@@ -255,6 +257,10 @@ export default function Home() {
             <HeroLivePreview />
           </div>
         </div>
+      </section>
+
+      <section className="relative z-10 mx-auto max-w-[1500px] px-4 pb-16 sm:px-6 lg:pb-24">
+        <BuilderExplorerSearch />
       </section>
 
       <section className="relative z-10 mx-auto max-w-[1500px] px-4 pb-16 sm:px-6 lg:pb-24">

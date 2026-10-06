@@ -18,6 +18,7 @@ const SUPPORTED_MARKETS = [
 
 const NAV_ITEMS = [
   { href: "/arena", label: "Arena" },
+  { href: "/guide", label: "How to Use Predarc" },
   { href: "/markets", label: "Community Markets" },
   { href: "/builders", label: "Builders" },
   { href: "/bridge", label: "Bridge" },
@@ -27,6 +28,18 @@ const NAV_ITEMS = [
 ] as const;
 
 const PRODUCT_LINKS = [
+  {
+    href: "/guide",
+    icon: "?",
+    eyebrow: "Start here",
+    title: "How to use Predarc",
+    description:
+      "Follow every feature from wallet sign-in to forecasts, Bridge, Swap and optional AI automation.",
+    accent:
+      "border-sky-400/20 bg-sky-400/[0.06] text-sky-200",
+    iconAccent:
+      "border-sky-400/25 bg-sky-400/10 text-sky-300",
+  },
   {
     href: "/markets",
     icon: "◎",

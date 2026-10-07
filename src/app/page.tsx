@@ -624,14 +624,14 @@ export default function Home() {
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div>
               <PredarcBrand compact />
-              <p className="mt-2 text-[10px] text-gray-600">
+              <p className="mt-2 text-[10px] text-gray-400">
                 Crypto forecasting and native stablecoin tools on Arc Mainnet.
               </p>
             </div>
 
             <nav
               aria-label="Footer navigation"
-              className="flex flex-wrap gap-x-5 gap-y-3 text-[10px] font-bold text-gray-500"
+              className="flex flex-wrap gap-x-5 gap-y-3 text-[10px] font-bold text-gray-400"
             >
               {NAV_ITEMS.map((item) => (
                 <Link
@@ -654,8 +654,8 @@ export default function Home() {
             </nav>
           </div>
 
-          <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-5 text-[9px] uppercase tracking-[0.1em] text-gray-700">
-            <span>Predarc · Built on Arc</span>
+          <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-5 text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400">
+            <span>© 2026 Predarc · Built on Arc</span>
             <span>Demo Points · No Cash Value</span>
           </div>
         </div>

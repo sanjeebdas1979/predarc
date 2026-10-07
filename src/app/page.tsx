@@ -35,10 +35,6 @@ const PRODUCT_LINKS = [
     title: "How to use Predarc",
     description:
       "Follow every feature from wallet sign-in to forecasts, Bridge, Swap and optional AI automation.",
-    accent:
-      "border-sky-400/20 bg-sky-400/[0.06] text-sky-200",
-    iconAccent:
-      "border-sky-400/25 bg-sky-400/10 text-sky-300",
   },
   {
     href: "/markets",
@@ -47,10 +43,6 @@ const PRODUCT_LINKS = [
     title: "Create a market",
     description:
       "Open a signed crypto forecast market with a clear duration and target.",
-    accent:
-      "border-orange-400/20 bg-orange-400/[0.06] text-orange-200",
-    iconAccent:
-      "border-orange-400/25 bg-orange-400/10 text-orange-300",
   },
   {
     href: "/bridge",
@@ -59,10 +51,6 @@ const PRODUCT_LINKS = [
     title: "Bridge across chains",
     description:
       "Move native USDC between Arc, Ethereum, Base, Arbitrum and Polygon.",
-    accent:
-      "border-blue-400/20 bg-blue-400/[0.06] text-blue-200",
-    iconAccent:
-      "border-blue-400/25 bg-blue-400/10 text-blue-300",
   },
   {
     href: "/swap",
@@ -71,10 +59,6 @@ const PRODUCT_LINKS = [
     title: "Swap live assets",
     description:
       "Review live routes for USDC, EURC and cirBTC before confirming in your wallet.",
-    accent:
-      "border-violet-400/20 bg-violet-400/[0.06] text-violet-200",
-    iconAccent:
-      "border-violet-400/25 bg-violet-400/10 text-violet-300",
   },
   {
     href: "/receipts",
@@ -83,10 +67,6 @@ const PRODUCT_LINKS = [
     title: "Check a receipt",
     description:
       "Inspect supported Arc transfers with clear transaction details.",
-    accent:
-      "border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-200",
-    iconAccent:
-      "border-emerald-400/25 bg-emerald-400/10 text-emerald-300",
   },
   {
     href: "/agents",
@@ -95,10 +75,6 @@ const PRODUCT_LINKS = [
     title: "Connect your AI agent",
     description:
       "Authorize bounded server-points predictions with strict limits, expiry and instant revoke controls.",
-    accent:
-      "border-fuchsia-400/20 bg-fuchsia-400/[0.06] text-fuchsia-200",
-    iconAccent:
-      "border-fuchsia-400/25 bg-fuchsia-400/10 text-fuchsia-300",
   },
 ] as const;
 
@@ -297,11 +273,9 @@ export default function Home() {
             <Link
               key={item.href}
               href={item.href}
-              className={`group rounded-[1.6rem] border p-5 shadow-[3px_3px_0_0_rgba(255,255,255,0.1)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.32)] ${item.accent}`}
+              className="predarc-product-card group rounded-[1.6rem] border p-5 text-sky-200 shadow-[3px_3px_0_0_rgba(255,255,255,0.08)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(14,165,233,0.12)]"
             >
-              <div
-                className={`flex h-11 w-11 items-center justify-center rounded-2xl border text-xl font-black ${item.iconAccent}`}
-              >
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-400/25 bg-sky-400/10 text-xl font-black text-sky-300">
                 {item.icon}
               </div>
               <p className="mt-5 text-[9px] font-black uppercase tracking-[0.18em] opacity-70">

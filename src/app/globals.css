@@ -74,3 +74,64 @@ button[aria-pressed="true"],
 [role="tab"][aria-selected="true"] {
   box-shadow: 0 0 0 2px #f97316;
 }
+
+/* Landing product cards: one surface with a restrained moving edge highlight. */
+.predarc-product-card {
+  background:
+    linear-gradient(#091522, #091522) padding-box,
+    linear-gradient(
+        110deg,
+        rgba(56, 189, 248, 0.22) 0%,
+        rgba(125, 211, 252, 0.7) 34%,
+        rgba(224, 242, 254, 0.92) 48%,
+        rgba(129, 140, 248, 0.44) 64%,
+        rgba(56, 189, 248, 0.22) 100%
+      )
+      border-box;
+  background-size:
+    100% 100%,
+    240% 240%;
+  background-position:
+    0 0,
+    0% 50%;
+  border-color: transparent;
+  animation: predarc-card-border-glide 8s ease-in-out infinite;
+}
+
+.predarc-product-card:hover {
+  background:
+    linear-gradient(#0b1928, #0b1928) padding-box,
+    linear-gradient(
+        110deg,
+        rgba(56, 189, 248, 0.3) 0%,
+        rgba(125, 211, 252, 0.88) 34%,
+        rgba(240, 249, 255, 1) 48%,
+        rgba(129, 140, 248, 0.58) 64%,
+        rgba(56, 189, 248, 0.3) 100%
+      )
+      border-box;
+  background-size:
+    100% 100%,
+    240% 240%;
+}
+
+@keyframes predarc-card-border-glide {
+  0%,
+  100% {
+    background-position:
+      0 0,
+      0% 50%;
+  }
+
+  50% {
+    background-position:
+      0 0,
+      100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .predarc-product-card {
+    animation: none;
+  }
+}

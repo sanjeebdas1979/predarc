@@ -89,7 +89,7 @@ export default function Home() {
         {/* Hero */}
         <section className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_330px]">
           {/* Left side */}
-          <div className="rounded-3xl border border-white/10 bg-[#0d121a] p-6 sm:p-8">
+          <div className="predarc-card-glide rounded-3xl border border-white/10 bg-[#0d121a] p-6 sm:p-8">
             <p className="font-semibold text-orange-400">
               Live Forecast Round
             </p>

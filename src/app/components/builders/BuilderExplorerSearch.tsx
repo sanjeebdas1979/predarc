@@ -50,8 +50,8 @@ export default function BuilderExplorerSearch({
       onSubmit={handleSubmit}
       className={
         isLanding
-          ? "relative overflow-hidden rounded-[2rem] border border-blue-300/15 bg-[#0b1322]/95 p-5 shadow-[4px_4px_0_0_rgba(255,255,255,0.1)] sm:p-7"
-          : "rounded-[1.6rem] border border-white/[0.09] bg-[#0d1420] p-4 shadow-[3px_3px_0_0_rgba(255,255,255,0.09)] sm:p-5"
+          ? "predarc-card-glide relative overflow-hidden rounded-[2rem] border border-blue-300/15 bg-[#0b1322]/95 p-5 shadow-[4px_4px_0_0_rgba(255,255,255,0.1)] sm:p-7"
+          : "predarc-card-glide rounded-[1.6rem] border border-white/[0.09] bg-[#0d1420] p-4 shadow-[3px_3px_0_0_rgba(255,255,255,0.09)] sm:p-5"
       }
     >
       {isLanding && (

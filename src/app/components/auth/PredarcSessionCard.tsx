@@ -28,8 +28,8 @@ export default function PredarcSessionCard({
   } = usePredarcSession();
 
   const shell = feature
-    ? "rounded-2xl border border-white/10 bg-black/20 p-4"
-    : "w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-center";
+    ? "predarc-card-glide rounded-2xl border border-white/10 bg-black/20 p-4"
+    : "predarc-card-glide w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-center";
 
   if (status === "checking") {
     return (

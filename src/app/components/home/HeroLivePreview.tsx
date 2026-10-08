@@ -140,7 +140,7 @@ export default function HeroLivePreview() {
         : "text-rose-400";
 
   return (
-    <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#0b111a]/95 p-5 shadow-[0_35px_100px_rgba(0,0,0,0.45)] sm:p-6">
+    <div className="predarc-card-glide-skip relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#0b111a]/95 p-5 shadow-[0_35px_100px_rgba(0,0,0,0.45)] sm:p-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>

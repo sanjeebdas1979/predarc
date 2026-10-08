@@ -75,63 +75,167 @@ button[aria-pressed="true"],
   box-shadow: 0 0 0 2px #f97316;
 }
 
-/* Landing product cards: one surface with a restrained moving edge highlight. */
+/* Shared premium card border system across Predarc. */
 .predarc-product-card {
-  background:
-    linear-gradient(#091522, #091522) padding-box,
-    linear-gradient(
-        110deg,
-        rgba(56, 189, 248, 0.22) 0%,
-        rgba(125, 211, 252, 0.7) 34%,
-        rgba(224, 242, 254, 0.92) 48%,
-        rgba(129, 140, 248, 0.44) 64%,
-        rgba(56, 189, 248, 0.22) 100%
-      )
-      border-box;
-  background-size:
-    100% 100%,
-    240% 240%;
-  background-position:
-    0 0,
-    0% 50%;
-  border-color: transparent;
-  animation: predarc-card-border-glide 8s ease-in-out infinite;
+  background: #091522;
+  border-color: rgba(56, 189, 248, 0.22);
 }
 
 .predarc-product-card:hover {
-  background:
-    linear-gradient(#0b1928, #0b1928) padding-box,
-    linear-gradient(
-        110deg,
-        rgba(56, 189, 248, 0.3) 0%,
-        rgba(125, 211, 252, 0.88) 34%,
-        rgba(240, 249, 255, 1) 48%,
-        rgba(129, 140, 248, 0.58) 64%,
-        rgba(56, 189, 248, 0.3) 100%
-      )
-      border-box;
-  background-size:
-    100% 100%,
-    240% 240%;
+  background: #0b1928;
 }
 
-@keyframes predarc-card-border-glide {
-  0%,
-  100% {
-    background-position:
-      0 0,
-      0% 50%;
+/* Every eligible card gets a visible but restrained moving highlight. */
+:where(
+    .predarc-card-glide,
+    section[class*="rounded-"][class*="border"],
+    article[class*="rounded-"][class*="border"],
+    aside[class*="rounded-"][class*="border"],
+    div[class*="rounded-"][class*="border"]:is(
+        [class~="p-3"],
+        [class~="p-4"],
+        [class~="p-5"],
+        [class~="p-6"],
+        [class~="p-7"],
+        [class~="p-8"],
+        [class~="p-10"]
+      ),
+    form[class*="rounded-"][class*="border"]:is(
+        [class~="p-3"],
+        [class~="p-4"],
+        [class~="p-5"],
+        [class~="p-6"],
+        [class~="p-7"],
+        [class~="p-8"],
+        [class~="p-10"]
+      )
+  ) {
+  --predarc-card-glide-opacity: 0.64;
+  --predarc-card-glide-duration: 8s;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Primary semantic cards receive a slightly brighter premium pass. */
+:where(
+    .predarc-card-glide,
+    section[class*="rounded-"][class*="border"],
+    article[class*="rounded-"][class*="border"],
+    aside[class*="rounded-"][class*="border"]
+  ) {
+  --predarc-card-glide-opacity: 0.88;
+  --predarc-card-glide-duration: 6.5s;
+}
+
+:where(
+    .predarc-card-glide,
+    section[class*="rounded-"][class*="border"],
+    article[class*="rounded-"][class*="border"],
+    aside[class*="rounded-"][class*="border"],
+    div[class*="rounded-"][class*="border"]:is(
+        [class~="p-3"],
+        [class~="p-4"],
+        [class~="p-5"],
+        [class~="p-6"],
+        [class~="p-7"],
+        [class~="p-8"],
+        [class~="p-10"]
+      ),
+    form[class*="rounded-"][class*="border"]:is(
+        [class~="p-3"],
+        [class~="p-4"],
+        [class~="p-5"],
+        [class~="p-6"],
+        [class~="p-7"],
+        [class~="p-8"],
+        [class~="p-10"]
+      )
+  )::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    112deg,
+    rgba(56, 189, 248, 0.18) 0%,
+    rgba(56, 189, 248, 0.24) 30%,
+    rgba(34, 211, 238, 0.9) 43%,
+    rgba(248, 250, 252, 1) 49%,
+    rgba(167, 139, 250, 0.96) 56%,
+    rgba(56, 189, 248, 0.28) 69%,
+    rgba(56, 189, 248, 0.18) 100%
+  );
+  background-size: 340% 100%;
+  background-position: 100% 50%;
+  opacity: var(--predarc-card-glide-opacity);
+  filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.52));
+  pointer-events: none;
+  animation: predarc-global-card-glide
+    var(--predarc-card-glide-duration) linear infinite;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  transition: opacity 220ms ease;
+}
+
+/* A parent frame owns the landing hero glide, so the nested preview stays still. */
+.predarc-card-glide-skip::after {
+  content: none !important;
+}
+
+:where(
+    .predarc-card-glide,
+    section[class*="rounded-"][class*="border"],
+    article[class*="rounded-"][class*="border"],
+    aside[class*="rounded-"][class*="border"],
+    div[class*="rounded-"][class*="border"]:is(
+        [class~="p-3"],
+        [class~="p-4"],
+        [class~="p-5"],
+        [class~="p-6"],
+        [class~="p-7"],
+        [class~="p-8"],
+        [class~="p-10"]
+      ),
+    form[class*="rounded-"][class*="border"]:is(
+        [class~="p-3"],
+        [class~="p-4"],
+        [class~="p-5"],
+        [class~="p-6"],
+        [class~="p-7"],
+        [class~="p-8"],
+        [class~="p-10"]
+      )
+  ):is(:hover, :focus-within) {
+  --predarc-card-glide-opacity: 1;
+  --predarc-card-glide-duration: 4.8s;
+}
+
+@keyframes predarc-global-card-glide {
+  0% {
+    background-position: 100% 50%;
   }
 
-  50% {
-    background-position:
-      0 0,
-      100% 50%;
+  100% {
+    background-position: -100% 50%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .predarc-product-card {
+  :where(
+      .predarc-card-glide,
+      section[class*="rounded-"][class*="border"],
+      article[class*="rounded-"][class*="border"],
+      aside[class*="rounded-"][class*="border"],
+      div[class*="rounded-"][class*="border"],
+      form[class*="rounded-"][class*="border"]
+    )::after {
     animation: none;
+    background-position: 50% 50%;
+    opacity: 0.86;
   }
 }

@@ -242,7 +242,7 @@ export default function Home() {
 
         <div className="relative">
           <div className="absolute -inset-8 rounded-[3rem] bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.14),transparent_42%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.12),transparent_45%)] blur-2xl" />
-          <div className="relative rounded-[2.2rem] border border-white/[0.08] bg-[#0a101a]/55 p-2 shadow-[5px_5px_0_0_rgba(255,255,255,0.12)]">
+          <div className="predarc-card-glide relative rounded-[2.2rem] border border-white/[0.08] bg-[#0a101a]/55 p-2 shadow-[5px_5px_0_0_rgba(255,255,255,0.12)]">
             <HeroLivePreview />
           </div>
         </div>
@@ -273,7 +273,7 @@ export default function Home() {
             <Link
               key={item.href}
               href={item.href}
-              className="predarc-product-card group rounded-[1.6rem] border p-5 text-sky-200 shadow-[3px_3px_0_0_rgba(255,255,255,0.08)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(14,165,233,0.12)]"
+              className="predarc-card-glide predarc-product-card group rounded-[1.6rem] border p-5 text-sky-200 shadow-[3px_3px_0_0_rgba(255,255,255,0.08)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(14,165,233,0.12)]"
             >
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-400/25 bg-sky-400/10 text-xl font-black text-sky-300">
                 {item.icon}

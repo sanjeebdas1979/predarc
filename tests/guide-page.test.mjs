@@ -19,6 +19,12 @@ test("landing page exposes the Predarc guide in navigation and product links", (
   assert.match(landing, /title: "How to use Predarc"/);
 });
 
+test("landing page links to the official Predarc X profile", () => {
+  assert.match(landing, /href="https:\/\/x\.com\/predarc112000"/);
+  assert.match(landing, /aria-label="Predarc on X \(opens in a new tab\)"/);
+  assert.match(landing, /rel="noopener noreferrer"/);
+});
+
 test("guide covers every current public Predarc feature", () => {
   for (const heading of [
     "Connect your wallet and sign in",

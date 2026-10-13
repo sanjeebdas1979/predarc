@@ -6,7 +6,7 @@ import PredarcBrand from "@/app/components/brand/PredarcBrand";
 export const metadata: Metadata = {
   title: "How to Use Predarc | Predarc",
   description:
-    "A step-by-step guide to Predarc forecasting, community markets, Bridge, Swap, AI agents, receipts and public builder discovery.",
+    "A step-by-step guide to Predarc forecasting, community markets, Bridge, Swap, Agent Research, AI agents, receipts and public builder discovery.",
 };
 
 const QUICK_START = [
@@ -25,7 +25,7 @@ const QUICK_START = [
     number: "03",
     title: "Choose a feature",
     description:
-      "Open the Arena, create a market, Bridge, Swap or connect an optional AI agent.",
+      "Open the Arena, create a market, Bridge, Swap, run Agent Research or connect an optional AI agent.",
   },
 ] as const;
 
@@ -132,8 +132,28 @@ const FEATURE_GUIDES = [
     badge: "border-violet-400/25 bg-violet-400/10 text-violet-200",
   },
   {
-    id: "agents",
+    id: "research",
     number: "06",
+    eyebrow: "Verifiable intelligence",
+    title: "Run Agent Research",
+    summary:
+      "Generate a transparent market-evidence signal and an immutable receipt before deciding whether to act.",
+    steps: [
+      "Choose BTC, ETH, BNB, SOL or XRP and a forecast horizon.",
+      "Set the maximum future per-run USDC budget that should be bound into the receipt.",
+      "Run the Preview engine and inspect momentum, trend, volatility, source window and confidence.",
+      "Open the public receipt to verify its SHA-256 fingerprint or copy the complete JSON.",
+    ],
+    note: "Phase 1 uses a deterministic Preview engine and charges 0 USDC. Research does not submit or prefill a prediction; paid AI calls require a later, separate permission.",
+    href: "/research",
+    cta: "Open Agent Research",
+    accent: "border-cyan-400/20 bg-cyan-400/[0.06]",
+    label: "text-cyan-300",
+    badge: "border-cyan-400/25 bg-cyan-400/10 text-cyan-200",
+  },
+  {
+    id: "agents",
+    number: "07",
     eyebrow: "Optional automation",
     title: "Connect an AI agent",
     summary:
@@ -153,7 +173,7 @@ const FEATURE_GUIDES = [
   },
   {
     id: "receipts",
-    number: "07",
+    number: "08",
     eyebrow: "Transaction evidence",
     title: "Verify a supported receipt",
     summary:
@@ -172,7 +192,7 @@ const FEATURE_GUIDES = [
   },
   {
     id: "builders",
-    number: "08",
+    number: "09",
     eyebrow: "Public discovery",
     title: "Explore public Arc projects",
     summary:

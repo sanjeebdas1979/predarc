@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { href: "/builders", label: "Builders" },
   { href: "/bridge", label: "Bridge" },
   { href: "/swap", label: "Swap" },
+  { href: "/research", label: "Agent Research" },
   { href: "/agents", label: "AI Agents" },
   { href: "/receipts", label: "Receipts" },
 ] as const;
@@ -67,6 +68,14 @@ const PRODUCT_LINKS = [
     title: "Check a receipt",
     description:
       "Inspect supported Arc transfers with clear transaction details.",
+  },
+  {
+    href: "/research",
+    icon: "◇",
+    eyebrow: "Verifiable intelligence",
+    title: "Run Agent Research",
+    description:
+      "Review source-linked market evidence, bounded cost metadata and a tamper-evident receipt before acting.",
   },
   {
     href: "/agents",
@@ -174,6 +183,7 @@ export default function Home() {
           <span className="shrink-0">Native USDC bridge</span>
           <span className="shrink-0">USDC · EURC · cirBTC swaps</span>
           <span className="shrink-0">Community-created markets</span>
+          <span className="shrink-0">Verifiable agent research</span>
           <span className="shrink-0">Wallet-authorized AI agents</span>
         </div>
       </div>
@@ -582,6 +592,12 @@ export default function Home() {
               className="rounded-full border border-white/15 bg-[#111d35] px-7 py-3.5 text-center text-xs font-black uppercase tracking-[0.1em] text-white transition hover:bg-[#172747]"
             >
               Community Markets
+            </Link>
+            <Link
+              href="/research"
+              className="rounded-full border border-cyan-300/20 bg-cyan-400/[0.08] px-7 py-3.5 text-center text-xs font-black uppercase tracking-[0.1em] text-cyan-100 transition hover:bg-cyan-400/[0.14]"
+            >
+              Run Agent Research
             </Link>
             <Link
               href="/agents"

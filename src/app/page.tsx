@@ -75,7 +75,7 @@ const PRODUCT_LINKS = [
     eyebrow: "Verifiable intelligence",
     title: "Run Agent Research",
     description:
-      "Review source-linked market evidence, bounded cost metadata and a tamper-evident receipt before acting.",
+      "Choose free Preview or an opt-in Arc Mainnet paid AI call with strict limits and a tamper-evident receipt.",
   },
   {
     href: "/agents",

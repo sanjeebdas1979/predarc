@@ -8,6 +8,11 @@ import {
   isAgentResearchUuid,
   type AgentResearchReceipt,
 } from "@/lib/agent-research-core";
+import type { PaidResearchReceipt } from "@/lib/agent-research-paid-core";
+import {
+  getPaidResearchReceiptById,
+  verifyPaidResearchReceipt,
+} from "@/lib/agent-research-paid-server";
 import {
   getAgentResearchReceiptById,
   verifyAgentResearchReceipt,
@@ -45,7 +50,9 @@ function formatPrice(value: string): string {
   }).format(number);
 }
 
-function signalClasses(signal: AgentResearchReceipt["signal"]): string {
+function signalClasses(
+  signal: AgentResearchReceipt["signal"] | PaidResearchReceipt["signal"]
+): string {
   if (signal === "higher") {
     return "border-emerald-400/30 bg-emerald-400/10 text-emerald-200";
   }
@@ -63,10 +70,14 @@ export default async function AgentResearchReceiptPage({
   const { id } = await params;
   if (!isAgentResearchUuid(id)) notFound();
 
-  const receipt = await getAgentResearchReceiptById(id);
+  const paidReceipt = await getPaidResearchReceiptById(id);
+  const receipt = paidReceipt ?? (await getAgentResearchReceiptById(id));
   if (!receipt) notFound();
 
-  const verified = verifyAgentResearchReceipt(receipt);
+  const isPaid = paidReceipt !== null;
+  const verified = paidReceipt
+    ? verifyPaidResearchReceipt(paidReceipt)
+    : verifyAgentResearchReceipt(receipt as AgentResearchReceipt);
 
   return (
     <main className="min-h-screen bg-[#070b12] px-4 py-8 text-white sm:px-6">
@@ -93,6 +104,9 @@ export default async function AgentResearchReceiptPage({
                 Research Receipt
               </h1>
             </div>
+            <span className="rounded-full border border-violet-400/30 bg-violet-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-violet-200">
+              {isPaid ? "Arc Mainnet paid AI" : "Free Preview"}
+            </span>
             <span
               className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.12em] ${
                 verified
@@ -126,7 +140,12 @@ export default async function AgentResearchReceiptPage({
               ["Finalized candles", String(receipt.evidence.sampleCount)],
               ["Actual cost", `${formatResearchUsdc(receipt.spending.actualCostAtomic)} USDC`],
               ["Budget cap", `${formatResearchUsdc(receipt.spending.maxCostAtomic)} USDC`],
-              ["Engine", `${receipt.engine.id} v${receipt.engine.version}`],
+              [
+                "Engine",
+                isPaid
+                  ? `${paidReceipt.engine.provider} · ${paidReceipt.engine.model}`
+                  : `${receipt.engine.id} v${receipt.engine.version}`,
+              ],
               ["Created", shortDate(receipt.createdAt)],
               ["Network ID", String(receipt.chainId)],
             ].map(([label, value]) => (
@@ -167,6 +186,44 @@ export default async function AgentResearchReceiptPage({
             </dl>
           </section>
 
+          {paidReceipt ? (
+            <section className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.04] p-5">
+              <h2 className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">
+                Arc Mainnet x402 payment
+              </h2>
+              <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+                {[
+                  ["Scheme", "x402 exact · Arc Mainnet"],
+                  ["Status", paidReceipt.spending.status],
+                  ["Payment reference", paidReceipt.spending.paymentReference],
+                  ["Authorization hash", paidReceipt.verification.authorizationHash],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-xs text-gray-500">{label}</dt>
+                    <dd className="mt-1 break-all font-mono text-xs font-bold leading-5 text-white">
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              {paidReceipt.spending.settlementTransaction ? (
+                <a
+                  href={`https://explorer.arc.io/tx/${paidReceipt.spending.settlementTransaction}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 inline-flex rounded-xl border border-cyan-400/25 px-4 py-2 text-xs font-black text-cyan-200 hover:text-white"
+                >
+                  View settlement on Arc ↗
+                </a>
+              ) : (
+                <p className="mt-4 text-xs leading-5 text-gray-400">
+                  The provider did not return an onchain transaction hash; the
+                  signed authorization fingerprint remains bound to this receipt.
+                </p>
+              )}
+            </section>
+          ) : null}
+
           <section className="mt-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.05] p-5">
             <h2 className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">
               Receipt fingerprint
@@ -188,6 +245,14 @@ export default async function AgentResearchReceiptPage({
             <dl className="mt-4 space-y-4 text-xs">
               {[
                 ["Receipt ID", receipt.id],
+                ...(paidReceipt
+                  ? [
+                      ["Quote ID", paidReceipt.quoteId],
+                      ["Prompt hash", paidReceipt.verification.promptHash],
+                      ["Response hash", paidReceipt.verification.responseHash],
+                      ["Provider response ID", paidReceipt.providerResponseId],
+                    ]
+                  : []),
                 ["Request ID", receipt.requestId],
                 ["Wallet", receipt.wallet],
                 ["Evidence hash", receipt.evidence.evidenceHash],
@@ -222,8 +287,9 @@ export default async function AgentResearchReceiptPage({
         </section>
 
         <p className="mx-auto mt-5 max-w-3xl text-center text-xs leading-5 text-gray-500">
-          Phase 1 is a deterministic evidence preview, not financial advice.
-          No AI-model or data-service payment was made for this receipt.
+          {isPaid
+            ? "This receipt records an opt-in paid AI call on Arc Mainnet. It is not financial advice."
+            : "Phase 1 is a deterministic evidence preview, not financial advice. No AI-model or data-service payment was made for this receipt."}
         </p>
       </div>
     </main>

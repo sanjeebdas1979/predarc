@@ -11,6 +11,7 @@ import {
 
 import PredarcSessionCard from "@/app/components/auth/PredarcSessionCard";
 import PredarcBrand from "@/app/components/brand/PredarcBrand";
+import PaidAgentResearchPanel from "@/app/components/agents/PaidAgentResearchPanel";
 import { usePredarcSession } from "@/app/components/providers/PredarcSessionProvider";
 import {
   AGENT_RESEARCH_BUDGETS,
@@ -323,21 +324,22 @@ export default function AgentResearchClient() {
               Predarc Agent Research
             </p>
             <span className="rounded-full border border-amber-400/25 bg-amber-400/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-200">
-              Phase 1 preview
+              Preview + paid AI
             </span>
           </div>
           <h1 className="mt-4 max-w-4xl text-4xl font-black leading-tight sm:text-6xl">
             AI market intelligence with verifiable receipts.
           </h1>
           <p className="mt-5 max-w-3xl text-base leading-7 text-gray-300 sm:text-lg">
-            Inspect reproducible market evidence before making a decision. Each
-            run records its source window, engine version, user budget cap and a
-            SHA-256 fingerprint that Predarc can verify independently.
+            Choose a free deterministic Preview or an opt-in paid AI call on
+            Arc Mainnet. Both paths bind evidence, result and spending details
+            into a SHA-256 receipt that Predarc can verify independently.
           </p>
-          <div className="mt-7 grid gap-3 text-sm text-gray-300 sm:grid-cols-3">
+          <div className="mt-7 grid gap-3 text-sm text-gray-300 sm:grid-cols-2 lg:grid-cols-4">
             {[
               "Finalized one-minute evidence",
-              "No USDC charged in Preview",
+              "Free Preview remains available",
+              "Connected-wallet Mainnet payment",
               "Manual prediction flow unchanged",
             ].map((item) => (
               <div
@@ -355,12 +357,14 @@ export default function AgentResearchClient() {
           <PredarcSessionCard feature="Agent Research" />
         </div>
 
+        <PaidAgentResearchPanel />
+
         <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)]">
           <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-5 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-                  New research run
+                  Free Preview
                 </p>
                 <h2 className="mt-2 text-2xl font-black">
                   Set the research boundary
@@ -430,7 +434,7 @@ export default function AgentResearchClient() {
 
             <label className="mt-6 block">
               <span className="text-sm font-bold text-gray-200">
-                Maximum future research cost
+                Budget boundary recorded in receipt
               </span>
               <select
                 value={maxCostAtomic}
@@ -483,13 +487,13 @@ export default function AgentResearchClient() {
 
             <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-5">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-300">
-                Next phase
+                Paid mode is separate
               </p>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-gray-300">
-                <li>• Allowlisted AI models and live research sources.</li>
-                <li>• Circle Gateway payment authorization per call.</li>
-                <li>• Actual USDC cost and payment reference in the receipt.</li>
-                <li>• Separate permission before any automated prediction.</li>
+                <li>• A live BlockRun model quote is checked before signing.</li>
+                <li>• Arc Mainnet USDC uses one-time x402 exact authorization.</li>
+                <li>• Per-call and rolling 24-hour caps are database-enforced.</li>
+                <li>• Research never submits a prediction automatically.</li>
               </ul>
             </section>
           </aside>

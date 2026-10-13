@@ -32,6 +32,7 @@ test("guide covers every current public Predarc feature", () => {
     "Create or join a community market",
     "Bridge USDC across supported chains",
     "Swap supported assets",
+    "Run Agent Research",
     "Connect an AI agent",
     "Verify a supported receipt",
     "Explore public Arc projects",
@@ -45,4 +46,15 @@ test("guide keeps important wallet and agent safety boundaries visible", () => {
   assert.match(guide, /does not request an unlimited approval/);
   assert.match(guide, /Never share your seed phrase or private key/);
   assert.match(guide, /Never publish the token, commit it to Git or paste it into chat/);
+  assert.match(guide, /charges 0 USDC/);
+  assert.match(guide, /does not submit or prefill a prediction/);
+});
+
+test("landing page exposes verifiable Agent Research", () => {
+  assert.match(
+    landing,
+    /\{ href: "\/research", label: "Agent Research" \}/
+  );
+  assert.match(landing, /title: "Run Agent Research"/);
+  assert.match(landing, /tamper-evident receipt/);
 });

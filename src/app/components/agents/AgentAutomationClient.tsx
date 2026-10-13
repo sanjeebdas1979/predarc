@@ -339,6 +339,7 @@ export default function AgentAutomationClient() {
           <nav className="flex flex-wrap items-center gap-4 text-sm font-bold text-orange-300">
             <Link href="/arena" className="hover:text-white">Arena</Link>
             <Link href="/markets" className="hover:text-white">Markets</Link>
+            <Link href="/research" className="hover:text-white">Research</Link>
             <Link href="/bridge" className="hover:text-white">Bridge</Link>
             <Link href="/swap" className="hover:text-white">Swap</Link>
           </nav>

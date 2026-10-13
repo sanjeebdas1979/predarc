@@ -18,8 +18,28 @@ per-run budget cap. Predarc then:
 6. exposes a shareable receipt page and JSON verification endpoint.
 
 The receipt records an actual cost of 0 USDC and a not-charged payment status.
-The budget cap is metadata for the future paid-research phase; it is not a
+The budget cap inside a Preview receipt remains metadata only; it is not a
 token approval and does not initiate a transaction.
+
+## Phase 2: Arc Mainnet paid AI
+
+Paid AI is a separate, explicit path beside Preview. Predarc sends the same
+finalized evidence to the allowlisted `google/gemini-2.5-flash` model through
+BlockRun's Arc endpoint. The provider first returns an x402 v2 `exact` quote.
+Predarc accepts it only when the resource URL, Arc Mainnet network, native USDC
+asset, recipient, amount and expiry pass the server allowlist and the user's
+limits.
+
+The connected wallet signs USDC `TransferWithAuthorization` typed data. The
+private key never leaves the wallet. The server verifies the recovered signer,
+submits the signed payment payload once, and records the exact cost, payment
+reference, model, evidence hash, prompt hash, response hash and authorization
+hash in an immutable receipt.
+
+The current BlockRun Arc quote advertises the x402 `exact` scheme. This phase
+therefore does not label the payment as Gateway batching; a batched Gateway
+scheme should only be added when the selected provider advertises and supports
+that scheme.
 
 ## Safety and integrity boundaries
 
@@ -34,6 +54,12 @@ token approval and does not initiate a transaction.
 - The public receipt route recomputes the canonical SHA-256 fingerprint before
   marking a receipt verified.
 - Research does not submit, prefill or automate a prediction.
+- Paid calls require Arc Mainnet chain ID 5042 and the fixed Arc USDC contract.
+- Per-call cost is capped at 0.05 USDC; the selectable rolling 24-hour cap is
+  capped at 0.25 USDC and enforced atomically in the database.
+- A quote is one-time, expires within five minutes and can execute only once.
+- Ambiguous provider responses are never automatically retried with a new
+  authorization, preventing accidental duplicate charges.
 
 ## Database setup
 
@@ -41,7 +67,12 @@ Run this migration once in the Supabase SQL Editor:
 
 supabase/migrations/202610130001_agent_research_preview.sql
 
-No new environment variable is required for Phase 1.
+Then run the Phase 2 migration:
+
+supabase/migrations/202610140001_agent_research_mainnet.sql
+
+No provider private key or API key is required. Paid users authorize each
+allowlisted call from their own connected Arc Mainnet wallet.
 
 ## Routes
 
@@ -50,11 +81,13 @@ No new environment variable is required for Phase 1.
 - POST /api/agents/research — run the Preview engine and create a receipt
 - /research/receipts/[id] — shareable human-readable receipt
 - GET /api/agents/research/[id] — public verification JSON
+- GET /api/agents/research/paid — signed-in wallet paid receipt history
+- POST /api/agents/research/paid/quote — validate and reserve an exact quote
+- POST /api/agents/research/paid/execute — verify one-time wallet signature,
+  execute the call once and create the paid receipt
 
-## Later phases
+## Later work
 
-Paid AI and live-data providers should be added behind a server-only allowlist.
-Circle Gateway authorization, the exact provider/model, actual USDC cost and
-payment reference must be bound into a new receipt version. Automated
-prediction execution must remain a separate, explicit permission with its own
-pause and revoke controls.
+Additional live-data providers and Gateway batching must remain behind a
+server-only allowlist with their own caps. Automated prediction execution stays
+a separate, explicit permission with its own pause and revoke controls.

@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { isAgentResearchUuid } from "@/lib/agent-research-core";
+import {
+  isAgentResearchUuid,
+  type AgentResearchReceipt,
+} from "@/lib/agent-research-core";
+import {
+  getPaidResearchReceiptById,
+  verifyPaidResearchReceipt,
+} from "@/lib/agent-research-paid-server";
 import {
   getAgentResearchReceiptById,
   verifyAgentResearchReceipt,
@@ -23,7 +30,8 @@ export async function GET(
   }
 
   try {
-    const receipt = await getAgentResearchReceiptById(id);
+    const paidReceipt = await getPaidResearchReceiptById(id);
+    const receipt = paidReceipt ?? (await getAgentResearchReceiptById(id));
     if (!receipt) {
       return NextResponse.json(
         { error: "Research receipt not found." },
@@ -31,7 +39,10 @@ export async function GET(
       );
     }
 
-    if (!verifyAgentResearchReceipt(receipt)) {
+    const verified = paidReceipt
+      ? verifyPaidResearchReceipt(paidReceipt)
+      : verifyAgentResearchReceipt(receipt as AgentResearchReceipt);
+    if (!verified) {
       return NextResponse.json(
         { error: "Research receipt integrity check failed." },
         { status: 422, headers: { "Cache-Control": "no-store" } }

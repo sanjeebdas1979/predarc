@@ -7,6 +7,7 @@ import {
   AGENT_RESEARCH_ENGINE_VERSION,
   buildAgentResearchAnalysis,
   canonicalAgentResearchReceipt,
+  type AgentResearchAnalysis,
   type AgentResearchDuration,
   type AgentResearchMarket,
   type AgentResearchReceipt,
@@ -155,16 +156,16 @@ async function fetchBinanceKlines(
   throw lastError ?? new Error("All Binance market-data endpoints failed.");
 }
 
-export async function createAgentResearchReceipt(input: {
-  id: string;
-  requestId: string;
-  chainId: number;
-  wallet: string;
+export type AgentResearchEvidenceBundle = {
+  evidence: AgentResearchReceipt["evidence"];
+  metrics: AgentResearchReceipt["metrics"];
+  previewAnalysis: AgentResearchAnalysis;
+};
+
+export async function collectAgentResearchEvidence(input: {
   market: AgentResearchMarket;
   durationSeconds: AgentResearchDuration;
-  maxCostAtomic: string;
-  createdAt: string;
-}): Promise<AgentResearchReceipt> {
+}): Promise<AgentResearchEvidenceBundle> {
   const result = await fetchBinanceKlines(input.market);
   const now = Date.now();
   const completed = result
@@ -182,14 +183,14 @@ export async function createAgentResearchReceipt(input: {
     low: Number(kline[3]),
     close: Number(kline[4]),
   }));
-  const analysis = buildAgentResearchAnalysis(
+  const previewAnalysis = buildAgentResearchAnalysis(
     candles,
     input.durationSeconds
   );
   const first = completed[0];
   const last = completed.at(-1);
 
-  if (!analysis || !first || !last) {
+  if (!previewAnalysis || !first || !last) {
     throw new Error("Not enough finalized market evidence was available.");
   }
 
@@ -209,21 +210,8 @@ export async function createAgentResearchReceipt(input: {
       ]),
     })
   );
-  const payload: Omit<AgentResearchReceipt, "receiptHash"> = {
-    id: input.id,
-    requestId: input.requestId,
-    chainId: input.chainId,
-    wallet: input.wallet.toLowerCase(),
-    market: input.market,
-    durationSeconds: input.durationSeconds,
-    signal: analysis.signal,
-    confidence: analysis.confidence,
-    rationale: analysis.rationale,
-    engine: {
-      id: AGENT_RESEARCH_ENGINE_ID,
-      version: AGENT_RESEARCH_ENGINE_VERSION,
-      mode: "deterministic-preview",
-    },
+
+  return {
     evidence: {
       source: "Binance public market data",
       pair: `${input.market}/USDT`,
@@ -235,7 +223,39 @@ export async function createAgentResearchReceipt(input: {
       entryPrice: String(last[4]),
       evidenceHash,
     },
-    metrics: analysis.metrics,
+    metrics: previewAnalysis.metrics,
+    previewAnalysis,
+  };
+}
+
+export async function createAgentResearchReceipt(input: {
+  id: string;
+  requestId: string;
+  chainId: number;
+  wallet: string;
+  market: AgentResearchMarket;
+  durationSeconds: AgentResearchDuration;
+  maxCostAtomic: string;
+  createdAt: string;
+}): Promise<AgentResearchReceipt> {
+  const bundle = await collectAgentResearchEvidence(input);
+  const payload: Omit<AgentResearchReceipt, "receiptHash"> = {
+    id: input.id,
+    requestId: input.requestId,
+    chainId: input.chainId,
+    wallet: input.wallet.toLowerCase(),
+    market: input.market,
+    durationSeconds: input.durationSeconds,
+    signal: bundle.previewAnalysis.signal,
+    confidence: bundle.previewAnalysis.confidence,
+    rationale: bundle.previewAnalysis.rationale,
+    engine: {
+      id: AGENT_RESEARCH_ENGINE_ID,
+      version: AGENT_RESEARCH_ENGINE_VERSION,
+      mode: "deterministic-preview",
+    },
+    evidence: bundle.evidence,
+    metrics: bundle.metrics,
     spending: {
       currency: "USDC",
       decimals: 6,

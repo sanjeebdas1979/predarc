@@ -32,7 +32,8 @@ test("guide covers every current public Predarc feature", () => {
     "Create or join a community market",
     "Bridge USDC across supported chains",
     "Swap supported assets",
-    "Run Agent Research",
+    "Run the Agent Research Preview",
+    "Run paid AI research on Arc Mainnet",
     "Connect an AI agent",
     "Verify a supported receipt",
     "Explore public Arc projects",
@@ -48,6 +49,10 @@ test("guide keeps important wallet and agent safety boundaries visible", () => {
   assert.match(guide, /Never publish the token, commit it to Git or paste it into chat/);
   assert.match(guide, /charges 0 USDC/);
   assert.match(guide, /does not submit or prefill a prediction/);
+  assert.match(guide, /Get Mainnet quote/);
+  assert.match(guide, /BlockRun x402/);
+  assert.match(guide, /maximum per-call cost and rolling 24-hour USDC cap/);
+  assert.match(guide, /submitted payment is never automatically retried/);
 });
 
 test("landing page exposes verifiable Agent Research", () => {

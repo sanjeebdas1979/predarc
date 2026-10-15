@@ -132,28 +132,48 @@ const FEATURE_GUIDES = [
     badge: "border-violet-400/25 bg-violet-400/10 text-violet-200",
   },
   {
-    id: "research",
+    id: "research-preview",
     number: "06",
-    eyebrow: "Verifiable intelligence",
-    title: "Run Agent Research",
+    eyebrow: "Free market evidence",
+    title: "Run the Agent Research Preview",
     summary:
-      "Choose free deterministic evidence or an opt-in Arc Mainnet AI call, then verify the immutable receipt.",
+      "Generate a deterministic market-evidence signal at no cost, then inspect and verify its immutable receipt.",
     steps: [
       "Choose BTC, ETH, BNB, SOL or XRP and a forecast horizon.",
-      "Use free Preview, or set strict per-call and rolling 24-hour USDC caps for paid AI.",
-      "For paid AI, review the exact BlockRun quote before signing the one-time Arc Mainnet authorization.",
-      "Inspect the signal, evidence, actual cost and public SHA-256 receipt. Research never submits a prediction.",
+      "Run the free Preview to evaluate finalized market evidence such as momentum, trend and volatility.",
+      "Review the Higher or Lower signal, confidence, evidence window and engine version.",
+      "Open the public receipt to verify its SHA-256 fingerprint or copy the complete JSON.",
     ],
-    note: "Preview charges 0 USDC. Paid AI is opt-in, uses the connected wallet without exposing its private key, and is kept separate from prediction execution. Research does not submit or prefill a prediction.",
+    note: "Preview charges 0 USDC and does not request a payment authorization. Research does not submit or prefill a prediction.",
     href: "/research",
-    cta: "Open Agent Research",
+    cta: "Open Free Preview",
     accent: "border-cyan-400/20 bg-cyan-400/[0.06]",
     label: "text-cyan-300",
     badge: "border-cyan-400/25 bg-cyan-400/10 text-cyan-200",
   },
   {
-    id: "agents",
+    id: "research-paid",
     number: "07",
+    eyebrow: "BlockRun x402 · Arc Mainnet",
+    title: "Run paid AI research on Arc Mainnet",
+    summary:
+      "Purchase one allowlisted AI model call with native USDC while keeping the exact quote, wallet authorization and spending limits visible.",
+    steps: [
+      "Choose a market and forecast horizon, then set the maximum per-call cost and rolling 24-hour USDC cap.",
+      "Select Get Mainnet quote and review the model, native USDC amount, recipient and expiry returned through BlockRun x402.",
+      "If every detail is correct, select Sign & run paid analysis and approve the one-time authorization in your connected wallet.",
+      "Review the AI signal and open its public receipt to verify the evidence, model, actual cost, payment reference and SHA-256 fingerprint.",
+    ],
+    note: "Your private key stays in your wallet. Quotes are short-lived and single-use, and a submitted payment is never automatically retried. Paid research remains separate from prediction execution.",
+    href: "/research",
+    cta: "Open Paid AI Research",
+    accent: "border-emerald-400/20 bg-emerald-400/[0.06]",
+    label: "text-emerald-300",
+    badge: "border-emerald-400/25 bg-emerald-400/10 text-emerald-200",
+  },
+  {
+    id: "agents",
+    number: "08",
     eyebrow: "Optional automation",
     title: "Connect an AI agent",
     summary:
@@ -173,7 +193,7 @@ const FEATURE_GUIDES = [
   },
   {
     id: "receipts",
-    number: "08",
+    number: "09",
     eyebrow: "Transaction evidence",
     title: "Verify a supported receipt",
     summary:
@@ -192,7 +212,7 @@ const FEATURE_GUIDES = [
   },
   {
     id: "builders",
-    number: "09",
+    number: "10",
     eyebrow: "Public discovery",
     title: "Explore public Arc projects",
     summary:
@@ -215,6 +235,7 @@ const SAFETY_CHECKS = [
   "Confirm that your wallet is connected to the intended account and network.",
   "Read the amount, asset and permission shown in every wallet prompt.",
   "Never share your seed phrase or private key with Predarc, an agent or anyone else.",
+  "For paid research, verify the exact USDC quote and both spending caps before authorizing it.",
   "Keep agent API tokens in a secure server-side secret store and revoke exposed tokens.",
   "For a first Bridge or Swap, consider testing the flow with a small amount.",
 ] as const;

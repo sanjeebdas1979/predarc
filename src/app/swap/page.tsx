@@ -5,7 +5,6 @@ import { useState } from "react";
 import {
   useAccount,
   useChainId,
-  useConnect,
   useDisconnect,
   useSwitchChain,
 } from "wagmi";
@@ -15,6 +14,7 @@ import type { EIP1193Provider } from "viem";
 import { arcMainnet } from "@/lib/daily";
 import PredarcSessionCard from "../components/auth/PredarcSessionCard";
 import { usePredarcSession } from "../components/providers/PredarcSessionProvider";
+import WalletConnectOptions from "../components/wallet/WalletConnectOptions";
 
 type TokenKey = "USDC" | "EURC" | "cirBTC";
 type StatusTone = "info" | "success" | "error";
@@ -119,7 +119,6 @@ function TokenInput({
 export default function SwapPage() {
   const { address, connector, isConnected } = useAccount();
   const chainId = useChainId();
-  const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChainAsync, isPending: isSwitching } = useSwitchChain();
   const { isSignedIn } = usePredarcSession();
@@ -136,12 +135,6 @@ export default function SwapPage() {
   const onArcMainnet = chainId === arcMainnet.id;
   const validAmount =
     Number.isFinite(Number(amount)) && Number(amount) > 0;
-
-  function connectWallet() {
-    if (connectors[0]) {
-      connect({ connector: connectors[0] });
-    }
-  }
 
   function clearQuote() {
     setQuote(null);
@@ -160,7 +153,7 @@ export default function SwapPage() {
     setStatusTone("info");
 
     if (!isConnected) {
-      connectWallet();
+      setStatus("Choose MetaMask or Rabby above to connect your wallet.");
       return;
     }
 
@@ -304,7 +297,7 @@ export default function SwapPage() {
   }
 
   const buttonLabel = !isConnected
-    ? "Connect wallet"
+    ? "Choose wallet above"
     : !isSignedIn
       ? "Sign in to activate swap"
       : !onArcMainnet
@@ -345,13 +338,7 @@ export default function SwapPage() {
                   : "Disconnect"}
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={connectWallet}
-                className="predarc-gradient-button px-4 py-2 text-xs"
-              >
-                Connect wallet
-              </button>
+              <WalletConnectOptions compact />
             )}
           </nav>
         </header>

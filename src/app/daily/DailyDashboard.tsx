@@ -2,17 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useAccount, useConnect, useDisconnect, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
+import { useAccount, useDisconnect, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
 import type { Hash } from "viem";
 import { dailyAbi, dailyAddress, dailyChain, dailyEnabled, dailyExplorer } from "@/lib/daily";
 import { countdown, dailyAvailability } from "@/lib/daily-core";
+import WalletConnectOptions from "@/app/components/wallet/WalletConnectOptions";
 
 const button = "rounded-xl bg-orange-500 px-5 py-3 font-bold text-black disabled:cursor-not-allowed disabled:opacity-40";
 const card = "rounded-3xl border border-white/10 bg-[#0d121a] p-6";
 
 export default function DailyDashboard() {
   const { address, chainId, isConnected } = useAccount();
-  const { connectors, connectAsync } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
@@ -103,14 +103,11 @@ export default function DailyDashboard() {
         </header>
         {!dailyEnabled && <p className={card}>Preview only. Daily transactions are disabled while the contract and verified prediction service are being prepared. The existing testnet arena remains available.</p>}
         <div className="flex flex-wrap items-center gap-3">
-          {!isConnected ? connectors.map(connector => (
-            <button key={connector.uid} className={button} disabled={busy} onClick={() => void walletAction(() => connectAsync({ connector }))}>Connect {connector.name}</button>
-          )) : <>
+          {!isConnected ? <WalletConnectOptions /> : <>
             <span className="break-all text-sm text-gray-300">{address}</span>
             <button className={button} disabled={busy} onClick={() => disconnect()}>Disconnect</button>
             {chainId !== dailyChain.id && <button className={button} disabled={busy || !dailyEnabled} onClick={() => void walletAction(() => switchChainAsync({ chainId: dailyChain.id }))}>Switch to {dailyChain.name}</button>}
           </>}
-          {!isConnected && connectors.length === 0 && <p>Open in a browser with a supported wallet to connect.</p>}
         </div>
         <div className="grid gap-6 sm:grid-cols-2">
           <section className={card}>

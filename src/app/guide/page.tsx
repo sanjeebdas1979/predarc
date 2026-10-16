@@ -104,7 +104,7 @@ const FEATURE_GUIDES = [
       "In the second wallet prompt, confirm the bridge transfer.",
       "Keep the page open until Predarc displays Bridge success.",
     ],
-    note: "MetaMask may describe the Circle contract as an unknown address on Arc. Verify the amount carefully; Predarc does not request an unlimited approval in this flow.",
+    note: "Your wallet may describe the Circle contract as an unknown address on Arc. Verify the amount carefully; Predarc does not request an unlimited approval in this flow.",
     href: "/bridge",
     cta: "Open Bridge",
     accent: "border-sky-400/20 bg-sky-400/[0.06]",

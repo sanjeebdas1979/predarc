@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
   useAccount,
-  useConnect,
   useDisconnect,
   useSignTypedData,
   useSwitchChain,
@@ -13,6 +12,7 @@ import {
 import PredarcSessionCard from "@/app/components/auth/PredarcSessionCard";
 import PredarcBrand from "@/app/components/brand/PredarcBrand";
 import { usePredarcSession } from "@/app/components/providers/PredarcSessionProvider";
+import WalletConnectOptions from "@/app/components/wallet/WalletConnectOptions";
 import {
   AGENT_AUTOMATION_DURATIONS,
   AGENT_AUTOMATION_MARKETS,
@@ -99,7 +99,6 @@ function buildAgentConfigExample(token: string, origin: string): string {
 export default function AgentAutomationClient() {
   const { session, isSignedIn } = usePredarcSession();
   const { address, chainId, isConnected } = useAccount();
-  const { connect, connectors, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
   const { signTypedDataAsync } = useSignTypedData();
@@ -124,11 +123,6 @@ export default function AgentAutomationClient() {
   const [updatingId, setUpdatingId] = useState("");
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<MessageTone>("info");
-  const walletConnector =
-    connectors.find((connector) =>
-      connector.name.toLowerCase().includes("metamask")
-    ) ?? connectors[0];
-
   const loadConnections = useCallback(async () => {
     if (!isSignedIn) {
       setConnections([]);
@@ -344,16 +338,7 @@ export default function AgentAutomationClient() {
             <Link href="/swap" className="hover:text-white">Swap</Link>
           </nav>
           {!isConnected ? (
-            <button
-              type="button"
-              disabled={!walletConnector || isConnecting}
-              onClick={() =>
-                walletConnector && connect({ connector: walletConnector })
-              }
-              className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-orange-400 disabled:opacity-50"
-            >
-              {isConnecting ? "Connecting…" : "Connect wallet"}
-            </button>
+            <WalletConnectOptions compact />
           ) : chainId !== forecastChainId ? (
             <button
               type="button"

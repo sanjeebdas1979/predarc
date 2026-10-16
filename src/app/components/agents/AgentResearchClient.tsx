@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useAccount,
-  useConnect,
   useDisconnect,
   useSwitchChain,
 } from "wagmi";
@@ -13,6 +12,7 @@ import PredarcSessionCard from "@/app/components/auth/PredarcSessionCard";
 import PredarcBrand from "@/app/components/brand/PredarcBrand";
 import PaidAgentResearchPanel from "@/app/components/agents/PaidAgentResearchPanel";
 import { usePredarcSession } from "@/app/components/providers/PredarcSessionProvider";
+import WalletConnectOptions from "@/app/components/wallet/WalletConnectOptions";
 import {
   AGENT_RESEARCH_BUDGETS,
   AGENT_RESEARCH_DAILY_LIMIT,
@@ -125,7 +125,6 @@ function signalClasses(signal: AgentResearchReceipt["signal"]): string {
 export default function AgentResearchClient() {
   const { session, isSignedIn } = usePredarcSession();
   const { address, chainId, isConnected } = useAccount();
-  const { connect, connectors, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
   const [market, setMarket] = useState<AgentResearchMarket>("BTC");
@@ -142,11 +141,6 @@ export default function AgentResearchClient() {
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<MessageTone>("info");
   const pendingRequestId = useRef("");
-  const walletConnector =
-    connectors.find((connector) =>
-      connector.name.toLowerCase().includes("metamask")
-    ) ?? connectors[0];
-
   const loadHistory = useCallback(async () => {
     if (!isSignedIn) {
       setReceipts([]);
@@ -281,16 +275,7 @@ export default function AgentResearchClient() {
             <Link href="/guide" className="hover:text-white">Guide</Link>
           </nav>
           {!isConnected ? (
-            <button
-              type="button"
-              disabled={!walletConnector || isConnecting}
-              onClick={() =>
-                walletConnector && connect({ connector: walletConnector })
-              }
-              className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-orange-400 disabled:opacity-50"
-            >
-              {isConnecting ? "Connecting…" : "Connect wallet"}
-            </button>
+            <WalletConnectOptions compact />
           ) : chainId !== forecastChainId ? (
             <button
               type="button"

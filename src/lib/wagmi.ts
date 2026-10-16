@@ -8,6 +8,11 @@ export const wagmiConfig = createConfig({
 
   connectors: [
     injected({
+      target: "metaMask",
+      shimDisconnect: true,
+    }),
+    injected({
+      target: "rabby",
       shimDisconnect: true,
     }),
   ],
@@ -35,6 +40,9 @@ export const wagmiConfig = createConfig({
     ),
   },
 
+  // Keep EIP-6963 discovery enabled so MetaMask and Rabby can coexist
+  // without competing for window.ethereum. The UI still exposes only
+  // those two approved wallet choices.
   multiInjectedProviderDiscovery: true,
   ssr: true,
 });

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useAccount, useChainId, useConnect, useDisconnect, useSwitchChain } from "wagmi";
+import { useAccount, useChainId, useDisconnect, useSwitchChain } from "wagmi";
 import type { EIP1193Provider } from "viem";
 import { arbitrum, base, mainnet, polygon } from "viem/chains";
 import { AppKit } from "@circle-fin/app-kit";
@@ -10,6 +10,7 @@ import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import { arcMainnet } from "@/lib/daily";
 import PredarcSessionCard from "../components/auth/PredarcSessionCard";
 import { usePredarcSession } from "../components/providers/PredarcSessionProvider";
+import WalletConnectOptions from "../components/wallet/WalletConnectOptions";
 
 type Direction = "arc-eth" | "eth-arc" | "arc-base" | "base-arc" | "arc-arbitrum" | "arbitrum-arc" | "arc-polygon" | "polygon-arc";
 type CircleChain = "Arc" | "Ethereum" | "Base" | "Arbitrum" | "Polygon";
@@ -19,7 +20,6 @@ export default function BridgePage() {
   const { address, connector, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
-  const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { isSignedIn } = usePredarcSession();
 
@@ -116,7 +116,7 @@ export default function BridgePage() {
       setMessage(
         "Step 1 of 2: Approve exactly " +
           amount +
-          " USDC in MetaMask. The bridge confirmation will follow."
+          " USDC in your connected wallet. The bridge confirmation will follow."
       );
 
       const provider =
@@ -197,19 +197,17 @@ export default function BridgePage() {
               {isConnected ? currentNetwork : "Not connected"}
             </p>
 
-            <button
-              type="button"
-              onClick={() => {
-                if (isConnected) {
-                  disconnect();
-                } else if (connectors[0]) {
-                  connect({ connector: connectors[0] });
-                }
-              }}
-              className="predarc-gradient-button mt-5 w-full"
-            >
-              {isConnected ? "Disconnect" : "Connect wallet"}
-            </button>
+            {isConnected ? (
+              <button
+                type="button"
+                onClick={() => disconnect()}
+                className="predarc-gradient-button mt-5 w-full"
+              >
+                Disconnect
+              </button>
+            ) : (
+              <WalletConnectOptions className="mt-5" />
+            )}
           </div>
 
           <div className="mt-4">
@@ -271,7 +269,7 @@ export default function BridgePage() {
 
             <div className="absolute bottom-full left-0 z-10 mb-2 hidden w-full rounded-2xl border border-sky-400/20 bg-[#101923] p-4 shadow-2xl group-hover:block group-focus-within:block group-open:block">
               <p className="font-bold text-sky-200">
-                What MetaMask will ask you to do
+                What your wallet will ask you to do
               </p>
               <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-gray-300">
                 <li>
@@ -281,7 +279,7 @@ export default function BridgePage() {
                 <li>Confirm the bridge transfer.</li>
               </ol>
               <p className="mt-3 text-xs leading-5 text-gray-400">
-                MetaMask may label the Circle contract as an &quot;unknown
+                Your wallet may label the Circle contract as an &quot;unknown
                 address&quot; on Arc. Treat that as a security review: continue
                 only when the approval amount matches the amount entered above.
                 Predarc never asks for an unlimited approval in this flow.

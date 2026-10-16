@@ -3,14 +3,12 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
 
 import {
   useAccount,
-  useConnect,
   useDisconnect,
   usePublicClient,
   useSendTransaction,
@@ -27,6 +25,7 @@ import { forecastChainId, forecastNetworkLabel } from "@/lib/forecast-network";
 import { useVerification } from "../providers/VerificationProvider";
 import PredarcSessionCard from "../auth/PredarcSessionCard";
 import { usePredarcSession } from "../providers/PredarcSessionProvider";
+import WalletConnectOptions from "./WalletConnectOptions";
 
 const LEGACY_PENDING_VERIFICATION_KEY =
   "prederc-pending-verification-transaction";
@@ -131,7 +130,7 @@ function getErrorMessage(
       "user denied"
     )
   ) {
-    return "Transaction was rejected in MetaMask.";
+    return "Transaction was rejected in your wallet.";
   }
 
   if (
@@ -169,13 +168,6 @@ export default function ConnectWallet() {
     usePublicClient({
       chainId: forecastChainId,
     });
-
-  const {
-    connect,
-    connectors,
-    isPending: isConnecting,
-    error: connectError,
-  } = useConnect();
 
   const {
     disconnect,
@@ -218,20 +210,6 @@ export default function ConnectWallet() {
 
   const resumedHashRef =
     useRef<Hash | null>(null);
-
-  const metaMaskConnector =
-    useMemo(
-      () =>
-        connectors.find(
-          (connector) =>
-            connector.name
-              .toLowerCase()
-              .includes(
-                "metamask"
-              )
-        ) ?? connectors[0],
-      [connectors]
-    );
 
   const isBusy =
     isWaitingForWallet ||
@@ -593,7 +571,7 @@ export default function ConnectWallet() {
 
     try {
       setVerificationMessage(
-        "Confirm the verification transaction in MetaMask."
+        "Confirm the verification transaction in your connected wallet."
       );
 
       const hash =
@@ -744,36 +722,7 @@ export default function ConnectWallet() {
   if (!isConnected) {
     return (
       <div className="flex flex-col items-center gap-2">
-        <button
-          type="button"
-          disabled={
-            !metaMaskConnector ||
-            isConnecting
-          }
-          onClick={() => {
-            if (
-              metaMaskConnector
-            ) {
-              connect({
-                connector:
-                  metaMaskConnector,
-              });
-            }
-          }}
-          className="rounded-xl bg-orange-500 px-6 py-3 font-semibold text-white transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isConnecting
-            ? "Connecting..."
-            : "Connect MetaMask"}
-        </button>
-
-        {connectError && (
-          <p className="max-w-sm text-center text-sm text-red-400">
-            {
-              connectError.message
-            }
-          </p>
-        )}
+        <WalletConnectOptions className="w-full max-w-sm" />
       </div>
     );
   }
@@ -897,7 +846,7 @@ export default function ConnectWallet() {
             {!isSignedIn
               ? "Sign In First"
               : isWaitingForWallet
-              ? "Confirm In MetaMask..."
+              ? "Confirm In Wallet..."
               : isCheckingReceipt
                 ? "Checking Arc Confirmation..."
                 : "Verify Onchain"}

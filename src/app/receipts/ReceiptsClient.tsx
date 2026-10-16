@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount, useConnect, useDisconnect, useSendTransaction, useSwitchChain } from "wagmi";
+import { useAccount, useDisconnect, useSendTransaction, useSwitchChain } from "wagmi";
 import { type Address } from "viem";
 import { HASH_PATTERN, paymentValue, validRecipient, RECEIPT_CHAIN_ID, RECEIPT_EXPLORER } from "@/lib/receipts";
+import WalletConnectOptions from "@/app/components/wallet/WalletConnectOptions";
 
 type Receipt = { hash: string; from: string; to: string; amount: string; fee: string; timestamp: number; blockNumber: string };
 const field = "w-full rounded-xl border border-white/20 bg-black/20 px-4 py-3 text-white";
@@ -14,7 +15,6 @@ const button = "rounded-xl bg-orange-500 px-5 py-3 font-bold text-black disabled
 export default function ReceiptsClient({ hash }: { hash?: string }) {
   const router = useRouter();
   const { address, chainId, isConnected } = useAccount();
-  const { connectAsync, connectors, isPending: connecting } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChainAsync, isPending: switching } = useSwitchChain();
   const { sendTransactionAsync, isPending } = useSendTransaction();
@@ -113,7 +113,7 @@ export default function ReceiptsClient({ hash }: { hash?: string }) {
       </section> : <>
         <section className="mt-8 rounded-3xl border border-white/10 bg-[#0d121a] p-6">
           <h2 className="mb-5 text-xl font-bold">Test a payment</h2>
-          {!isConnected ? <button className={button} disabled={connecting || !connectors[0]} onClick={() => void walletAction(() => connectAsync({ connector: connectors[0] }))}>{connecting ? "Connecting…" : connectors[0] ? "Connect wallet" : "Open in a browser with a wallet"}</button> : <div className="mb-5">
+          {!isConnected ? <WalletConnectOptions className="max-w-md" /> : <div className="mb-5">
             <p className="break-all font-mono text-xs">{address}</p>
             <button className="mt-2 text-sm text-gray-400 underline" onClick={() => disconnect()}>Disconnect</button>
             {chainId !== RECEIPT_CHAIN_ID && <button className={button + " ml-3"} disabled={switching} onClick={() => void walletAction(() => switchChainAsync({ chainId: RECEIPT_CHAIN_ID }))}>Switch to Arc Testnet</button>}

@@ -1140,7 +1140,7 @@ export default function PredictionHistory() {
 
       updateMessage(
         prediction.id,
-        `Confirm forecast resolution in MetaMask. Price precision: x${detectedPriceScale.toLocaleString()}.`
+        `Confirm forecast resolution in your wallet. Price precision: x${detectedPriceScale.toLocaleString()}.`
       );
 
       const hash =
@@ -1252,7 +1252,7 @@ export default function PredictionHistory() {
       ) {
         updateMessage(
           prediction.id,
-          "Resolution transaction was rejected in MetaMask."
+          "Resolution transaction was rejected in your wallet."
         );
 
         return;
@@ -1323,7 +1323,7 @@ export default function PredictionHistory() {
       updateMessage(
         prediction.id,
 
-        "Confirm reward claim in MetaMask."
+        "Confirm reward claim in your wallet."
       );
 
       const hash =
@@ -1473,7 +1473,7 @@ export default function PredictionHistory() {
         updateMessage(
           prediction.id,
 
-          "Claim transaction was rejected in MetaMask."
+          "Claim transaction was rejected in your wallet."
         );
 
         return;

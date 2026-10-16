@@ -93,7 +93,7 @@ function getErrorMessage(
       "user denied"
     )
   ) {
-    return "Transaction was rejected in MetaMask.";
+    return "Transaction was rejected in your wallet.";
   }
 
   if (
@@ -502,7 +502,7 @@ export default function PredictionPanel() {
 
     try {
       setMessage(
-        `Confirm the ${submittedMarketValue} forecast transaction in MetaMask.`
+        `Confirm the ${submittedMarketValue} forecast transaction in your wallet.`
       );
 
       const onchainForecastId =

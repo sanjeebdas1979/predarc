@@ -158,7 +158,7 @@ function getTransactionError(
     message.includes("user rejected") ||
     message.includes("user denied")
   ) {
-    return "Transaction was rejected in MetaMask.";
+    return "Transaction was rejected in your wallet.";
   }
 
   if (message.includes("only owner")) {
@@ -661,7 +661,7 @@ export default function ActivePredictionCard() {
 
     try {
       setTransactionMessage(
-        "Confirm forecast resolution in MetaMask."
+        "Confirm forecast resolution in your wallet."
       );
 
       setLatestTransactionHash(null);
@@ -742,7 +742,7 @@ export default function ActivePredictionCard() {
 
     try {
       setTransactionMessage(
-        "Confirm reward claim in MetaMask."
+        "Confirm reward claim in your wallet."
       );
 
       setLatestTransactionHash(null);

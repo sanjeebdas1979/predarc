@@ -651,6 +651,16 @@ export default function Home() {
               ))}
 
               <a
+                href="https://docs.arc.network"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Docs (opens in a new tab)"
+                className="transition hover:text-white"
+              >
+                Docs ↗
+              </a>
+
+              <a
                 href="https://faucet.circle.com"
                 target="_blank"
                 rel="noopener noreferrer"

@@ -25,6 +25,12 @@ test("landing page links to the official Predarc X profile", () => {
   assert.match(landing, /rel="noopener noreferrer"/);
 });
 
+test("landing footer links to the official Arc documentation", () => {
+  assert.match(landing, /href="https:\/\/docs\.arc\.network"/);
+  assert.match(landing, /aria-label="Docs \(opens in a new tab\)"/);
+  assert.match(landing, />\s*Docs ↗\s*<\/a>/);
+});
+
 test("guide covers every current public Predarc feature", () => {
   for (const heading of [
     "Connect your wallet and sign in",

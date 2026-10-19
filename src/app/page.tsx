@@ -661,6 +661,16 @@ export default function Home() {
               </a>
 
               <a
+                href="https://github.com/circlefin/arc-node"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Arc GitHub (opens in a new tab)"
+                className="transition hover:text-white"
+              >
+                Arc GitHub ↗
+              </a>
+
+              <a
                 href="https://faucet.circle.com"
                 target="_blank"
                 rel="noopener noreferrer"

@@ -31,6 +31,12 @@ test("landing footer links to the official Arc documentation", () => {
   assert.match(landing, />\s*Docs ↗\s*<\/a>/);
 });
 
+test("landing footer links to the official Arc GitHub repository", () => {
+  assert.match(landing, /href="https:\/\/github\.com\/circlefin\/arc-node"/);
+  assert.match(landing, /aria-label="Arc GitHub \(opens in a new tab\)"/);
+  assert.match(landing, />\s*Arc GitHub ↗\s*<\/a>/);
+});
+
 test("guide covers every current public Predarc feature", () => {
   for (const heading of [
     "Connect your wallet and sign in",

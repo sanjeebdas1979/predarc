@@ -220,14 +220,14 @@ export default function Home() {
 
             <Link
               href="/markets"
-              className="rounded-full border border-white/10 bg-[#111826] px-7 py-3.5 text-xs font-black uppercase tracking-[0.09em] text-gray-100 shadow-[3px_3px_0_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:border-white/20 hover:bg-[#172032]"
+              className="inline-flex items-center gap-2 rounded-full border border-purple-400/40 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 px-7 py-3.5 text-xs font-black uppercase tracking-[0.09em] text-white shadow-[3px_3px_0_0_rgba(0,0,0,0.9)] transition hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_12px_32px_rgba(168,85,247,0.24)]"
             >
               Create a Market
             </Link>
 
             <Link
               href="/bridge"
-              className="rounded-full px-4 py-3.5 text-xs font-black uppercase tracking-[0.09em] text-blue-300 transition hover:text-white"
+              className="inline-flex items-center gap-2 rounded-full border border-purple-400/40 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 px-7 py-3.5 text-xs font-black uppercase tracking-[0.09em] text-white shadow-[3px_3px_0_0_rgba(0,0,0,0.9)] transition hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_12px_32px_rgba(168,85,247,0.24)]"
             >
               Bridge USDC
             </Link>

@@ -75,3 +75,28 @@ test("landing page exposes verifiable Agent Research", () => {
   assert.match(landing, /title: "Run Agent Research"/);
   assert.match(landing, /tamper-evident receipt/);
 });
+
+test("landing hero presents all primary actions with the same gradient style", () => {
+  const heroActionsStart = landing.indexOf(
+    '<div className="mt-9 flex flex-wrap gap-3">'
+  );
+  const heroActionsEnd = landing.indexOf(
+    '<div className="mt-9 flex flex-wrap gap-2">',
+    heroActionsStart
+  );
+  const heroActions = landing.slice(heroActionsStart, heroActionsEnd);
+
+  assert.ok(heroActionsStart >= 0);
+  assert.ok(heroActionsEnd > heroActionsStart);
+  for (const href of ["/arena", "/markets", "/bridge"]) {
+    assert.match(heroActions, new RegExp(`href="${href}"`));
+  }
+  assert.equal(
+    (
+      heroActions.match(
+        /bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500/g
+      ) ?? []
+    ).length,
+    3
+  );
+});

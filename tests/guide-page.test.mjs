@@ -100,3 +100,17 @@ test("landing hero presents all primary actions with the same gradient style", (
     3
   );
 });
+
+test("landing suite CTA keeps Launch Arena aligned with the secondary actions", () => {
+  const suiteActionsStart = landing.indexOf("Built around Arc Mainnet");
+  const suiteActionsEnd = landing.indexOf("<footer", suiteActionsStart);
+  const suiteActions = landing.slice(suiteActionsStart, suiteActionsEnd);
+
+  assert.ok(suiteActionsStart >= 0);
+  assert.ok(suiteActionsEnd > suiteActionsStart);
+  for (const href of ["/arena", "/markets", "/research", "/agents"]) {
+    assert.match(suiteActions, new RegExp(`href="${href}"`));
+  }
+  assert.match(suiteActions, /bg-indigo-400\/\[0\.08\]/);
+  assert.doesNotMatch(suiteActions, /bg-gradient-to-r/);
+});

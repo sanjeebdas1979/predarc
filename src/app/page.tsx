@@ -583,7 +583,7 @@ export default function Home() {
           <div className="relative mt-8 flex shrink-0 flex-wrap gap-3 lg:mt-0 lg:flex-col">
             <Link
               href="/arena"
-              className="rounded-full border border-purple-400/40 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 px-7 py-3.5 text-center text-xs font-black uppercase tracking-[0.1em] text-white shadow-[3px_3px_0_0_rgba(0,0,0,0.85)] transition hover:brightness-110"
+              className="rounded-full border border-indigo-300/20 bg-indigo-400/[0.08] px-7 py-3.5 text-center text-xs font-black uppercase tracking-[0.1em] text-indigo-100 transition hover:bg-indigo-400/[0.14]"
             >
               Launch Arena
             </Link>

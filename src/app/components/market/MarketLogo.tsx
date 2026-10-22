@@ -30,6 +30,14 @@ export default function MarketLogo({
 }: MarketLogoProps) {
   const [failed, setFailed] = useState(false);
 
+  const logoStyle =
+    market === "ETH"
+      ? {
+          filter:
+            "brightness(1.3) saturate(1.25) drop-shadow(0 0 7px rgba(132, 147, 255, 0.78))",
+        }
+      : undefined;
+
   if (failed) {
     return (
       <span
@@ -49,6 +57,7 @@ export default function MarketLogo({
       src={MARKET_LOGO_URLS[market]}
       alt={market + " logo"}
       className={"shrink-0 object-contain " + className}
+      style={logoStyle}
       loading="lazy"
       onError={() => setFailed(true)}
     />

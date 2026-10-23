@@ -114,3 +114,17 @@ test("landing suite CTA keeps Launch Arena aligned with the secondary actions", 
   assert.match(suiteActions, /bg-indigo-400\/\[0\.08\]/);
   assert.doesNotMatch(suiteActions, /bg-gradient-to-r/);
 });
+
+test("landing Community Markets teaser keeps its small copy readable", () => {
+  const teaserStart = landing.indexOf(
+    '<div className="mt-4 rounded-2xl border border-blue-400/15'
+  );
+  const teaserEnd = landing.indexOf("</aside>", teaserStart);
+  const teaser = landing.slice(teaserStart, teaserEnd);
+
+  assert.ok(teaserStart >= 0);
+  assert.ok(teaserEnd > teaserStart);
+  assert.match(teaser, /text-\[10px\] leading-4 text-blue-100\/75/);
+  assert.match(teaser, /text-\[10px\][^"\n]*text-blue-200/);
+  assert.doesNotMatch(teaser, /text-gray-500/);
+});

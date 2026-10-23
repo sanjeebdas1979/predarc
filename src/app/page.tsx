@@ -387,12 +387,12 @@ export default function Home() {
                 <p className="text-[10px] font-black text-blue-100">
                   Community Markets
                 </p>
-                <p className="mt-1.5 text-[9px] leading-4 text-gray-500">
+                <p className="mt-1.5 text-[10px] leading-4 text-blue-100/75">
                   Signed-in users can create a market with a gas-free signature.
                 </p>
                 <Link
                   href="/markets"
-                  className="mt-3 inline-flex text-[9px] font-black uppercase tracking-[0.1em] text-blue-300 hover:text-white"
+                  className="mt-3 inline-flex text-[10px] font-black uppercase tracking-[0.1em] text-blue-200 transition hover:text-white"
                 >
                   Create one →
                 </Link>

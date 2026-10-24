@@ -242,7 +242,7 @@ export default function Home() {
             ].map((item) => (
               <span
                 key={item}
-                className="rounded-full border border-white/[0.08] bg-white/[0.025] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.08em] text-gray-500"
+                className="rounded-full border border-white/[0.14] bg-white/[0.045] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-gray-300 shadow-[0_0_14px_rgba(148,163,184,0.04)]"
               >
                 {item}
               </span>

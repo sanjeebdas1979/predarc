@@ -101,6 +101,36 @@ test("landing hero presents all primary actions with the same gradient style", (
   );
 });
 
+test("landing hero capability pills stay readable on the dark background", () => {
+  const capabilityPillsStart = landing.indexOf(
+    '<div className="mt-9 flex flex-wrap gap-2">'
+  );
+  const capabilityPillsEnd = landing.indexOf(
+    '<div className="relative">',
+    capabilityPillsStart
+  );
+  const capabilityPills = landing.slice(
+    capabilityPillsStart,
+    capabilityPillsEnd
+  );
+
+  assert.ok(capabilityPillsStart >= 0);
+  assert.ok(capabilityPillsEnd > capabilityPillsStart);
+  for (const label of [
+    "5 crypto markets",
+    "1m / 5m / 15m rounds",
+    "Live candle sync",
+    "Persistent wallet sign-in",
+  ]) {
+    assert.ok(capabilityPills.includes(label), `Missing capability: ${label}`);
+  }
+  assert.match(capabilityPills, /border-white\/\[0\.14\]/);
+  assert.match(capabilityPills, /bg-white\/\[0\.045\]/);
+  assert.match(capabilityPills, /text-\[10px\]/);
+  assert.match(capabilityPills, /text-gray-300/);
+  assert.doesNotMatch(capabilityPills, /text-gray-500/);
+});
+
 test("landing suite CTA keeps Launch Arena aligned with the secondary actions", () => {
   const suiteActionsStart = landing.indexOf("Built around Arc Mainnet");
   const suiteActionsEnd = landing.indexOf("<footer", suiteActionsStart);

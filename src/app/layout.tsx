@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import "./globals.css";
+import PredarcAssistant from "./components/assistant/PredarcAssistant";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
@@ -39,7 +40,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <PredarcAssistant />
+        </Providers>
       </body>
     </html>
   );

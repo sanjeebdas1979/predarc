@@ -6,7 +6,7 @@ import PredarcBrand from "@/app/components/brand/PredarcBrand";
 export const metadata: Metadata = {
   title: "How to Use Predarc | Predarc",
   description:
-    "A step-by-step guide to Predarc forecasting, community markets, Bridge, Swap, Agent Research, AI agents, receipts and public builder discovery.",
+    "A step-by-step guide to Predarc forecasting, community markets, Bridge, Swap, Agent Research, AI agents, receipts, Predarc Assistant and public builder discovery.",
 };
 
 const QUICK_START = [
@@ -25,7 +25,7 @@ const QUICK_START = [
     number: "03",
     title: "Choose a feature",
     description:
-      "Open the Arena, create a market, Bridge, Swap, run Agent Research or connect an optional AI agent.",
+      "Open the Arena, create a market, Bridge, Swap, run Agent Research, connect an optional AI agent or ask Predarc Assistant.",
   },
 ] as const;
 
@@ -228,6 +228,26 @@ const FEATURE_GUIDES = [
     accent: "border-cyan-400/20 bg-cyan-400/[0.06]",
     label: "text-cyan-300",
     badge: "border-cyan-400/25 bg-cyan-400/10 text-cyan-200",
+  },
+  {
+    id: "assistant",
+    number: "11",
+    eyebrow: "Verified product help",
+    title: "Ask Predarc Assistant",
+    summary:
+      "Open the chat button in the lower-right corner of any Predarc page for concise help grounded in current Predarc information and official Arc documentation.",
+    steps: [
+      "Select Ask Predarc in the lower-right corner of any page.",
+      "Choose a suggested question or type a question about Predarc or Arc.",
+      "Read the answer and use the displayed trusted source buttons when you want to verify more detail.",
+      "For wallet balances, live quotes or transaction status, use the relevant Predarc page or official explorer instead of relying on chat.",
+    ],
+    note: "The assistant is informational only. It cannot access your wallet, request a signature or submit a transaction. Never paste a seed phrase, private key, API key or agent token into chat.",
+    href: "/",
+    cta: "Open Predarc Home",
+    accent: "border-fuchsia-400/20 bg-fuchsia-400/[0.06]",
+    label: "text-fuchsia-300",
+    badge: "border-fuchsia-400/25 bg-fuchsia-400/10 text-fuchsia-200",
   },
 ] as const;
 

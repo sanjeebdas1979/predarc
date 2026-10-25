@@ -49,6 +49,7 @@ test("guide covers every current public Predarc feature", () => {
     "Connect an AI agent",
     "Verify a supported receipt",
     "Explore public Arc projects",
+    "Ask Predarc Assistant",
   ]) {
     assert.ok(guide.includes(heading), `Missing guide section: ${heading}`);
   }
@@ -65,6 +66,8 @@ test("guide keeps important wallet and agent safety boundaries visible", () => {
   assert.match(guide, /BlockRun x402/);
   assert.match(guide, /maximum per-call cost and rolling 24-hour USDC cap/);
   assert.match(guide, /submitted payment is never automatically retried/);
+  assert.match(guide, /cannot access your wallet, request a signature or submit a transaction/);
+  assert.match(guide, /Never paste a seed phrase, private key, API key or agent token into chat/);
 });
 
 test("landing page exposes verifiable Agent Research", () => {

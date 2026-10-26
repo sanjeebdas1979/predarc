@@ -419,7 +419,7 @@ export default function MarketSelector() {
 
         {/* Footer */}
         <div className="flex flex-col gap-2 border-t border-white/[0.07] bg-white/[0.015] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-gray-600">
+          <p className="text-sm font-medium leading-5 text-slate-300">
             {canChangeMarket
               ? "Choose another asset before submitting your next forecast."
               : `${roundMarket} is locked to Round #${roundNumber} until settlement completes.`}

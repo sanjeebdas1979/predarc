@@ -68,6 +68,8 @@ export default function HeroLivePreview() {
       ? "Wallet not connected"
       : walletChainId === 5042
         ? "Arc Mainnet"
+        : walletChainId === 8453
+          ? "Base Mainnet"
         : walletChainId === 5042002
           ? "Arc Testnet"
           : walletChainId === 1

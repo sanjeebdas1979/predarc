@@ -14,7 +14,6 @@ import {
   verifyCommunityForecastTransaction,
 } from "@/lib/community-markets-server";
 import {
-  authChainId,
   authReply,
   localAuthConfigured,
   readAuthSession,
@@ -117,7 +116,7 @@ export async function POST(
       .from("predarc_community_markets")
       .select("id,target_price,duration_seconds,status,closes_at")
       .eq("id", marketId)
-      .eq("chain_id", authChainId)
+      .eq("chain_id", session.chainId)
       .maybeSingle();
 
     if (marketError) throw new Error("Community market lookup failed.");
@@ -148,6 +147,7 @@ export async function POST(
           durationSeconds: Number(market.duration_seconds),
           points: BigInt(points),
           targetPrice: scaledTarget,
+          chainId: session.chainId,
         });
       } catch (error) {
         if (error instanceof CommunityForecastVerificationError) {

@@ -12,6 +12,7 @@ import {
 import PredarcSessionCard from "@/app/components/auth/PredarcSessionCard";
 import PredarcBrand from "@/app/components/brand/PredarcBrand";
 import { usePredarcSession } from "@/app/components/providers/PredarcSessionProvider";
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 import WalletConnectOptions from "@/app/components/wallet/WalletConnectOptions";
 import {
   AGENT_AUTOMATION_DURATIONS,
@@ -24,7 +25,6 @@ import {
   type AgentAutomationMarket,
   type AgentConnection,
 } from "@/lib/agent-automation-core";
-import { forecastChainId, forecastNetworkLabel } from "@/lib/forecast-network";
 
 type MessageTone = "info" | "success" | "error";
 
@@ -98,6 +98,11 @@ function buildAgentConfigExample(token: string, origin: string): string {
 
 export default function AgentAutomationClient() {
   const { session, isSignedIn } = usePredarcSession();
+  const {
+    selectedChainId: forecastChainId,
+    network,
+  } = usePredarcNetwork();
+  const forecastNetworkLabel = network.label;
   const { address, chainId, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { switchChain, isPending: isSwitching } = useSwitchChain();

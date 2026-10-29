@@ -7,13 +7,20 @@ import {
   type AgentResearchMetrics,
   type AgentResearchSignal,
 } from "@/lib/agent-research-core";
+import {
+  ARC_MAINNET_CHAIN_ID,
+  getPredarcNetwork,
+  normalizePredarcChainId,
+  type PredarcChainId,
+} from "@/lib/predarc-networks";
 
-export const PAID_RESEARCH_CHAIN_ID = 5042;
-export const PAID_RESEARCH_NETWORK = "eip155:5042";
+// Arc aliases remain exported for backwards-compatible receipt verification.
+export const PAID_RESEARCH_CHAIN_ID = ARC_MAINNET_CHAIN_ID;
+export const PAID_RESEARCH_NETWORK = "eip155:5042" as const;
 export const PAID_RESEARCH_USDC =
-  "0x3600000000000000000000000000000000000000";
+  "0x3600000000000000000000000000000000000000" as const;
 export const PAID_RESEARCH_ENDPOINT =
-  "https://arc.blockrun.ai/api/v1/chat/completions";
+  "https://arc.blockrun.ai/api/v1/chat/completions" as const;
 export const PAID_RESEARCH_PROVIDER = "BlockRun";
 export const PAID_RESEARCH_MODEL = "google/gemini-2.5-flash";
 export const PAID_RESEARCH_ENGINE_ID = "predarc-agent-research";
@@ -21,6 +28,27 @@ export const PAID_RESEARCH_ENGINE_VERSION = "2.0.0";
 export const PAID_RESEARCH_DAILY_LIMIT = 10;
 export const PAID_RESEARCH_MAX_CALL_ATOMIC = 50_000n;
 export const PAID_RESEARCH_MAX_DAILY_ATOMIC = 250_000n;
+
+export type PaidResearchConfig = {
+  chainId: PredarcChainId;
+  network: `eip155:${PredarcChainId}`;
+  usdc: `0x${string}`;
+  endpoint: string;
+  domainName: "USDC" | "USD Coin";
+};
+
+export function getPaidResearchConfig(
+  chainId: PredarcChainId
+): PaidResearchConfig {
+  const network = getPredarcNetwork(chainId);
+  return {
+    chainId,
+    network: network.blockRunNetwork,
+    usdc: network.usdcAddress.toLowerCase() as `0x${string}`,
+    endpoint: network.blockRunEndpoint,
+    domainName: chainId === ARC_MAINNET_CHAIN_ID ? "USDC" : "USD Coin",
+  };
+}
 
 export const PAID_RESEARCH_CALL_CAPS = ["5000", "10000", "25000", "50000"] as const;
 export const PAID_RESEARCH_DAILY_CAPS = [
@@ -53,10 +81,10 @@ export type PaidResearchRequest = {
 
 export type PaidResearchTypedData = {
   domain: {
-    name: "USDC";
+    name: "USDC" | "USD Coin";
     version: "2";
-    chainId: typeof PAID_RESEARCH_CHAIN_ID;
-    verifyingContract: typeof PAID_RESEARCH_USDC;
+    chainId: PredarcChainId;
+    verifyingContract: `0x${string}`;
   };
   types: typeof PAID_RESEARCH_TRANSFER_TYPES;
   primaryType: "TransferWithAuthorization";
@@ -73,7 +101,7 @@ export type PaidResearchTypedData = {
 export type PaidResearchQuote = {
   quoteId: string;
   requestId: string;
-  chainId: typeof PAID_RESEARCH_CHAIN_ID;
+  chainId: PredarcChainId;
   wallet: string;
   market: AgentResearchMarket;
   durationSeconds: AgentResearchDuration;
@@ -83,8 +111,8 @@ export type PaidResearchQuote = {
   dailyCostCapAtomic: string;
   currency: "USDC";
   scheme: "exact";
-  network: typeof PAID_RESEARCH_NETWORK;
-  resourceUrl: typeof PAID_RESEARCH_ENDPOINT;
+  network: `eip155:${PredarcChainId}`;
+  resourceUrl: string;
   expiresAt: string;
   typedData: PaidResearchTypedData;
 };
@@ -93,7 +121,7 @@ export type PaidResearchReceipt = {
   id: string;
   quoteId: string;
   requestId: string;
-  chainId: typeof PAID_RESEARCH_CHAIN_ID;
+  chainId: PredarcChainId;
   wallet: string;
   market: AgentResearchMarket;
   durationSeconds: AgentResearchDuration;
@@ -132,8 +160,8 @@ export type PaidResearchReceipt = {
     actualCostAtomic: string;
     status: "settled" | "not-charged";
     scheme: "exact";
-    network: typeof PAID_RESEARCH_NETWORK;
-    asset: typeof PAID_RESEARCH_USDC;
+    network: `eip155:${PredarcChainId}`;
+    asset: `0x${string}`;
     payTo: string;
     paymentReference: string;
     settlementTransaction: string | null;
@@ -267,11 +295,13 @@ export function normalizePaidResearchRequest(
 export function canonicalPaidResearchRequest(input: {
   request: PaidResearchRequest;
   wallet: string;
+  chainId?: PredarcChainId;
 }): string {
+  const chainId = input.chainId ?? PAID_RESEARCH_CHAIN_ID;
   return JSON.stringify({
     version: 1,
     requestId: input.request.requestId,
-    chainId: PAID_RESEARCH_CHAIN_ID,
+    chainId,
     wallet: input.wallet.toLowerCase(),
     market: input.request.market,
     durationSeconds: input.request.durationSeconds,
@@ -282,6 +312,7 @@ export function canonicalPaidResearchRequest(input: {
 }
 
 export function buildPaidResearchTypedData(input: {
+  chainId?: PredarcChainId;
   wallet: string;
   payTo: string;
   amountAtomic: string;
@@ -289,12 +320,15 @@ export function buildPaidResearchTypedData(input: {
   validBefore: string;
   nonce: string;
 }): PaidResearchTypedData {
+  const config = getPaidResearchConfig(
+    input.chainId ?? PAID_RESEARCH_CHAIN_ID
+  );
   return {
     domain: {
-      name: "USDC",
+      name: config.domainName,
       version: "2",
-      chainId: PAID_RESEARCH_CHAIN_ID,
-      verifyingContract: PAID_RESEARCH_USDC,
+      chainId: config.chainId,
+      verifyingContract: config.usdc,
     },
     types: PAID_RESEARCH_TRANSFER_TYPES,
     primaryType: "TransferWithAuthorization",
@@ -311,6 +345,9 @@ export function buildPaidResearchTypedData(input: {
 
 export function parsePaidResearchQuote(value: unknown): PaidResearchQuote | null {
   if (!isRecord(value) || !isRecord(value.typedData)) return null;
+  const chainId = normalizePredarcChainId(value.chainId);
+  if (!chainId) return null;
+  const config = getPaidResearchConfig(chainId);
   const typedData = value.typedData;
   const domain = typedData.domain;
   const message = typedData.message;
@@ -331,7 +368,6 @@ export function parsePaidResearchQuote(value: unknown): PaidResearchQuote | null
   if (
     !isAgentResearchUuid(value.quoteId) ||
     !isAgentResearchUuid(value.requestId) ||
-    value.chainId !== PAID_RESEARCH_CHAIN_ID ||
     typeof value.wallet !== "string" ||
     !ADDRESS_PATTERN.test(value.wallet) ||
     !isMarket(value.market) ||
@@ -344,14 +380,14 @@ export function parsePaidResearchQuote(value: unknown): PaidResearchQuote | null
     BigInt(maxCostAtomic) > BigInt(dailyCostCapAtomic) ||
     value.currency !== "USDC" ||
     value.scheme !== "exact" ||
-    value.network !== PAID_RESEARCH_NETWORK ||
-    value.resourceUrl !== PAID_RESEARCH_ENDPOINT ||
+    value.network !== config.network ||
+    value.resourceUrl !== config.endpoint ||
     !isIsoDate(value.expiresAt) ||
     !isRecord(domain) ||
-    domain.name !== "USDC" ||
+    domain.name !== config.domainName ||
     domain.version !== "2" ||
-    domain.chainId !== PAID_RESEARCH_CHAIN_ID ||
-    String(domain.verifyingContract).toLowerCase() !== PAID_RESEARCH_USDC ||
+    domain.chainId !== chainId ||
+    String(domain.verifyingContract).toLowerCase() !== config.usdc ||
     typedData.primaryType !== "TransferWithAuthorization" ||
     JSON.stringify(types) !== JSON.stringify(PAID_RESEARCH_TRANSFER_TYPES) ||
     !isRecord(message) ||
@@ -373,7 +409,7 @@ export function parsePaidResearchQuote(value: unknown): PaidResearchQuote | null
   return {
     quoteId: value.quoteId,
     requestId: value.requestId,
-    chainId: PAID_RESEARCH_CHAIN_ID,
+    chainId,
     wallet: value.wallet.toLowerCase(),
     market: value.market,
     durationSeconds: value.durationSeconds,
@@ -383,15 +419,15 @@ export function parsePaidResearchQuote(value: unknown): PaidResearchQuote | null
     dailyCostCapAtomic,
     currency: "USDC",
     scheme: "exact",
-    network: PAID_RESEARCH_NETWORK,
-    resourceUrl: PAID_RESEARCH_ENDPOINT,
+    network: config.network,
+    resourceUrl: config.endpoint,
     expiresAt: value.expiresAt,
     typedData: {
       domain: {
-        name: "USDC",
+        name: config.domainName,
         version: "2",
-        chainId: PAID_RESEARCH_CHAIN_ID,
-        verifyingContract: PAID_RESEARCH_USDC,
+        chainId,
+        verifyingContract: config.usdc,
       },
       types: PAID_RESEARCH_TRANSFER_TYPES,
       primaryType: "TransferWithAuthorization",
@@ -519,6 +555,9 @@ export function parsePaidResearchReceipt(
   value: unknown
 ): PaidResearchReceipt | null {
   if (!isRecord(value)) return null;
+  const chainId = normalizePredarcChainId(value.chainId);
+  if (!chainId) return null;
+  const config = getPaidResearchConfig(chainId);
   const engine = value.engine;
   const evidence = value.evidence;
   const verification = value.verification;
@@ -542,7 +581,6 @@ export function parsePaidResearchReceipt(
     !isAgentResearchUuid(value.id) ||
     !isAgentResearchUuid(value.quoteId) ||
     !isAgentResearchUuid(value.requestId) ||
-    value.chainId !== PAID_RESEARCH_CHAIN_ID ||
     typeof value.wallet !== "string" ||
     !ADDRESS_PATTERN.test(value.wallet) ||
     !isMarket(value.market) ||
@@ -594,8 +632,8 @@ export function parsePaidResearchReceipt(
     (spending.status === "settled" && actualCostAtomic === "0") ||
     (spending.status === "not-charged" && actualCostAtomic !== "0") ||
     spending.scheme !== "exact" ||
-    spending.network !== PAID_RESEARCH_NETWORK ||
-    String(spending.asset).toLowerCase() !== PAID_RESEARCH_USDC ||
+    spending.network !== config.network ||
+    String(spending.asset).toLowerCase() !== config.usdc ||
     typeof spending.payTo !== "string" ||
     !ADDRESS_PATTERN.test(spending.payTo) ||
     typeof spending.paymentReference !== "string" ||
@@ -619,7 +657,7 @@ export function parsePaidResearchReceipt(
     id: value.id,
     quoteId: value.quoteId,
     requestId: value.requestId,
-    chainId: PAID_RESEARCH_CHAIN_ID,
+    chainId,
     wallet: value.wallet.toLowerCase(),
     market: value.market,
     durationSeconds: value.durationSeconds,
@@ -658,8 +696,8 @@ export function parsePaidResearchReceipt(
       actualCostAtomic,
       status: spending.status,
       scheme: "exact",
-      network: PAID_RESEARCH_NETWORK,
-      asset: PAID_RESEARCH_USDC,
+      network: config.network,
+      asset: config.usdc,
       payTo: spending.payTo.toLowerCase(),
       paymentReference: spending.paymentReference.toLowerCase(),
       settlementTransaction:

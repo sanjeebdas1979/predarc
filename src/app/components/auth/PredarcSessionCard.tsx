@@ -3,6 +3,8 @@
 import { useAccount } from "wagmi";
 
 import { usePredarcSession } from "../providers/PredarcSessionProvider";
+import PredarcNetworkSelector from "../wallet/PredarcNetworkSelector";
+import { usePredarcNetwork } from "../providers/PredarcNetworkProvider";
 
 function shortenAddress(value: string): string {
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
@@ -14,6 +16,7 @@ export default function PredarcSessionCard({
   feature?: string;
 }) {
   const { isConnected } = useAccount();
+  const { network } = usePredarcNetwork();
   const {
     session,
     status,
@@ -22,6 +25,7 @@ export default function PredarcSessionCard({
     isAuthenticated,
     isSignedIn,
     hasWalletMismatch,
+    hasNetworkMismatch,
     signIn,
     signOut,
     refreshSession,
@@ -79,9 +83,33 @@ export default function PredarcSessionCard({
     );
   }
 
+  if (hasNetworkMismatch && session) {
+    return (
+      <div className={shell} role="status" aria-live="polite">
+        <PredarcNetworkSelector compact />
+        <p className="mt-3 text-sm font-bold text-amber-300">
+          Sign in on {network.label}
+        </p>
+        <p className="mt-1 text-xs leading-5 text-gray-400">
+          Your current Predarc session belongs to another network. Sign out,
+          then sign in again to bind this wallet to {network.label}.
+        </p>
+        <button
+          type="button"
+          disabled={isBusy}
+          onClick={() => void signOut()}
+          className="mt-3 rounded-xl border border-amber-400/30 px-4 py-2 text-xs font-bold text-amber-200 transition hover:border-amber-300 disabled:opacity-50"
+        >
+          {isBusy ? "Signing out…" : "Sign out current session"}
+        </button>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className={shell} role="status" aria-live="polite">
+        <PredarcNetworkSelector compact />
         <p className="text-sm font-bold text-orange-300">
           {feature ? `Sign in to activate ${feature}` : "Step 1 · Sign in to Predarc"}
         </p>
@@ -123,6 +151,7 @@ export default function PredarcSessionCard({
       role="status"
       aria-live="polite"
     >
+      <PredarcNetworkSelector compact />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className={feature ? "text-left" : "text-center sm:text-left"}>
           <p className="text-sm font-bold text-emerald-300">

@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 
 import {
-  PAID_RESEARCH_CHAIN_ID,
   normalizePaidResearchExecution,
 } from "@/lib/agent-research-paid-core";
 import {
@@ -92,13 +91,6 @@ export async function POST(request: NextRequest) {
     if (!tokenHash || !session) {
       return authReply({ error: "Sign in with your wallet first." }, 401);
     }
-    if (session.chainId !== PAID_RESEARCH_CHAIN_ID) {
-      return authReply(
-        { error: "Paid Agent Research requires an Arc Mainnet session." },
-        409
-      );
-    }
-
     const execution = normalizePaidResearchExecution(await request.json());
     if (!execution) {
       return authReply({ error: "Invalid paid research execution." }, 400);
@@ -109,7 +101,7 @@ export async function POST(request: NextRequest) {
       .from("predarc_agent_research_paid_quotes")
       .select(PAID_RESEARCH_QUOTE_COLUMNS)
       .eq("id", quoteId)
-      .eq("chain_id", PAID_RESEARCH_CHAIN_ID)
+      .eq("chain_id", session.chainId)
       .eq("wallet", session.wallet.toLowerCase())
       .maybeSingle();
     if (error) throw new Error("Paid quote lookup failed.");

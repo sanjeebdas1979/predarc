@@ -142,7 +142,7 @@ test("community mutation routes authenticate before database RPC calls", () => {
   }
 });
 
-test("community prediction debit requires verified Arc calldata", () => {
+test("community prediction debit requires verified selected-network calldata", () => {
   const route = readFileSync(
     new URL(
       "../src/app/api/community-markets/[id]/predictions/route.ts",
@@ -163,7 +163,8 @@ test("community prediction debit requires verified Arc calldata", () => {
   assert.match(verifier, /decodeFunctionData/);
   assert.match(verifier, /decoded\.functionName !== "submitForecast"/);
   assert.match(verifier, /!isAddressEqual\(transaction\.from, expected\.wallet/);
-  assert.match(verifier, /!isAddressEqual\(transaction\.to, forecastRegistryAddress/);
+  assert.match(verifier, /!isAddressEqual\(transaction\.to, registryAddress/);
+  assert.match(verifier, /rpcChainId !== expected\.chainId/);
 });
 
 test("community ledger rows use their own wallet-bound prediction reference", () => {

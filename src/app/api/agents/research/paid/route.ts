@@ -33,13 +33,6 @@ export async function GET(request: NextRequest) {
     if (!tokenHash || !session) {
       return authReply({ error: "Sign in with your wallet first." }, 401);
     }
-    if (session.chainId !== 5042) {
-      return authReply(
-        { error: "Paid Agent Research requires an Arc Mainnet session." },
-        409
-      );
-    }
-
     const since = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
     const db = getSupabaseAdmin();
     const [{ data, error }, { data: usageRows, error: usageError }] =
@@ -47,14 +40,14 @@ export async function GET(request: NextRequest) {
         db
           .from("predarc_agent_research_paid_receipts")
           .select(PAID_RESEARCH_RECEIPT_COLUMNS)
-          .eq("chain_id", 5042)
+          .eq("chain_id", session.chainId)
           .eq("wallet", session.wallet.toLowerCase())
           .order("created_at", { ascending: false })
           .limit(20),
         db
           .from("predarc_agent_research_paid_receipts")
           .select("actual_cost_atomic")
-          .eq("chain_id", 5042)
+          .eq("chain_id", session.chainId)
           .eq("wallet", session.wallet.toLowerCase())
           .gte("created_at", since),
       ]);

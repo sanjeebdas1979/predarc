@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import {
-  authChainId,
   authReply,
   localAuthConfigured,
   readAuthSession,
@@ -201,7 +200,7 @@ export async function POST(
     return authReply(
       {
         error:
-          "Prediction API is available only in the local testnet setup.",
+          "Prediction API is not configured.",
       },
       503
     );
@@ -436,7 +435,7 @@ export async function POST(
         wallet:
           session.wallet,
         chainId:
-          authChainId,
+          session.chainId,
         balance:
           data.balance,
         prediction:

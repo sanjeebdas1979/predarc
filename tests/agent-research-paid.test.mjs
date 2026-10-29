@@ -12,10 +12,16 @@ const previewCoreUrl = new URL(
   "../src/lib/agent-research-core.ts",
   import.meta.url
 ).href;
-const paidCoreSource = readFileSync(paidCoreUrl, "utf8").replace(
-  'from "@/lib/agent-research-core";',
-  `from "${previewCoreUrl}";`
-);
+const networkCoreUrl = new URL(
+  "../src/lib/predarc-networks.ts",
+  import.meta.url
+).href;
+const paidCoreSource = readFileSync(paidCoreUrl, "utf8")
+  .replace(
+    'from "@/lib/agent-research-core";',
+    `from "${previewCoreUrl}";`
+  )
+  .replace('from "@/lib/predarc-networks";', `from "${networkCoreUrl}";`);
 const paidCore = await import(
   `data:text/javascript;base64,${Buffer.from(
     stripTypeScriptTypes(paidCoreSource)
@@ -171,6 +177,26 @@ test("typed authorization is bound to Arc Mainnet native USDC and exact quote", 
   );
 });
 
+test("Base quotes bind official USDC, Base x402 and the selected chain", () => {
+  const config = paidCore.getPaidResearchConfig(8453);
+  assert.equal(config.network, "eip155:8453");
+  assert.equal(config.endpoint, "https://blockrun.ai/api/v1/chat/completions");
+  assert.equal(config.usdc, "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913");
+  assert.equal(config.domainName, "USD Coin");
+
+  const typedData = paidCore.buildPaidResearchTypedData({
+    chainId: 8453,
+    wallet,
+    payTo,
+    amountAtomic: "2000",
+    validAfter: "1791961800",
+    validBefore: "1791962700",
+    nonce: `0x${"c".repeat(64)}`,
+  });
+  assert.equal(typedData.domain.chainId, 8453);
+  assert.equal(typedData.domain.verifyingContract, config.usdc);
+});
+
 test("paid receipt fingerprint binds model, evidence, cost and payment", () => {
   const receipt = sampleReceipt();
   const parsed = paidCore.parsePaidResearchReceipt(receipt);
@@ -277,9 +303,6 @@ test("a submitted payment is not automatically retried", () => {
   const start = paidServer.indexOf("export async function executePaidResearch");
   const end = paidServer.indexOf("export function serializePaidResearchReceipt");
   const executeSource = paidServer.slice(start, end);
-  assert.equal(
-    executeSource.match(/fetch\(PAID_RESEARCH_ENDPOINT/g)?.length,
-    1
-  );
+  assert.equal(executeSource.match(/fetch\(config\.endpoint/g)?.length, 1);
   assert.match(executeSource, /will not retry it automatically/);
 });

@@ -1,3 +1,11 @@
+import {
+  ARC_MAINNET_CHAIN_ID,
+  BASE_MAINNET_CHAIN_ID,
+  getPredarcNetwork,
+  isForecastRegistryReady,
+  type PredarcChainId,
+} from "@/lib/predarc-networks";
+
 export const ASSISTANT_MAX_MESSAGES = 12;
 export const ASSISTANT_MAX_MESSAGE_LENGTH = 800;
 export const ASSISTANT_MAX_TOTAL_LENGTH = 5_000;
@@ -100,6 +108,16 @@ const SOURCE_CATALOG = {
     label: "Agentic Economy on Arc",
     href: "https://docs.arc.io/build/agentic-economy",
   },
+  "base-docs": {
+    id: "base-docs",
+    label: "Official Base Docs",
+    href: "https://docs.base.org/",
+  },
+  "base-connect": {
+    id: "base-connect",
+    label: "Connect to Base",
+    href: "https://docs.base.org/base-chain/quickstart/connecting-to-base",
+  },
 } as const satisfies Record<string, PredarcAssistantSource>;
 
 type SourceId = keyof typeof SOURCE_CATALOG;
@@ -107,6 +125,9 @@ type SourceId = keyof typeof SOURCE_CATALOG;
 const ARC_DOCS_HOST = "docs.arc.io";
 const ARC_DOC_SOURCE_PREFIX = "arc-doc:";
 const ARC_DOC_LABEL_PREFIX = "Official Arc · ";
+const BASE_DOCS_HOST = "docs.base.org";
+const BASE_DOC_SOURCE_PREFIX = "base-doc:";
+const BASE_DOC_LABEL_PREFIX = "Official Base · ";
 
 const ARC_DOC_STOP_WORDS = new Set([
   "a",
@@ -211,6 +232,10 @@ function includesArcWord(value: string): boolean {
   return /\barc\b/.test(value) || value.includes("আর্ক");
 }
 
+function includesBaseWord(value: string): boolean {
+  return /\bbase(?:\s+(?:mainnet|network|blockchain))?\b/.test(value);
+}
+
 function includesPredarcWord(value: string): boolean {
   return /\bpredarc\b/.test(value) || value.includes("প্রেডআর্ক");
 }
@@ -231,7 +256,31 @@ function matchesPredictionIntent(value: string): boolean {
 }
 
 function isArcOnlyQuestion(value: string): boolean {
-  return includesArcWord(value) && !includesPredarcWord(value);
+  return (
+    includesArcWord(value) &&
+    !includesBaseWord(value) &&
+    !includesPredarcWord(value)
+  );
+}
+
+function isBaseOnlyQuestion(value: string): boolean {
+  return (
+    includesBaseWord(value) &&
+    !includesArcWord(value) &&
+    !includesPredarcWord(value)
+  );
+}
+
+function questionNetworkChainId(
+  value: string,
+  selectedChainId: PredarcChainId
+): PredarcChainId {
+  const mentionsArc = includesArcWord(value);
+  const mentionsBase = includesBaseWord(value);
+
+  if (mentionsArc && !mentionsBase) return ARC_MAINNET_CHAIN_ID;
+  if (mentionsBase && !mentionsArc) return BASE_MAINNET_CHAIN_ID;
+  return selectedChainId;
 }
 
 function normalizeSearchText(value: string): string {
@@ -388,6 +437,71 @@ export function officialArcDocsEntryToSource(
   };
 }
 
+export function normalizeOfficialBaseMarkdownHref(
+  value: string
+): string | null {
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !== BASE_DOCS_HOST ||
+      url.port ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      url.pathname.includes("//") ||
+      !/^\/[a-z0-9][a-z0-9/_-]*\.md$/i.test(url.pathname)
+    ) {
+      return null;
+    }
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+export function parseOfficialBaseDocsIndex(
+  value: string
+): OfficialArcDocsEntry[] {
+  const entries: OfficialArcDocsEntry[] = [];
+  const seen = new Set<string>();
+
+  for (const line of value.replace(/\r\n?/g, "\n").split("\n")) {
+    const match = line.match(/^- \[([^\]]+)\]\(([^)]+)\):\s*(.+)$/);
+    if (!match) continue;
+
+    const title = cleanText(match[1]).slice(0, 120);
+    const markdownHref = normalizeOfficialBaseMarkdownHref(match[2]);
+    const description = cleanText(match[3]).slice(0, 600);
+    if (!title || !markdownHref || !description || seen.has(markdownHref)) {
+      continue;
+    }
+
+    seen.add(markdownHref);
+    entries.push({
+      title,
+      description,
+      markdownHref,
+      href: markdownHref.replace(/\.md$/, ""),
+    });
+  }
+
+  return entries;
+}
+
+export function officialBaseDocsEntryToSource(
+  entry: OfficialArcDocsEntry
+): PredarcAssistantSource {
+  const url = new URL(entry.href);
+  const title = cleanText(entry.title).slice(0, 64);
+  return {
+    id: `${BASE_DOC_SOURCE_PREFIX}${url.pathname}`,
+    label: `${BASE_DOC_LABEL_PREFIX}${title}`,
+    href: url.href,
+  };
+}
+
 function trustedDynamicArcSource(
   value: Record<string, unknown>
 ): PredarcAssistantSource | null {
@@ -417,6 +531,44 @@ function trustedDynamicArcSource(
       !value.label.startsWith(ARC_DOC_LABEL_PREFIX) ||
       value.label.length <= ARC_DOC_LABEL_PREFIX.length ||
       value.label.length > ARC_DOC_LABEL_PREFIX.length + 64
+    ) {
+      return null;
+    }
+    return { id: value.id, label: value.label, href: url.href };
+  } catch {
+    return null;
+  }
+}
+
+function trustedDynamicBaseSource(
+  value: Record<string, unknown>
+): PredarcAssistantSource | null {
+  if (
+    typeof value.id !== "string" ||
+    typeof value.label !== "string" ||
+    typeof value.href !== "string"
+  ) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value.href);
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !== BASE_DOCS_HOST ||
+      url.port ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      url.pathname.includes("//") ||
+      !/^\/[a-z0-9][a-z0-9/_-]*$/i.test(url.pathname) ||
+      value.id !== `${BASE_DOC_SOURCE_PREFIX}${url.pathname}` ||
+      value.label !== cleanText(value.label) ||
+      /[\r\n]/.test(value.label) ||
+      !value.label.startsWith(BASE_DOC_LABEL_PREFIX) ||
+      value.label.length <= BASE_DOC_LABEL_PREFIX.length ||
+      value.label.length > BASE_DOC_LABEL_PREFIX.length + 64
     ) {
       return null;
     }
@@ -488,6 +640,7 @@ export function assistantQuestionIsInScope(value: string): boolean {
   return (
     includesPredarcWord(normalized) ||
     includesArcWord(normalized) ||
+    includesBaseWord(normalized) ||
     matchesPredictionIntent(normalized) ||
     /\b(?:gas|rpc)\b/.test(normalized) ||
     includesAny(normalized, [
@@ -516,16 +669,27 @@ export function assistantQuestionIsInScope(value: string): boolean {
 }
 
 export function selectAssistantSources(
-  question: string
+  question: string,
+  chainId: PredarcChainId = ARC_MAINNET_CHAIN_ID
 ): PredarcAssistantSource[] {
   const normalized = question.toLowerCase();
   const arcOnly = isArcOnlyQuestion(normalized);
+  const baseOnly = isBaseOnlyQuestion(normalized);
+  const mentionsArc = includesArcWord(normalized);
+  const mentionsBase = includesBaseWord(normalized);
+  const questionNetwork = getPredarcNetwork(
+    questionNetworkChainId(normalized, chainId)
+  );
   const selected: SourceId[] = [];
   const add = (id: SourceId) => {
     if (!selected.includes(id) && selected.length < 3) selected.push(id);
   };
 
-  if (
+  if (mentionsArc && mentionsBase) {
+    add("predarc-guide");
+    add("arc-docs");
+    add("base-docs");
+  } else if (
     includesArcWord(normalized) &&
     includesAny(normalized, [
       "layer 1",
@@ -544,25 +708,28 @@ export function selectAssistantSources(
   ) {
     add("arc-docs");
     add("arc-connect");
+  } else if (baseOnly) {
+    add("base-docs");
+    add("base-connect");
   } else if (arcOnly) {
     add("arc-docs");
     add("arc-connect");
   } else if (includesAny(normalized, ["bridge", "cross-chain", "crosschain"])) {
     add("predarc-bridge");
-    add("arc-bridge");
+    add(questionNetwork.key === "arc" ? "arc-bridge" : "base-docs");
   } else if (
     includesAny(normalized, ["swap", "exchange token", "trade token"]) ||
     (includesPredarcWord(normalized) &&
       includesAny(normalized, ["eurc", "cirbtc"]))
   ) {
     add("predarc-swap");
-    add("arc-swap");
+    add(questionNetwork.key === "arc" ? "arc-swap" : "base-docs");
   } else if (includesAny(normalized, ["research", "x402", "model call"])) {
     add("predarc-research");
     add("predarc-guide");
   } else if (includesAny(normalized, ["ai agent", "automation", "api token"])) {
     add("predarc-agents");
-    add("arc-agentic");
+    add(questionNetwork.key === "arc" ? "arc-agentic" : "base-docs");
   } else if (includesAny(normalized, ["community", "create market"])) {
     add("predarc-markets");
     add("predarc-guide");
@@ -575,11 +742,14 @@ export function selectAssistantSources(
   } else if (
     includesAny(normalized, ["chain id", "rpc", "gas", "wallet", "mainnet", "testnet"])
   ) {
-    add("arc-connect");
-    add("arc-docs");
+    add(questionNetwork.key === "arc" ? "arc-connect" : "base-connect");
+    add(questionNetwork.key === "arc" ? "arc-docs" : "base-docs");
   } else if (includesArcWord(normalized)) {
     add("arc-docs");
     add("arc-connect");
+  } else if (includesBaseWord(normalized)) {
+    add("base-docs");
+    add("base-connect");
   } else {
     add("predarc-guide");
     add("predarc-home");
@@ -588,10 +758,17 @@ export function selectAssistantSources(
   return selected.map((id) => SOURCE_CATALOG[id]);
 }
 
-export function verifiedAssistantAnswer(question: string): string | null {
+export function verifiedAssistantAnswer(
+  question: string,
+  chainId: PredarcChainId = ARC_MAINNET_CHAIN_ID
+): string | null {
   const normalized = question.toLowerCase();
   const predarcMentioned = includesPredarcWord(normalized);
   const arcOnly = isArcOnlyQuestion(normalized);
+  const baseOnly = isBaseOnlyQuestion(normalized);
+  const answerChainId = questionNetworkChainId(normalized, chainId);
+  const network = getPredarcNetwork(answerChainId);
+  const forecastReady = isForecastRegistryReady(answerChainId);
 
   if (
     includesArcWord(normalized) &&
@@ -643,6 +820,27 @@ export function verifiedAssistantAnswer(question: string): string | null {
   if (arcOnly) return null;
 
   if (
+    baseOnly &&
+    includesAny(normalized, [
+      "chain id",
+      "rpc",
+      "network",
+      "connect",
+      "wallet",
+      "gas",
+      "mainnet",
+      "layer 2",
+      "layer-2",
+      "l2",
+    ])
+  ) {
+    return "Base Mainnet is an Ethereum Layer-2 network. Its chain ID is 8453, public RPC is https://mainnet.base.org, explorer is https://basescan.org, and gas is paid in ETH. Predarc supports MetaMask and Rabby and keeps Base activity separate from Arc Mainnet activity.";
+  }
+
+  // Broader Base-only questions must use retrieved official Base documentation.
+  if (baseOnly) return null;
+
+  if (
     includesAny(normalized, [
       "bridge",
       "cross-chain",
@@ -651,14 +849,16 @@ export function verifiedAssistantAnswer(question: string): string | null {
       "ব্রিজ",
     ])
   ) {
-    return "Open Bridge, choose the source chain, destination chain and native USDC amount, then review both wallet prompts. The first prompt approves exactly the entered amount and the second confirms the bridge transfer. Predarc supports Arc Mainnet, Ethereum, Base, Arbitrum and Polygon for its current native USDC bridge flow. Never approve an unexpected or unlimited amount.";
+    return `Open Bridge, choose the source chain, destination chain and USDC amount, then review every wallet prompt. Predarc defaults the route from the selected ${network.label}, while still supporting Arc, Base, Ethereum, Arbitrum and Polygon routes exposed by Circle App Kit. An ERC-20 source may require an approval for exactly the entered amount before the bridge transaction. Never approve an unexpected or unlimited amount.`;
   }
 
   if (
     includesAny(normalized, ["swap", "exchange token", "trade token", "সোয়াপ", "সোয়াপ"]) ||
     (predarcMentioned && includesAny(normalized, ["eurc", "cirbtc"]))
   ) {
-    return "Predarc Swap provides live Arc Mainnet routes for supported pairs using USDC, EURC and cirBTC. Choose the input and output assets, enter an amount, review the current quote and final wallet transaction, then confirm only if every detail is correct. Quotes can change with market conditions.";
+    return network.key === "arc"
+      ? "Predarc Swap provides live Arc Mainnet routes for supported pairs using USDC, EURC and cirBTC. Choose the assets and amount, review the current quote and final wallet transaction, and confirm only if every detail is correct. Quotes can change with market conditions."
+      : "Predarc Swap provides live Base Mainnet routes for supported pairs using USDC, EURC and WETH. Choose the assets and amount, review the current quote and final wallet transaction, and confirm only if every detail is correct. Base gas is paid in ETH and quotes can change with market conditions.";
   }
 
   if (
@@ -671,7 +871,7 @@ export function verifiedAssistantAnswer(question: string): string | null {
       "free preview",
     ])
   ) {
-    return "Agent Research has two separate paths. Free Preview evaluates finalized market evidence and creates a verifiable zero-cost receipt. Paid AI Research obtains an exact BlockRun x402 quote on Arc Mainnet, checks the user's per-call and rolling limits, requests a one-time wallet authorization and records the model, evidence, cost and payment reference. Research never submits a prediction automatically.";
+    return `Agent Research has two separate paths on the selected ${network.label}. Free Preview evaluates finalized market evidence and creates a verifiable zero-cost receipt. Paid AI Research obtains an exact BlockRun x402 quote bound to ${network.label} USDC, checks the user's per-call and rolling limits, requests a one-time wallet authorization and records the model, evidence, cost and payment reference. Research never submits a prediction automatically.`;
   }
 
   if (
@@ -683,7 +883,9 @@ export function verifiedAssistantAnswer(question: string): string | null {
       "api token",
     ])
   ) {
-    return "Predarc lets a user authorize an external AI agent with bounded markets, durations, per-prediction and daily server-point limits, minimum confidence and expiry. The agent cannot access Bridge, Swap or wallet funds. Connections can be paused, resumed or permanently revoked, and the API token must stay in a secure server-side secret store.";
+    return forecastReady
+      ? `On ${network.label}, Predarc lets a user authorize an external AI agent with bounded markets, durations, per-prediction and daily server-point limits, minimum confidence and expiry. The agent cannot access Bridge, Swap or wallet funds. Connections can be paused, resumed or revoked, and the API token must stay in a secure server-side secret store.`
+      : `AI-agent controls are network-bound. ${network.label} automation remains disabled until the verified ForecastRegistry address is configured for that network; Predarc will not reuse the Arc contract on Base. The agent never receives access to Bridge, Swap or wallet funds.`;
   }
 
   if (
@@ -695,7 +897,9 @@ export function verifiedAssistantAnswer(question: string): string | null {
       "user created market",
     ])
   ) {
-    return "Signed-in users can create a Community Market by choosing a supported asset, target, direction and duration. The creation signature binds the security-sensitive fields. Other signed-in users can open an active market, submit a prediction and follow its settlement status.";
+    return forecastReady
+      ? `Signed-in users on ${network.label} can create a Community Market by choosing a supported asset, target, direction and duration. The signature binds the network and security-sensitive fields. Activity and settlement remain isolated from the other network.`
+      : `${network.label} Community Markets remain disabled until its verified ForecastRegistry deployment is configured. Predarc fails closed and never sends a Base request to the Arc contract.`;
   }
 
   if (
@@ -706,7 +910,7 @@ export function verifiedAssistantAnswer(question: string): string | null {
       "transaction hash",
     ])
   ) {
-    return "Predarc Receipts verifies supported Arc transfers from a transaction hash and displays status, sender, recipient, amount, block and timestamp. Reverted, zero-value, contract-creation and unsupported-calldata transactions are not treated as valid payment receipts.";
+    return `Predarc Receipts verifies supported ${network.label} USDC transfers from a transaction hash and displays status, sender, recipient, amount, block and timestamp. Reverted, zero-value, contract-creation and unrelated calldata transactions are not treated as valid payment receipts.`;
   }
 
   if (
@@ -719,7 +923,7 @@ export function verifiedAssistantAnswer(question: string): string | null {
       "login",
     ])
   ) {
-    return "Choose MetaMask or Rabby from a Predarc wallet selector, connect the intended account and switch to Arc Mainnet when requested. Wallet connection and Predarc sign-in are separate: the sign-in message is gas-free and is not a token approval. Always read every wallet prompt before approving it.";
+    return `Choose MetaMask or Rabby, connect the intended account, select Arc Mainnet or Base Mainnet, and approve the wallet network switch. The current selection is ${network.label}. Wallet connection and Predarc sign-in are separate: the sign-in message is gas-free and is not a token approval. Always read every wallet prompt.`;
   }
 
   if (includesAny(normalized, ["builder explorer", "public builder"])) {
@@ -740,7 +944,7 @@ export function verifiedAssistantAnswer(question: string): string | null {
       "mainnet or testnet",
     ])
   ) {
-    return "Predarc's current live product runs on Arc Mainnet. Wallet-confirmed Predarc actions use Arc Mainnet, while Bridge can move native USDC between Arc Mainnet, Ethereum, Base, Arbitrum and Polygon. Always check the selected source and destination networks before confirming a wallet prompt.";
+    return `Predarc supports Arc Mainnet and Base Mainnet with network-bound sign-in, data and wallet prompts. The current selection is ${network.label}. Bridge can route USDC across supported chains; always verify the source, destination, asset and amount before confirming.`;
   }
 
   if (
@@ -771,7 +975,7 @@ export function verifiedAssistantAnswer(question: string): string | null {
       "which market",
     ])
   ) {
-    return "Predarc forecasting, Community Markets and Agent Research currently support BTC, ETH, BNB, SOL and XRP. Bridge currently focuses on native USDC across supported chains, while Swap supports available Arc Mainnet routes involving USDC, EURC and cirBTC.";
+    return `Predarc forecasting, Community Markets and Agent Research support BTC, ETH, BNB, SOL and XRP. Bridge focuses on USDC across supported chains. Swap uses USDC, EURC and ${network.key === "arc" ? "cirBTC" : "WETH"} on the selected ${network.label}.`;
   }
 
   if (
@@ -834,7 +1038,9 @@ export function verifiedAssistantAnswer(question: string): string | null {
   if (
     matchesPredictionIntent(normalized)
   ) {
-    return "Connect MetaMask or Rabby, complete the gas-free Predarc sign-in, then open Forecast Arena. Choose BTC, ETH, SOL, BNB or XRP; select a 1-minute, 5-minute or 15-minute round; choose Higher or Lower; and enter the server points to use. Review and confirm the prediction in your wallet, then follow the matching active-prediction card until settlement.";
+    return forecastReady
+      ? `Connect MetaMask or Rabby, select ${network.label}, complete the gas-free network-bound Predarc sign-in, then open Forecast Arena. Choose BTC, ETH, SOL, BNB or XRP; select a 1, 5 or 15 minute round; choose Higher or Lower; and enter server points. Review the ${network.label} wallet confirmation, then follow settlement.`
+      : `${network.label} forecasting is not yet enabled because its verified ForecastRegistry address is missing. Select Arc Mainnet or wait until the Base deployment is configured; Predarc will not fall back across networks.`;
   }
 
   if (
@@ -848,14 +1054,31 @@ export function verifiedAssistantAnswer(question: string): string | null {
       "use predarc",
     ])
   ) {
-    return "On Predarc you can forecast BTC, ETH, SOL, BNB and XRP; create or join Community Markets; bridge native USDC; swap USDC, EURC and cirBTC on Arc Mainnet; run free or opt-in paid Agent Research; connect a bounded AI agent; and verify supported Arc transfer receipts.";
+    const explicitlyTargetsOneNetwork =
+      includesArcWord(normalized) !== includesBaseWord(normalized);
+    if (!explicitlyTargetsOneNetwork) {
+      const baseForecasting = isForecastRegistryReady(BASE_MAINNET_CHAIN_ID)
+        ? "Base Mainnet also provides forecasting, Community Markets and bounded AI-agent automation"
+        : "Base Mainnet currently provides Bridge, USDC/EURC/WETH Swap, Agent Research and Base USDC receipt verification; forecasting, Community Markets and AI-agent automation remain disabled until Predarc configures its separate verified Base ForecastRegistry";
+      return `Predarc supports both Arc Mainnet and Base Mainnet. Arc Mainnet provides multi-market forecasting, Community Markets, bounded AI-agent automation, Bridge, USDC/EURC/cirBTC Swap, Agent Research and native-USDC receipt verification. ${baseForecasting}. The current app selection is ${getPredarcNetwork(chainId).label}, and Arc and Base sessions, activity and limits remain separate.`;
+    }
+    const forecasting = forecastReady
+      ? "multi-market forecasting, create or join Community Markets and bounded AI agent automation"
+      : "USDC and research features now; forecasting, Community Markets and AI agent automation remain disabled until this network's verified ForecastRegistry is configured";
+    return `On ${network.label}, Predarc provides ${forecasting}, USDC bridging, ${network.key === "arc" ? "USDC/EURC/cirBTC" : "USDC/EURC/WETH"} swaps, free or opt-in x402 Agent Research and supported USDC receipt verification. Arc and Base sessions and activity are kept separate.`;
   }
 
   if (
     predarcMentioned &&
     includesAny(normalized, ["what", "what is", "ki", "about", "explain"])
   ) {
-    return "Predarc is an Arc Mainnet forecasting and stablecoin application. It combines multi-market Higher/Lower forecasting, Community Markets, native USDC bridging, Arc asset swaps, verifiable Agent Research, bounded AI-agent automation and transaction receipts in one interface.";
+    if (includesArcWord(normalized) !== includesBaseWord(normalized)) {
+      const forecasting = forecastReady
+        ? "Forecast Arena, Community Markets and bounded AI-agent automation are enabled"
+        : "Forecast Arena, Community Markets and bounded AI-agent automation remain disabled until a separate verified ForecastRegistry is configured";
+      return `Predarc on ${network.label} combines network-bound sign-in, ${forecasting}, USDC bridging, ${network.key === "arc" ? "USDC/EURC/cirBTC" : "USDC/EURC/WETH"} swaps, Agent Research and supported USDC receipt verification. Arc and Base activity is never mixed.`;
+    }
+    return "Predarc is a network-aware forecasting and stablecoin application for Arc Mainnet and Base Mainnet. It combines multi-market Higher/Lower forecasting, Community Markets, USDC bridging, per-network swaps, verifiable Agent Research, bounded AI-agent automation and transaction receipts in one interface.";
   }
 
   return null;
@@ -881,7 +1104,8 @@ export function parseAssistantReply(value: unknown): PredarcAssistantReply | nul
       }
       accepted = trusted;
     } else {
-      accepted = trustedDynamicArcSource(source);
+      accepted =
+        trustedDynamicArcSource(source) ?? trustedDynamicBaseSource(source);
     }
     if (!accepted || seenSources.has(accepted.id)) return null;
     seenSources.add(accepted.id);

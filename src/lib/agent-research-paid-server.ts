@@ -8,24 +8,26 @@ import {
 } from "viem";
 
 import {
-  PAID_RESEARCH_CHAIN_ID,
-  PAID_RESEARCH_ENDPOINT,
   PAID_RESEARCH_ENGINE_ID,
   PAID_RESEARCH_ENGINE_VERSION,
   PAID_RESEARCH_MAX_CALL_ATOMIC,
   PAID_RESEARCH_MODEL,
-  PAID_RESEARCH_NETWORK,
   PAID_RESEARCH_PROVIDER,
-  PAID_RESEARCH_USDC,
   buildPaidResearchTypedData,
   canonicalLegacyPaidResearchReceipt,
   canonicalPaidResearchReceipt,
   parsePaidResearchQuote,
   parsePaidResearchReceipt,
+  getPaidResearchConfig,
   type PaidResearchQuote,
   type PaidResearchReceipt,
   type PaidResearchRequest,
 } from "@/lib/agent-research-paid-core";
+import {
+  getPredarcNetwork,
+  normalizePredarcChainId,
+  type PredarcChainId,
+} from "@/lib/predarc-networks";
 import type {
   AgentResearchAnalysis,
   AgentResearchSignal,
@@ -278,7 +280,10 @@ function decodeBase64Json(value: string): unknown {
   }
 }
 
-function parsePaymentRequirement(value: unknown): {
+function parsePaymentRequirement(
+  value: unknown,
+  chainId: PredarcChainId
+): {
   amountAtomic: string;
   payTo: string;
   maxTimeoutSeconds: number;
@@ -289,7 +294,9 @@ function parsePaymentRequirement(value: unknown): {
   if (!isRecord(value) || value.x402Version !== 2 || !Array.isArray(value.accepts)) {
     throw new Error("Provider did not return a supported x402 v2 quote.");
   }
-  if (!isRecord(value.resource) || value.resource.url !== PAID_RESEARCH_ENDPOINT) {
+  const config = getPaidResearchConfig(chainId);
+  const networkLabel = getPredarcNetwork(chainId).label;
+  if (!isRecord(value.resource) || value.resource.url !== config.endpoint) {
     throw new Error("Provider quote resource did not match the allowlist.");
   }
   if (
@@ -303,10 +310,10 @@ function parsePaymentRequirement(value: unknown): {
     (candidate) =>
       isRecord(candidate) &&
       candidate.scheme === "exact" &&
-      candidate.network === PAID_RESEARCH_NETWORK
+      candidate.network === config.network
   );
   if (!isRecord(option)) {
-    throw new Error("Provider does not currently offer Arc Mainnet exact payment.");
+    throw new Error(`Provider does not currently offer ${networkLabel} exact payment.`);
   }
 
   const amountAtomic = String(option.amount ?? "");
@@ -321,17 +328,17 @@ function parsePaymentRequirement(value: unknown): {
     BigInt(amountAtomic) > PAID_RESEARCH_MAX_CALL_ATOMIC ||
     !/^0x[0-9a-f]{40}$/.test(payTo) ||
     payTo === "0x0000000000000000000000000000000000000000" ||
-    asset !== PAID_RESEARCH_USDC ||
+    asset !== config.usdc ||
     !Number.isSafeInteger(maxTimeoutSeconds) ||
     maxTimeoutSeconds < 30 ||
     maxTimeoutSeconds > QUOTE_LIFETIME_SECONDS ||
-    extra.name !== "USDC" ||
+    extra.name !== config.domainName ||
     extra.version !== "2" ||
     jsonSize(value.resource) > 2_000 ||
     jsonSize(extensions) > 4_000 ||
     jsonSize(extra) > 1_000
   ) {
-    throw new Error("Provider payment quote failed the Arc Mainnet allowlist.");
+    throw new Error(`Provider payment quote failed the ${networkLabel} allowlist.`);
   }
 
   return {
@@ -403,10 +410,12 @@ export type PreparedPaidResearchQuote = {
 };
 
 export async function preparePaidResearchQuote(input: {
+  chainId: PredarcChainId;
   request: PaidResearchRequest;
   wallet: string;
   inputHash: string;
 }): Promise<PreparedPaidResearchQuote> {
+  const config = getPaidResearchConfig(input.chainId);
   const bundle = await collectAgentResearchEvidence(input.request);
   const prompt = buildResearchPrompt(input.request, bundle);
   const requestBody = buildProviderBody(prompt);
@@ -415,7 +424,7 @@ export async function preparePaidResearchQuote(input: {
 
   let response: Response;
   try {
-    response = await fetch(PAID_RESEARCH_ENDPOINT, {
+    response = await fetch(config.endpoint, {
       method: "POST",
       cache: "no-store",
       signal: controller.signal,
@@ -450,7 +459,7 @@ export async function preparePaidResearchQuote(input: {
     }
   }
 
-  const requirement = parsePaymentRequirement(paymentRequired);
+  const requirement = parsePaymentRequirement(paymentRequired, input.chainId);
   if (BigInt(requirement.amountAtomic) > BigInt(input.request.maxCostAtomic)) {
     throw new Error("The current model quote exceeds your per-call USDC cap.");
   }
@@ -462,6 +471,7 @@ export async function preparePaidResearchQuote(input: {
   const expiresAt = new Date(Number(validBefore) * 1_000).toISOString();
   const quoteId = crypto.randomUUID();
   const typedData = buildPaidResearchTypedData({
+    chainId: input.chainId,
     wallet: input.wallet,
     payTo: requirement.payTo,
     amountAtomic: requirement.amountAtomic,
@@ -472,7 +482,7 @@ export async function preparePaidResearchQuote(input: {
   const quote = parsePaidResearchQuote({
     quoteId,
     requestId: input.request.requestId,
-    chainId: PAID_RESEARCH_CHAIN_ID,
+    chainId: input.chainId,
     wallet: input.wallet,
     market: input.request.market,
     durationSeconds: input.request.durationSeconds,
@@ -482,8 +492,8 @@ export async function preparePaidResearchQuote(input: {
     dailyCostCapAtomic: input.request.dailyCostCapAtomic,
     currency: "USDC",
     scheme: "exact",
-    network: PAID_RESEARCH_NETWORK,
-    resourceUrl: PAID_RESEARCH_ENDPOINT,
+    network: config.network,
+    resourceUrl: config.endpoint,
     expiresAt,
     typedData,
   });
@@ -506,11 +516,13 @@ export async function preparePaidResearchQuote(input: {
 export function serializePaidResearchQuote(
   row: PaidResearchQuoteRow
 ): PaidResearchQuote | null {
+  const chainId = normalizePredarcChainId(row.chain_id);
+  if (!chainId) return null;
   const resource = isRecord(row.resource) ? row.resource : {};
   return parsePaidResearchQuote({
     quoteId: String(row.id ?? ""),
     requestId: String(row.request_id ?? ""),
-    chainId: Number(row.chain_id),
+    chainId,
     wallet: String(row.wallet ?? ""),
     market: String(row.market ?? ""),
     durationSeconds: Number(row.duration_seconds),
@@ -524,6 +536,7 @@ export function serializePaidResearchQuote(
     resourceUrl: String(resource.url ?? ""),
     expiresAt: iso(row.expires_at),
     typedData: buildPaidResearchTypedData({
+      chainId,
       wallet: String(row.wallet ?? ""),
       payTo: String(row.pay_to ?? ""),
       amountAtomic: String(row.quote_amount_atomic ?? ""),
@@ -586,9 +599,9 @@ function paymentPayload(input: {
     resource,
     accepted: {
       scheme: "exact",
-      network: PAID_RESEARCH_NETWORK,
+      network: input.quote.network,
       amount: input.quote.amountAtomic,
-      asset: PAID_RESEARCH_USDC,
+      asset: input.quote.typedData.domain.verifyingContract,
       payTo: input.quote.typedData.message.to,
       maxTimeoutSeconds: Number(input.row.max_timeout_seconds),
       extra,
@@ -703,12 +716,14 @@ export async function executePaidResearch(input: {
     throw new Error("Stored paid research request is invalid.");
   }
   const encodedPayment = paymentPayload(input);
+  const config = getPaidResearchConfig(input.quote.chainId);
+  const networkLabel = getPredarcNetwork(input.quote.chainId).label;
   const authorizationHash = sha256Hex(encodedPayment);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90_000);
   let response: Response;
   try {
-    response = await fetch(PAID_RESEARCH_ENDPOINT, {
+    response = await fetch(config.endpoint, {
       method: "POST",
       cache: "no-store",
       signal: controller.signal,
@@ -730,7 +745,7 @@ export async function executePaidResearch(input: {
 
   if (response.status === 402) {
     throw new PaidResearchPaymentRejectedError(
-      "The payment authorization was rejected. Check Arc Mainnet USDC balance and quote expiry."
+      `The payment authorization was rejected. Check ${networkLabel} USDC balance and quote expiry.`
     );
   }
   if (!response.ok) {
@@ -768,7 +783,7 @@ export async function executePaidResearch(input: {
     id: crypto.randomUUID(),
     quoteId: input.quote.quoteId,
     requestId: input.quote.requestId,
-    chainId: PAID_RESEARCH_CHAIN_ID,
+    chainId: input.quote.chainId,
     wallet: input.quote.wallet,
     market: input.quote.market,
     durationSeconds: input.quote.durationSeconds,
@@ -807,8 +822,8 @@ export async function executePaidResearch(input: {
       actualCostAtomic: settlement.actualCostAtomic,
       status: settlement.status,
       scheme: "exact",
-      network: PAID_RESEARCH_NETWORK,
-      asset: PAID_RESEARCH_USDC,
+      network: config.network,
+      asset: config.usdc,
       payTo: input.quote.typedData.message.to,
       paymentReference,
       settlementTransaction: settlement.settlementTransaction,

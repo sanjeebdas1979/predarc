@@ -1,5 +1,12 @@
 # Predarc daily access: implementation draft
 
+> Historical design record: this document describes the original 2026-09-17
+> prototype and is not the current deployment guide. Predarc now treats Arc
+> Mainnet and Base Mainnet as separate security domains. Use
+> `docs/BASE-MAINNET.md` and `.env.daily.example` for current configuration;
+> Base Daily remains disabled until its own reviewed contract is deployed and
+> configured, and the Arc address must never be reused on Base.
+
 Status: contract and dashboard foundation, NOT a complete mainnet migration.
 Prepared 2026-09-17 against repository source commit
 48533cd8361c560c7effd5edf8ebe0c46f971809, including the earlier receipts draft.

@@ -18,12 +18,7 @@ import {
   FORECAST_REGISTRY_V2_ABI,
 } from "../../contracts/forecastRegistryV2";
 
-import {
-  forecastChainId,
-  forecastExplorerBaseUrl,
-  forecastNetworkLabel,
-  forecastRegistryAddress,
-} from "@/lib/forecast-network";
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 
 import {
   useDemoPoints,
@@ -271,6 +266,13 @@ function withTimeout<T>(
 }
 
 export default function PredictionHistory() {
+  const {
+    selectedChainId: forecastChainId,
+    network,
+    forecastRegistryAddress,
+  } = usePredarcNetwork();
+  const forecastNetworkLabel = network.label;
+  const forecastExplorerBaseUrl = network.explorerUrl;
   const {
     predictions,
 
@@ -804,7 +806,7 @@ export default function PredictionHistory() {
   async function readHasClaimed(
     forecastId: string
   ): Promise<boolean> {
-    if (!publicClient) {
+    if (!publicClient || !forecastRegistryAddress) {
       throw new Error(
         `${forecastNetworkLabel} client unavailable.`
       );
@@ -834,7 +836,7 @@ export default function PredictionHistory() {
 
         RPC_READ_TIMEOUT_MS,
 
-        "Arc claim-status read timed out."
+        `${forecastNetworkLabel} claim-status read timed out.`
       );
 
     return result === true;
@@ -853,7 +855,7 @@ export default function PredictionHistory() {
       return;
     }
 
-    if (!publicClient) {
+    if (!publicClient || !forecastRegistryAddress) {
       updateMessage(
         prediction.id,
 
@@ -935,7 +937,7 @@ export default function PredictionHistory() {
         updateMessage(
           prediction.id,
 
-          "Arc RPC did not respond in time. Try Sync Claim Status again."
+          `${forecastNetworkLabel} RPC did not respond in time. Try Sync Claim Status again.`
         );
       } else {
         updateMessage(
@@ -972,7 +974,7 @@ export default function PredictionHistory() {
       return;
     }
 
-    if (!publicClient) {
+    if (!publicClient || !forecastRegistryAddress) {
       updateMessage(
         prediction.id,
         `${forecastNetworkLabel} client is unavailable.`
@@ -1179,7 +1181,7 @@ export default function PredictionHistory() {
 
       updateMessage(
         prediction.id,
-        "Resolution submitted. Waiting for Arc confirmation..."
+        `Resolution submitted. Waiting for ${forecastNetworkLabel} confirmation...`
       );
 
       const receipt =
@@ -1265,7 +1267,7 @@ export default function PredictionHistory() {
       ) {
         updateMessage(
           prediction.id,
-          "Resolution may still be pending or Arc RPC is delayed. Check Arc Explorer before retrying."
+          `Resolution may still be pending or ${network.shortLabel} RPC is delayed. Check ${network.shortLabel} Explorer before retrying.`
         );
 
         return;
@@ -1301,7 +1303,7 @@ export default function PredictionHistory() {
       return;
     }
 
-    if (!publicClient) {
+    if (!publicClient || !forecastRegistryAddress) {
       updateMessage(
         prediction.id,
 
@@ -1363,7 +1365,7 @@ export default function PredictionHistory() {
       updateMessage(
         prediction.id,
 
-        "Claim submitted. Waiting for Arc confirmation..."
+        `Claim submitted. Waiting for ${forecastNetworkLabel} confirmation...`
       );
 
       /*
@@ -1455,7 +1457,7 @@ export default function PredictionHistory() {
           updateMessage(
             prediction.id,
 
-            "Contract reports an existing claim, but Arc RPC could not confirm its status. Try Sync Claim Status."
+            `Contract reports an existing claim, but ${network.shortLabel} RPC could not confirm its status. Try Sync Claim Status.`
           );
 
           return;
@@ -1487,7 +1489,7 @@ export default function PredictionHistory() {
         updateMessage(
           prediction.id,
 
-          "Claim transaction may still be pending. Check Arc Explorer, then use Sync Claim Status."
+          `Claim transaction may still be pending. Check ${network.shortLabel} Explorer, then use Sync Claim Status.`
         );
 
         return;
@@ -2166,7 +2168,7 @@ export default function PredictionHistory() {
 
                   {visibleHash && (
                     <a
-                      href={`https://testnet.arcscan.app/tx/${visibleHash}`}
+                      href={`${forecastExplorerBaseUrl}/tx/${visibleHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-3 inline-flex text-xs font-semibold text-blue-300 transition hover:text-blue-200"
@@ -2174,8 +2176,7 @@ export default function PredictionHistory() {
                       {shortenHash(
                         visibleHash
                       )}{" "}
-                      — View on Arc
-                      Explorer ↗
+                      — View on {network.shortLabel} Explorer ↗
                     </a>
                   )}
                 </div>

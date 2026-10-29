@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import {
   authReply,
   localAuthConfigured,
+  readAuthSession,
   requestOriginAllowed,
   sessionHash,
 } from "@/lib/auth-session";
@@ -97,7 +98,7 @@ function normalizePrediction(
 async function handlePredictionHistory(request: NextRequest) {
   if (!localAuthConfigured()) {
     return authReply(
-      { error: "Prediction history is available only in the local testnet setup." },
+      { error: "Prediction history is not configured." },
       503
     );
   }
@@ -112,19 +113,8 @@ async function handlePredictionHistory(request: NextRequest) {
       return authReply({ predictions: [], account: null }, 200);
     }
 
-    const { data: session, error: sessionError } = await getSupabaseAdmin()
-      .from("predarc_auth_sessions")
-      .select("wallet,expires_at")
-      .eq("token_hash", tokenHash)
-      .maybeSingle();
-
-    if (sessionError) throw new Error("Session lookup failed");
-
-    if (
-      !session ||
-      !(Date.parse(String(session.expires_at)) > Date.now()) ||
-      !String(session.wallet).startsWith("0x")
-    ) {
+    const session = await readAuthSession(request);
+    if (!session) {
       return authReply({ predictions: [], account: null }, 200);
     }
 
@@ -141,6 +131,7 @@ async function handlePredictionHistory(request: NextRequest) {
       .select(
         "id,market,direction,points,duration_seconds,status,entry_price,accepted_at,closes_at,settled_at,exit_price"
       )
+      .eq("chain_id", session.chainId)
       .eq("wallet", wallet)
       .order("accepted_at", { ascending: false })
       .limit(50);
@@ -159,6 +150,7 @@ async function handlePredictionHistory(request: NextRequest) {
       const { data: claimRows } = await getSupabaseAdmin()
         .from("predarc_points_ledger")
         .select("source_id,delta,created_at")
+        .eq("chain_id", session.chainId)
         .eq("wallet", wallet)
         .eq("kind", "claim_credit")
         .in("source_id", claimSourceIds);

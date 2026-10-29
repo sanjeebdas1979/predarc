@@ -13,13 +13,16 @@ import {
 } from "@/lib/community-markets-core";
 import { fetchCommunitySpotPrice } from "@/lib/community-markets-server";
 import {
-  authChainId,
   authReply,
   localAuthConfigured,
   readAuthSession,
   requestOriginAllowed,
   sessionHash,
 } from "@/lib/auth-session";
+import {
+  ARC_MAINNET_CHAIN_ID,
+  normalizePredarcChainId,
+} from "@/lib/predarc-networks";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
@@ -81,13 +84,16 @@ export async function GET(request: NextRequest) {
   try {
     const tokenHash = sessionHash(request);
     const session = tokenHash ? await readAuthSession(request) : null;
+    const requestedChainId =
+      normalizePredarcChainId(request.nextUrl.searchParams.get("chainId")) ??
+      ARC_MAINNET_CHAIN_ID;
     const db = getSupabaseAdmin();
     const { data: marketData, error: marketError } = await db
       .from("predarc_community_markets")
       .select(
         "id,creator_wallet,asset,target_price,reference_price,duration_seconds,created_at,closes_at,status,outcome,settlement_price,settled_at"
       )
-      .eq("chain_id", authChainId)
+      .eq("chain_id", requestedChainId)
       .order("created_at", { ascending: false })
       .limit(50);
 
@@ -103,7 +109,7 @@ export async function GET(request: NextRequest) {
         .select(
           "id,market_id,wallet,direction,points,status,transaction_hash,onchain_forecast_id"
         )
-        .eq("chain_id", authChainId)
+        .eq("chain_id", requestedChainId)
         .in("market_id", marketIds);
 
       if (error) throw new Error("Community prediction lookup failed.");
@@ -118,7 +124,10 @@ export async function GET(request: NextRequest) {
       predictionsByMarket.set(prediction.market_id, group);
     }
 
-    const currentWallet = session?.wallet.toLowerCase() ?? null;
+    const currentWallet =
+      session?.chainId === requestedChainId
+        ? session.wallet.toLowerCase()
+        : null;
     const ownPredictions = currentWallet
       ? predictionRows.filter(
           (prediction) => prediction.wallet.toLowerCase() === currentWallet
@@ -134,7 +143,7 @@ export async function GET(request: NextRequest) {
       const { data, error } = await db
         .from("predarc_points_ledger")
         .select("source_id")
-        .eq("chain_id", authChainId)
+        .eq("chain_id", requestedChainId)
         .eq("wallet", currentWallet)
         .in("source_id", sourceIds);
 

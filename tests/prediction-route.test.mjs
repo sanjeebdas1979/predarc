@@ -23,23 +23,19 @@ function loadPostRoute(path) {
       from() {
         return {
           select() {
-            return {
+            const query = {
               eq() {
-                return {
-                  eq() {
-                    return {
-                      maybeSingle: async () => ({
-                        data: {
-                          closes_at: '2026-09-23T12:18:39.570939+00:00',
-          duration_seconds: 60,
-                        },
-                        error: null,
-                      }),
-                    };
-                  },
-                };
+                return query;
               },
+              maybeSingle: async () => ({
+                data: {
+                  closes_at: '2026-09-23T12:18:39.570939+00:00',
+                  duration_seconds: 60,
+                },
+                error: null,
+              }),
             };
+            return query;
           },
         };
       },

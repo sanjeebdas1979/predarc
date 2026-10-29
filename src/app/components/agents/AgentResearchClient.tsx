@@ -12,6 +12,7 @@ import PredarcSessionCard from "@/app/components/auth/PredarcSessionCard";
 import PredarcBrand from "@/app/components/brand/PredarcBrand";
 import PaidAgentResearchPanel from "@/app/components/agents/PaidAgentResearchPanel";
 import { usePredarcSession } from "@/app/components/providers/PredarcSessionProvider";
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 import WalletConnectOptions from "@/app/components/wallet/WalletConnectOptions";
 import {
   AGENT_RESEARCH_BUDGETS,
@@ -25,7 +26,6 @@ import {
   type AgentResearchMarket,
   type AgentResearchReceipt,
 } from "@/lib/agent-research-core";
-import { forecastChainId, forecastNetworkLabel } from "@/lib/forecast-network";
 
 type MessageTone = "info" | "success" | "error";
 
@@ -124,6 +124,11 @@ function signalClasses(signal: AgentResearchReceipt["signal"]): string {
 
 export default function AgentResearchClient() {
   const { session, isSignedIn } = usePredarcSession();
+  const {
+    selectedChainId: forecastChainId,
+    network,
+  } = usePredarcNetwork();
+  const forecastNetworkLabel = network.label;
   const { address, chainId, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
@@ -317,7 +322,7 @@ export default function AgentResearchClient() {
           </h1>
           <p className="mt-5 max-w-3xl text-base leading-7 text-gray-300 sm:text-lg">
             Choose a free deterministic Preview or an opt-in paid AI call on
-            Arc Mainnet. Both paths bind evidence, result and spending details
+            {forecastNetworkLabel}. Both paths bind evidence, result and spending details
             into a SHA-256 receipt that Predarc can verify independently.
           </p>
           <div className="mt-7 grid gap-3 text-sm text-gray-300 sm:grid-cols-2 lg:grid-cols-4">
@@ -342,7 +347,7 @@ export default function AgentResearchClient() {
           <PredarcSessionCard feature="Agent Research" />
         </div>
 
-        <PaidAgentResearchPanel />
+        <PaidAgentResearchPanel key={forecastChainId} />
 
         <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)]">
           <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-5 sm:p-7">
@@ -476,7 +481,7 @@ export default function AgentResearchClient() {
               </p>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-gray-300">
                 <li>• A live BlockRun model quote is checked before signing.</li>
-                <li>• Arc Mainnet USDC uses one-time x402 exact authorization.</li>
+                <li>• {forecastNetworkLabel} USDC uses one-time x402 exact authorization.</li>
                 <li>• Per-call and rolling 24-hour caps are database-enforced.</li>
                 <li>• Research never submits a prediction automatically.</li>
               </ul>

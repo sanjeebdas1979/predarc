@@ -17,6 +17,11 @@ import {
   getAgentResearchReceiptById,
   verifyAgentResearchReceipt,
 } from "@/lib/agent-research-server";
+import {
+  ARC_MAINNET_CHAIN_ID,
+  getPredarcNetwork,
+  normalizePredarcChainId,
+} from "@/lib/predarc-networks";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +80,9 @@ export default async function AgentResearchReceiptPage({
   if (!receipt) notFound();
 
   const isPaid = paidReceipt !== null;
+  const receiptChainId =
+    normalizePredarcChainId(receipt.chainId) ?? ARC_MAINNET_CHAIN_ID;
+  const receiptNetwork = getPredarcNetwork(receiptChainId);
   const verified = paidReceipt
     ? verifyPaidResearchReceipt(paidReceipt)
     : verifyAgentResearchReceipt(receipt as AgentResearchReceipt);
@@ -105,7 +113,7 @@ export default async function AgentResearchReceiptPage({
               </h1>
             </div>
             <span className="rounded-full border border-violet-400/30 bg-violet-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-violet-200">
-              {isPaid ? "Arc Mainnet paid AI" : "Free Preview"}
+              {isPaid ? `${receiptNetwork.label} paid AI` : `${receiptNetwork.label} free preview`}
             </span>
             <span
               className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.12em] ${
@@ -189,11 +197,11 @@ export default async function AgentResearchReceiptPage({
           {paidReceipt ? (
             <section className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.04] p-5">
               <h2 className="text-xs font-black uppercase tracking-[0.16em] text-cyan-300">
-                Arc Mainnet x402 payment
+                {receiptNetwork.label} x402 payment
               </h2>
               <dl className="mt-4 grid gap-4 sm:grid-cols-2">
                 {[
-                  ["Scheme", "x402 exact · Arc Mainnet"],
+                  ["Scheme", `x402 exact · ${receiptNetwork.label}`],
                   ["Status", paidReceipt.spending.status],
                   ["Payment reference", paidReceipt.spending.paymentReference],
                   ["Authorization hash", paidReceipt.verification.authorizationHash],
@@ -208,12 +216,12 @@ export default async function AgentResearchReceiptPage({
               </dl>
               {paidReceipt.spending.settlementTransaction ? (
                 <a
-                  href={`https://explorer.arc.io/tx/${paidReceipt.spending.settlementTransaction}`}
+                  href={`${receiptNetwork.explorerUrl}/tx/${paidReceipt.spending.settlementTransaction}`}
                   target="_blank"
                   rel="noreferrer"
                   className="mt-4 inline-flex rounded-xl border border-cyan-400/25 px-4 py-2 text-xs font-black text-cyan-200 hover:text-white"
                 >
-                  View settlement on Arc ↗
+                  View settlement on {receiptNetwork.shortLabel} ↗
                 </a>
               ) : (
                 <p className="mt-4 text-xs leading-5 text-gray-400">
@@ -288,7 +296,7 @@ export default async function AgentResearchReceiptPage({
 
         <p className="mx-auto mt-5 max-w-3xl text-center text-xs leading-5 text-gray-500">
           {isPaid
-            ? "This receipt records an opt-in paid AI call on Arc Mainnet. It is not financial advice."
+            ? `This receipt records an opt-in paid AI call on ${receiptNetwork.label}. It is not financial advice.`
             : "Phase 1 is a deterministic evidence preview, not financial advice. No AI-model or data-service payment was made for this receipt."}
         </p>
       </div>

@@ -45,7 +45,7 @@ test("guide covers every current public Predarc feature", () => {
     "Bridge USDC across supported chains",
     "Swap supported assets",
     "Run the Agent Research Preview",
-    "Run paid AI research on Arc Mainnet",
+    "Run paid AI research on the selected network",
     "Connect an AI agent",
     "Verify a supported receipt",
     "Explore public Arc projects",
@@ -135,7 +135,7 @@ test("landing hero capability pills stay readable on the dark background", () =>
 });
 
 test("landing suite CTA keeps Launch Arena aligned with the secondary actions", () => {
-  const suiteActionsStart = landing.indexOf("Built around Arc Mainnet");
+  const suiteActionsStart = landing.indexOf("Built around Arc + Base Mainnet");
   const suiteActionsEnd = landing.indexOf("<footer", suiteActionsStart);
   const suiteActions = landing.slice(suiteActionsStart, suiteActionsEnd);
 

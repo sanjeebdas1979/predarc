@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 import {
   ASSISTANT_MAX_MESSAGE_LENGTH,
   ASSISTANT_MAX_MESSAGES,
@@ -23,16 +24,9 @@ const INITIAL_MESSAGE: UiMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Hi! Ask me about Predarc or Arc. I use verified Predarc information and official Arc documentation. I never need your seed phrase, private key or wallet credentials.",
+    "Hi! Ask me about Predarc, Arc or Base. I use verified Predarc information and official network documentation. I never need your seed phrase, private key or wallet credentials.",
   mode: "verified",
 };
-
-const QUICK_QUESTIONS = [
-  "What can I do on Predarc?",
-  "How do I bridge USDC?",
-  "How does Agent Research work?",
-  "What is Arc Mainnet?",
-] as const;
 
 const CLIENT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -66,6 +60,7 @@ function sourceIsExternal(source: PredarcAssistantSource): boolean {
 }
 
 export default function PredarcAssistant() {
+  const { network, selectedChainId } = usePredarcNetwork();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<UiMessage[]>([INITIAL_MESSAGE]);
@@ -76,6 +71,22 @@ export default function PredarcAssistant() {
   const launcherRef = useRef<HTMLButtonElement>(null);
   const submittingRef = useRef(false);
   const clientIdRef = useRef<string | null>(null);
+  const selectedChainIdRef = useRef(selectedChainId);
+
+  const quickQuestions = [
+    "What can I do on Predarc?",
+    "How do I bridge USDC?",
+    "How does Agent Research work?",
+    `What is ${network.label}?`,
+  ] as const;
+
+  useEffect(() => {
+    if (selectedChainIdRef.current === selectedChainId) return;
+    selectedChainIdRef.current = selectedChainId;
+    setMessages([INITIAL_MESSAGE]);
+    setInput("");
+    setNotice(`Assistant context changed to ${network.label}.`);
+  }, [network.label, selectedChainId]);
 
   useEffect(() => {
     if (!open) return;
@@ -126,6 +137,7 @@ export default function PredarcAssistant() {
       ...messageHistory(messages),
       { role: "user" as const, content: question },
     ];
+    const requestChainId = selectedChainId;
 
     setMessages((current) => [...current, userMessage]);
     setInput("");
@@ -141,7 +153,10 @@ export default function PredarcAssistant() {
           "Content-Type": "application/json",
           "X-Predarc-Client": clientId,
         },
-        body: JSON.stringify({ messages: outbound }),
+        body: JSON.stringify({
+          messages: outbound,
+          chainId: requestChainId,
+        }),
       });
       const payload: unknown = await response.json().catch(() => null);
 
@@ -158,6 +173,7 @@ export default function PredarcAssistant() {
 
       const assistantReply = parseAssistantReply(payload);
       if (!assistantReply) throw new Error("The assistant returned an invalid response.");
+      if (selectedChainIdRef.current !== requestChainId) return;
 
       setMessages((current) => [
         ...current,
@@ -214,7 +230,7 @@ export default function PredarcAssistant() {
                 </h2>
                 <p className="mt-0.5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-cyan-200/75">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                  Verified product help
+                  Verified help · Arc + Base
                 </p>
               </div>
             </div>
@@ -281,7 +297,7 @@ export default function PredarcAssistant() {
 
             {messages.length === 1 ? (
               <div className="grid gap-2">
-                {QUICK_QUESTIONS.map((question) => (
+                {quickQuestions.map((question) => (
                   <button
                     key={question}
                     type="button"
@@ -331,7 +347,7 @@ export default function PredarcAssistant() {
                 maxLength={ASSISTANT_MAX_MESSAGE_LENGTH}
                 rows={1}
                 disabled={submitting}
-                placeholder="Ask about Predarc or Arc..."
+                placeholder="Ask about Predarc, Arc or Base..."
                 aria-label="Message Predarc Assistant"
                 className="max-h-24 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-xs leading-5 text-white outline-none placeholder:text-gray-600 disabled:opacity-60"
               />

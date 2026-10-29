@@ -1,8 +1,9 @@
 # Predarc
 
-Predarc is a forecasting, agent-research and stablecoin application running on
-Arc Mainnet. It combines market forecasting, user-created markets, bounded AI
-agent permissions, native USDC movement and verifiable activity in one product.
+Predarc is a forecasting, agent-research and stablecoin application for Arc
+Mainnet and Base Mainnet. It combines market forecasting, user-created markets,
+bounded AI-agent permissions, USDC movement and verifiable activity in one
+product.
 
 - Live application: https://www.predarc.xyz
 - Technical roadmap: [docs/TECHNICAL-ROADMAP.md](docs/TECHNICAL-ROADMAP.md)
@@ -11,7 +12,7 @@ agent permissions, native USDC movement and verifiable activity in one product.
 ## Product status
 
 Predarc is a working product, not a concept or presentation. The current public
-release runs on Arc Mainnet and supports MetaMask and Rabby.
+release supports network-bound Arc and Base flows with MetaMask and Rabby.
 
 Forecast Arena and Community Markets use server demo points with no cash value.
 Bridge, Swap and opt-in paid Agent Research are separate wallet-controlled flows
@@ -25,24 +26,26 @@ that may use real assets, native USDC and provider or network fees.
   bounded targets and public market state.
 - **AI Agent Automation:** EIP-712-scoped agent permissions with market,
   duration, confidence, usage and expiry limits plus pause and permanent revoke.
-- **Agent Research:** a zero-cost deterministic preview and an opt-in Arc
-  Mainnet model call with an exact short-lived USDC quote, per-call and rolling
+- **Agent Research:** a zero-cost deterministic preview and an opt-in selected-
+  network model call with an exact short-lived USDC quote, per-call and rolling
   limits, one-time wallet authorization and an immutable receipt.
-- **Bridge:** native USDC movement between Arc Mainnet, Ethereum, Base,
+- **Bridge:** USDC movement between Arc Mainnet, Ethereum, Base,
   Arbitrum and Polygon through Circle App Kit.
-- **Swap:** live Arc Mainnet quote and execution flows for supported routes
-  involving USDC, EURC and cirBTC through Circle App Kit.
+- **Swap:** live Arc or Base quote and execution flows for supported routes
+  involving USDC, EURC and cirBTC or WETH through Circle App Kit.
 - **Receipts:** verification surfaces for supported transfers and Agent
   Research evidence, inputs, outputs and payment references.
 - **Predarc Assistant:** reviewed product guidance plus retrieval from official
-  Arc documentation, trusted source links and explicit verification boundaries.
+  Arc or Base documentation, trusted source links and explicit boundaries.
 
 ## Circle and Arc integration
 
 | Component | Role in Predarc |
 | --- | --- |
 | Arc Mainnet (chain ID 5042) | Production network for wallet-controlled activity and native-USDC gas |
-| Native USDC | Gas asset, bridge asset and bounded Agent Research payment asset |
+| Base Mainnet (chain ID 8453) | Parallel execution network with ETH gas and official ERC-20 USDC |
+| Arc native USDC | Arc gas asset, bridge asset and bounded Agent Research payment asset |
+| Base official USDC | Base ERC-20 bridge and bounded Agent Research payment asset; Base gas remains ETH |
 | Circle App Kit | Bridge and Swap orchestration |
 | Circle viem adapter | Connects App Kit flows to the user's EIP-1193 wallet provider |
 | Circle-supported assets | USDC, EURC and cirBTC routes exposed when available from the live provider |
@@ -75,6 +78,7 @@ connectors and important UI contracts.
 ## Documentation
 
 - [Technical Roadmap](docs/TECHNICAL-ROADMAP.md)
+- [Base Mainnet integration](docs/BASE-MAINNET.md)
 - [Agent Research](docs/AGENT-RESEARCH.md)
 - [AI Agent Automation](docs/AGENT-AUTOMATION.md)
 - [Community Markets](docs/COMMUNITY-MARKETS.md)

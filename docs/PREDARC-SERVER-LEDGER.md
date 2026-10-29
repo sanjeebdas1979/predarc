@@ -1,11 +1,11 @@
 # Predarc Server Ledger Handoff
 
-Predarc now has a local Arc Testnet server-ledger prototype. Supabase is the source of truth for wallet sessions, server demo points, prediction records, settlement, reward claims, history, and leaderboard stats.
+Predarc uses Supabase as the source of truth for chain-bound wallet sessions, chain-isolated server demo points, prediction records, settlement, result collection, history, and leaderboard stats. Arc Mainnet and Base Mainnet never share ledger rows or contract addresses.
 
 ## Current Branch
 
 - Repository: `https://github.com/sanjeebdas1979/predarc`
-- Branch: `feature/daily-access`
+- Branch: `main`
 - Local folder: `C:\Users\USER\arc-forecast-arena`
 
 ## Supabase Tables
@@ -38,6 +38,12 @@ Run migrations in this order:
 7. `supabase/migrations/202609270002_prevent_duplicate_prediction_slots.sql`
 8. `supabase/migrations/202610020001_community_markets.sql`
 9. `supabase/migrations/202610020002_community_ledger_reference.sql`
+10. `supabase/migrations/202610280001_base_mainnet.sql`
+
+The Base migration must run after the earlier schema. It allowlists chain ID
+`8453` while preserving the existing Arc Mainnet (`5042`) data and uniqueness
+boundaries. It does not enable Base forecasting until a separate verified Base
+`ForecastRegistryV2` address is configured.
 
 Backend-only RPCs:
 
@@ -92,7 +98,7 @@ Server ledger:
   - Creates, lists, enters, settles and collects results for deterministic user-created crypto markets.
   - See `docs/COMMUNITY-MARKETS.md` for the full flow and migration checklist.
 
-All local server-ledger routes enforce configured local origin and require signed wallet session cookies.
+All server-ledger routes enforce the configured origin, require signed wallet session cookies, and derive the active chain from the authenticated session.
 
 ## UI State
 
@@ -132,7 +138,7 @@ npm run start
 http://localhost:3000/auth-test
 ```
 
-3. Connect wallet on Arc Testnet and sign in.
+3. Select Arc Mainnet or Base Mainnet, connect the wallet on that same chain and sign in. Use Arc for contract-backed forecasting until the separate Base registry is deployed and configured.
 
 4. Open:
 

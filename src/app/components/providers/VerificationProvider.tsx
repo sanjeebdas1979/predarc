@@ -11,7 +11,7 @@ import {
 } from "react";
 
 import { useAccount } from "wagmi";
-import { forecastChainId } from "@/lib/forecast-network";
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 
 type VerificationContextValue = {
   isVerified: boolean;
@@ -29,8 +29,8 @@ const VerificationContext =
 const VERIFICATION_DURATION_MS =
   24 * 60 * 60 * 1000;
 
-function getStorageKey(address: string): string {
-  return `predarc-onchain-verification-${address.toLowerCase()}`;
+function getStorageKey(address: string, chainId: number): string {
+  return `predarc-onchain-verification-${chainId}-${address.toLowerCase()}`;
 }
 
 export function VerificationProvider({
@@ -41,6 +41,7 @@ export function VerificationProvider({
     chainId,
     isConnected,
   } = useAccount();
+  const { selectedChainId: forecastChainId } = usePredarcNetwork();
 
   const [isVerified, setIsVerified] =
     useState(false);
@@ -52,97 +53,66 @@ export function VerificationProvider({
    * - network changes
    */
   useEffect(() => {
-    if (
-      !isConnected ||
-      !address ||
-      chainId !== forecastChainId
-    ) {
-      setIsVerified(false);
-      return;
-    }
-
-    const storageKey =
-      getStorageKey(address);
-
-    try {
-      const savedVerification =
-        window.localStorage.getItem(
-          storageKey
-        );
-
-      if (!savedVerification) {
-        setIsVerified(false);
-        return;
-      }
-
-      const verifiedAt =
-        Number(savedVerification);
-
+    let expiryTimeoutId: number | undefined;
+    const syncTimeoutId = window.setTimeout(() => {
       if (
-        !Number.isFinite(verifiedAt)
+        !isConnected ||
+        !address ||
+        chainId !== forecastChainId
       ) {
-        window.localStorage.removeItem(
-          storageKey
-        );
-
         setIsVerified(false);
         return;
       }
 
-      const expiresAt =
-        verifiedAt +
-        VERIFICATION_DURATION_MS;
+      const storageKey = getStorageKey(address, forecastChainId);
 
-      const now = Date.now();
-
-      if (now >= expiresAt) {
-        window.localStorage.removeItem(
-          storageKey
-        );
-
-        setIsVerified(false);
-        return;
-      }
-
-      setIsVerified(true);
-
-      /*
-       * Automatically expire verification
-       * exactly when 24 hours are complete.
-       */
-      const remainingTime =
-        expiresAt - now;
-
-      const timeoutId =
-        window.setTimeout(() => {
-          window.localStorage.removeItem(
-            storageKey
-          );
-
+      try {
+        const savedVerification = window.localStorage.getItem(storageKey);
+        if (!savedVerification) {
           setIsVerified(false);
-        }, remainingTime);
+          return;
+        }
 
-      return () => {
-        window.clearTimeout(timeoutId);
-      };
-    } catch (error) {
-      console.error(
-        "Could not load wallet verification:",
-        error
-      );
+        const verifiedAt = Number(savedVerification);
+        if (!Number.isFinite(verifiedAt)) {
+          window.localStorage.removeItem(storageKey);
+          setIsVerified(false);
+          return;
+        }
 
-      setIsVerified(false);
-    }
+        const expiresAt = verifiedAt + VERIFICATION_DURATION_MS;
+        const now = Date.now();
+        if (now >= expiresAt) {
+          window.localStorage.removeItem(storageKey);
+          setIsVerified(false);
+          return;
+        }
+
+        setIsVerified(true);
+        expiryTimeoutId = window.setTimeout(() => {
+          window.localStorage.removeItem(storageKey);
+          setIsVerified(false);
+        }, expiresAt - now);
+      } catch (error) {
+        console.error("Could not load wallet verification:", error);
+        setIsVerified(false);
+      }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(syncTimeoutId);
+      if (expiryTimeoutId !== undefined) {
+        window.clearTimeout(expiryTimeoutId);
+      }
+    };
   }, [
     address,
     chainId,
     isConnected,
+    forecastChainId,
   ]);
 
-  /*
-   * Called after the Arc Testnet
-   * verification transaction succeeds.
-   */
+  /* Called after the selected-network verification transaction succeeds. */
   const setVerified = useCallback(
     (value: boolean): void => {
       if (!address) {
@@ -151,7 +121,7 @@ export function VerificationProvider({
       }
 
       const storageKey =
-        getStorageKey(address);
+        getStorageKey(address, forecastChainId);
 
       if (!value) {
         try {
@@ -200,6 +170,7 @@ export function VerificationProvider({
       address,
       chainId,
       isConnected,
+      forecastChainId,
     ]
   );
 
@@ -211,7 +182,7 @@ export function VerificationProvider({
     useCallback((): void => {
       if (address) {
         const storageKey =
-          getStorageKey(address);
+          getStorageKey(address, forecastChainId);
 
         try {
           window.localStorage.removeItem(
@@ -226,7 +197,7 @@ export function VerificationProvider({
       }
 
       setIsVerified(false);
-    }, [address]);
+    }, [address, forecastChainId]);
 
   const value = useMemo(
     () => ({

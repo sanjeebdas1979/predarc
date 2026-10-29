@@ -6,6 +6,7 @@ import {
   authCookieOptions,
   authSessionMaxAgeSeconds,
 } from "@/lib/auth-session";
+import { normalizePredarcChainId } from "@/lib/predarc-networks";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,7 @@ function hash(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-// Local Arc Testnet prototype. Supports ordinary EOA wallets, not contract wallets.
+// Supports ordinary EOA wallets. Contract-wallet signature verification is not enabled.
 export async function POST(request: NextRequest) {
   try {
     const configuredOrigin = process.env.PREDARC_APP_ORIGIN;
@@ -35,9 +36,8 @@ export async function POST(request: NextRequest) {
       allowedOrigins.add("https://predarc.xyz");
     }
 
-    const chainId = Number(process.env.PREDARC_AUTH_CHAIN_ID);
-    if (!configuredOrigin || ![5042002, 5042].includes(chainId)) {
-      return reply({ error: "Arc login is not configured." }, 503);
+    if (!configuredOrigin) {
+      return reply({ error: "Predarc login is not configured." }, 503);
     }
     if (!allowedOrigins.has(
       request.headers.get("origin") ?? ""
@@ -85,13 +85,16 @@ export async function POST(request: NextRequest) {
       .select("id,wallet,chain_id,message,created_at,expires_at")
       .eq("id", input.challengeId)
       .eq("nonce_hash", hash(binding))
-      .eq("chain_id", chainId)
       .is("consumed_at", null)
       .gt("expires_at", new Date().toISOString())
       .maybeSingle();
     if (error) return reply({ error: "Sign-in service is temporarily unavailable." }, 503);
     if (!challenge) {
       return reply({ error: "Challenge expired or already used. Start sign-in again." }, 401);
+    }
+    const chainId = normalizePredarcChainId(challenge.chain_id);
+    if (!chainId) {
+      return reply({ error: "Invalid challenge network. Start sign-in again." }, 401);
     }
     // Never accept a client-supplied message, address, network or expiry.
     const lines = String(challenge.message).split("\n");

@@ -8,7 +8,7 @@ import {
   type Address,
   type Hash,
 } from "viem";
-import { arcTestnet } from "viem/chains";
+import { base } from "viem/chains";
 
 import {
   FORECAST_REGISTRY_V2_ABI,
@@ -16,9 +16,11 @@ import {
 import type { CommunityMarketAsset } from "@/lib/community-markets-core";
 import { arcMainnet } from "@/lib/daily";
 import {
-  forecastChainId,
-  forecastRegistryAddress,
-} from "@/lib/forecast-network";
+  ARC_MAINNET_CHAIN_ID,
+  getForecastRegistryAddress,
+  getPredarcNetwork,
+  type PredarcChainId,
+} from "@/lib/predarc-networks";
 
 const BINANCE_ENDPOINTS = [
   "https://data-api.binance.vision",
@@ -40,18 +42,8 @@ type CommunityForecastVerification = {
   durationSeconds: number;
   points: bigint;
   targetPrice: bigint;
+  chainId: PredarcChainId;
 };
-
-const forecastChain =
-  forecastChainId === arcMainnet.id ? arcMainnet : arcTestnet;
-
-const forecastClient = createPublicClient({
-  chain: forecastChain,
-  transport: http(forecastChain.rpcUrls.default.http[0], {
-    timeout: 10_000,
-    retryCount: 0,
-  }),
-});
 
 export class CommunityMarketPriceNotReadyError extends Error {
   constructor() {
@@ -61,7 +53,7 @@ export class CommunityMarketPriceNotReadyError extends Error {
 }
 
 export class CommunityForecastVerificationError extends Error {
-  constructor(message = "The Arc forecast transaction could not be verified.") {
+  constructor(message = "The forecast transaction could not be verified.") {
     super(message);
     this.name = "CommunityForecastVerificationError";
   }
@@ -71,19 +63,38 @@ export async function verifyCommunityForecastTransaction(
   expected: CommunityForecastVerification
 ): Promise<void> {
   const hash = expected.transactionHash as Hash;
+  const network = getPredarcNetwork(expected.chainId);
+  const registryAddress = getForecastRegistryAddress(expected.chainId);
+
+  if (!registryAddress) {
+    throw new CommunityForecastVerificationError(
+      `${network.label} forecasting is not configured yet.`
+    );
+  }
+
+  const forecastChain =
+    expected.chainId === ARC_MAINNET_CHAIN_ID ? arcMainnet : base;
+  const forecastClient = createPublicClient({
+    chain: forecastChain,
+    transport: http(network.rpcUrl, {
+      timeout: 10_000,
+      retryCount: 0,
+    }),
+  });
 
   try {
-    const [transaction, receipt] = await Promise.all([
+    const [rpcChainId, transaction, receipt] = await Promise.all([
+      forecastClient.getChainId(),
       forecastClient.getTransaction({ hash }),
       forecastClient.getTransactionReceipt({ hash }),
     ]);
 
     if (
+      rpcChainId !== expected.chainId ||
       receipt.status !== "success" ||
-      transaction.chainId !== forecastChainId ||
       !transaction.to ||
       !isAddressEqual(transaction.from, expected.wallet as Address) ||
-      !isAddressEqual(transaction.to, forecastRegistryAddress)
+      !isAddressEqual(transaction.to, registryAddress)
     ) {
       throw new CommunityForecastVerificationError();
     }
@@ -111,7 +122,7 @@ export async function verifyCommunityForecastTransaction(
       targetPrice !== expected.targetPrice
     ) {
       throw new CommunityForecastVerificationError(
-        "The Arc transaction does not match this market prediction."
+        `The ${network.shortLabel} transaction does not match this market prediction.`
       );
     }
   } catch (error) {

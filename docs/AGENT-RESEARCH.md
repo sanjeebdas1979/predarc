@@ -21,14 +21,14 @@ The receipt records an actual cost of 0 USDC and a not-charged payment status.
 The budget cap inside a Preview receipt remains metadata only; it is not a
 token approval and does not initiate a transaction.
 
-## Phase 2: Arc Mainnet paid AI
+## Phase 2: Arc and Base Mainnet paid AI
 
 Paid AI is a separate, explicit path beside Preview. Predarc sends the same
 finalized evidence to the allowlisted `google/gemini-2.5-flash` model through
-BlockRun's Arc endpoint. The provider first returns an x402 v2 `exact` quote.
-Predarc accepts it only when the resource URL, Arc Mainnet network, native USDC
-asset, recipient, amount and expiry pass the server allowlist and the user's
-limits.
+the selected network's allowlisted BlockRun endpoint. The provider first
+returns an x402 v2 `exact` quote. Predarc accepts it only when the resource URL,
+selected chain, USDC asset, recipient, amount and expiry pass the server
+allowlist and the user's limits.
 
 The connected wallet signs USDC `TransferWithAuthorization` typed data. The
 private key never leaves the wallet. The server verifies the recovered signer,
@@ -36,10 +36,12 @@ submits the signed payment payload once, and records the exact cost, payment
 reference, model, evidence hash, prompt hash, response hash and authorization
 hash in an immutable receipt.
 
-The current BlockRun Arc quote advertises the x402 `exact` scheme. This phase
-therefore does not label the payment as Gateway batching; a batched Gateway
-scheme should only be added when the selected provider advertises and supports
-that scheme.
+Arc binds the authorization to chain ID 5042 and Arc native USDC. Base binds it
+to chain ID 8453 and the official Base ERC-20 USDC contract. Each quote and
+receipt remains isolated by chain. The current BlockRun quotes advertise the
+x402 `exact` scheme, so this phase does not label the payment as Gateway
+batching; a batched Gateway scheme should only be added when the selected
+provider advertises and supports that scheme.
 
 ## Safety and integrity boundaries
 
@@ -54,7 +56,8 @@ that scheme.
 - The public receipt route recomputes the canonical SHA-256 fingerprint before
   marking a receipt verified.
 - Research does not submit, prefill or automate a prediction.
-- Paid calls require Arc Mainnet chain ID 5042 and the fixed Arc USDC contract.
+- Paid calls require the selected production chain: Arc Mainnet 5042 with Arc
+  native USDC, or Base Mainnet 8453 with official Base USDC.
 - Per-call cost is capped at 0.05 USDC; the selectable rolling 24-hour cap is
   capped at 0.25 USDC and enforced atomically in the database.
 - A quote is one-time, expires within five minutes and can execute only once.
@@ -71,8 +74,12 @@ Then run the Phase 2 migration:
 
 supabase/migrations/202610140001_agent_research_mainnet.sql
 
+For Base Mainnet support, also run:
+
+supabase/migrations/202610280001_base_mainnet.sql
+
 No provider private key or API key is required. Paid users authorize each
-allowlisted call from their own connected Arc Mainnet wallet.
+allowlisted call from their own connected wallet on the selected Mainnet.
 
 ## Routes
 

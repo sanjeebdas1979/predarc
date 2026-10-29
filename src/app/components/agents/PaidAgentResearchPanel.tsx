@@ -6,9 +6,9 @@ import { useAccount, useSignTypedData, useSwitchChain } from "wagmi";
 import type { Address, Hex } from "viem";
 
 import { usePredarcSession } from "@/app/components/providers/PredarcSessionProvider";
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 import {
   PAID_RESEARCH_CALL_CAPS,
-  PAID_RESEARCH_CHAIN_ID,
   PAID_RESEARCH_DAILY_CAPS,
   PAID_RESEARCH_DAILY_LIMIT,
   PAID_RESEARCH_MODEL,
@@ -108,6 +108,7 @@ function shortDate(value: string): string {
 
 export default function PaidAgentResearchPanel() {
   const { session, isSignedIn } = usePredarcSession();
+  const { selectedChainId, network } = usePredarcNetwork();
   const { chainId } = useAccount();
   const { switchChainAsync, isPending: isSwitching } = useSwitchChain();
   const { signTypedDataAsync } = useSignTypedData();
@@ -138,7 +139,7 @@ export default function PaidAgentResearchPanel() {
   }, []);
 
   const loadHistory = useCallback(async () => {
-    if (!isSignedIn || session?.chainId !== PAID_RESEARCH_CHAIN_ID) {
+    if (!isSignedIn || session?.chainId !== selectedChainId) {
       setReceipts([]);
       setRunsLast24Hours(0);
       setSpentAtomic("0");
@@ -166,7 +167,7 @@ export default function PaidAgentResearchPanel() {
     } finally {
       setIsLoading(false);
     }
-  }, [isSignedIn, session?.chainId]);
+  }, [isSignedIn, selectedChainId, session?.chainId]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void loadHistory(), 0);
@@ -186,17 +187,17 @@ export default function PaidAgentResearchPanel() {
       setMessage("Connect your wallet and sign in to Predarc first.");
       return;
     }
-    if (session.chainId !== PAID_RESEARCH_CHAIN_ID) {
+    if (session.chainId !== selectedChainId) {
       setMessageTone("error");
-      setMessage("Sign in to Predarc with Arc Mainnet before requesting a paid quote.");
+      setMessage(`Sign in to Predarc with ${network.label} before requesting a paid quote.`);
       return;
     }
-    if (chainId !== PAID_RESEARCH_CHAIN_ID) {
+    if (chainId !== selectedChainId) {
       try {
-        await switchChainAsync({ chainId: PAID_RESEARCH_CHAIN_ID });
+        await switchChainAsync({ chainId: selectedChainId });
       } catch (error) {
         setMessageTone("error");
-        setMessage(readableError(error, "Switch to Arc Mainnet first."));
+        setMessage(readableError(error, `Switch to ${network.label} first.`));
         return;
       }
     }
@@ -255,8 +256,8 @@ export default function PaidAgentResearchPanel() {
 
     setIsExecuting(true);
     try {
-      if (chainId !== PAID_RESEARCH_CHAIN_ID) {
-        await switchChainAsync({ chainId: PAID_RESEARCH_CHAIN_ID });
+      if (chainId !== quote.chainId) {
+        await switchChainAsync({ chainId: quote.chainId });
       }
       const typedData = quote.typedData;
       const signature = await signTypedDataAsync({
@@ -320,7 +321,7 @@ export default function PaidAgentResearchPanel() {
               Paid AI research
             </p>
             <span className="rounded-full border border-emerald-400/25 bg-emerald-400/[0.07] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">
-              Arc Mainnet
+              {network.label}
             </span>
           </div>
           <h2 className="mt-2 text-2xl font-black sm:text-3xl">
@@ -441,7 +442,7 @@ export default function PaidAgentResearchPanel() {
               onClick={() => void getQuote()}
               className="rounded-xl border border-violet-400/35 bg-violet-400/10 px-5 py-3 text-sm font-black text-violet-100 disabled:opacity-45"
             >
-              {isQuoting ? "Checking exact price…" : "Get Mainnet quote"}
+              {isQuoting ? "Checking exact price…" : `Get ${network.shortLabel} quote`}
             </button>
             <button
               type="button"
@@ -478,7 +479,7 @@ export default function PaidAgentResearchPanel() {
               </div>
               <div>
                 <dt className="text-xs text-gray-500">Payment rail</dt>
-                <dd className="mt-1 font-bold text-white">x402 exact · Arc Mainnet</dd>
+                <dd className="mt-1 font-bold text-white">x402 exact · {network.label}</dd>
               </div>
               <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.05] p-3 text-xs leading-5 text-amber-100">
                 Your wallet shows a typed-data signature, not a normal gas
@@ -489,7 +490,7 @@ export default function PaidAgentResearchPanel() {
           ) : (
             <p className="mt-4 text-sm leading-6 text-gray-400">
               No authorization is requested until Predarc validates the live
-              provider quote, Arc USDC asset, recipient, expiry and your caps.
+              provider quote, {network.shortLabel} USDC asset, recipient, expiry and your caps.
             </p>
           )}
         </aside>

@@ -13,12 +13,7 @@ import {
   FORECAST_REGISTRY_V2_ABI,
 } from "../../contracts/forecastRegistryV2";
 
-import {
-  forecastChainId,
-  forecastExplorerBaseUrl,
-  forecastNetworkLabel,
-  forecastRegistryAddress,
-} from "@/lib/forecast-network";
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 import {
   parseServerActivePrediction,
   selectActivePrediction,
@@ -188,6 +183,13 @@ function getTransactionError(
 }
 
 export default function ActivePredictionCard() {
+  const {
+    selectedChainId: forecastChainId,
+    network,
+    forecastRegistryAddress,
+  } = usePredarcNetwork();
+  const forecastNetworkLabel = network.label;
+  const forecastExplorerBaseUrl = network.explorerUrl;
   const {
     predictions,
     spendPoints,
@@ -652,7 +654,7 @@ export default function ActivePredictionCard() {
       return;
     }
 
-    if (!publicClient) {
+    if (!publicClient || !forecastRegistryAddress) {
       setTransactionMessage(
         `${forecastNetworkLabel} client is not ready.`
       );
@@ -733,7 +735,7 @@ export default function ActivePredictionCard() {
       return;
     }
 
-    if (!publicClient) {
+    if (!publicClient || !forecastRegistryAddress) {
       setTransactionMessage(
         `${forecastNetworkLabel} client is not ready.`
       );
@@ -991,7 +993,7 @@ export default function ActivePredictionCard() {
       {serverSyncStatus !== "synced" && (
         <div className="mt-3 rounded-xl border border-orange-500/25 bg-orange-500/[0.06] p-3">
           <p className="text-[10px] font-bold text-orange-200">
-            Arc transaction confirmed
+            {forecastNetworkLabel} transaction confirmed
           </p>
 
           <p className="mt-1 text-[10px] leading-4 text-gray-400">
@@ -1058,7 +1060,7 @@ export default function ActivePredictionCard() {
               className="mt-2.5 w-full rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-[10px] font-bold text-yellow-300 transition hover:bg-yellow-500/20 disabled:cursor-wait disabled:opacity-50"
             >
               {isOnchainBusy
-                ? "PROCESSING ON ARC..."
+                ? `PROCESSING ON ${network.shortLabel.toUpperCase()}...`
                 : "RESOLVE REWARD ONCHAIN"}
             </button>
           )}
@@ -1094,7 +1096,7 @@ export default function ActivePredictionCard() {
               rel="noopener noreferrer"
               className="text-[9px] font-semibold text-blue-300 hover:text-blue-200"
             >
-              View on Arc Explorer
+              View on {network.shortLabel} Explorer
             </a>
           )}
         </div>

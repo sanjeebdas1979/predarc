@@ -11,11 +11,7 @@ import {
   FORECAST_REGISTRY_V2_ABI,
 } from "../../contracts/forecastRegistryV2";
 
-import {
-  forecastChainId,
-  forecastNetworkLabel,
-  forecastRegistryAddress,
-} from "@/lib/forecast-network";
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 
 import {
   useDemoPoints,
@@ -76,7 +72,9 @@ function shortenHash(
 }
 
 function getErrorMessage(
-  error: unknown
+  error: unknown,
+  networkLabel: string,
+  nativeCurrency: string
 ): string {
   if (!(error instanceof Error)) {
     return "Onchain prediction failed. Please try again.";
@@ -109,13 +107,19 @@ function getErrorMessage(
       "insufficient funds"
     )
   ) {
-    return "Not enough Arc Testnet USDC for network gas.";
+    return `Not enough ${nativeCurrency} for ${networkLabel} network gas.`;
   }
 
   return "Onchain prediction failed. Please try again.";
 }
 
 export default function PredictionPanel() {
+  const {
+    selectedChainId: forecastChainId,
+    network,
+    forecastRegistryAddress,
+  } = usePredarcNetwork();
+  const forecastNetworkLabel = network.label;
   const {
     predictions,
     spendPoints,
@@ -285,7 +289,7 @@ export default function PredictionPanel() {
 
     if (!isVerified) {
       setMessage(
-        "Complete Arc Testnet verification first."
+        `Complete ${forecastNetworkLabel} onchain verification first.`
       );
 
       return;
@@ -346,7 +350,7 @@ export default function PredictionPanel() {
 
     if (!isVerified) {
       setMessage(
-        "Complete Arc Testnet verification first."
+        `Complete ${forecastNetworkLabel} onchain verification first.`
       );
 
       return;
@@ -393,7 +397,7 @@ export default function PredictionPanel() {
 
     if (!isVerified) {
       setMessage(
-        "Complete Arc Testnet verification before predicting."
+        `Complete ${forecastNetworkLabel} verification before predicting.`
       );
 
       return;
@@ -470,9 +474,9 @@ export default function PredictionPanel() {
       return;
     }
 
-    if (!publicClient) {
+    if (!publicClient || !forecastRegistryAddress) {
       setMessage(
-        "Arc Testnet client is not ready. Reconnect your wallet."
+        `${forecastNetworkLabel} forecasting is not configured yet.`
       );
 
       return;
@@ -580,11 +584,11 @@ export default function PredictionPanel() {
       }
 
       setMessage(
-        "Arc transaction confirmed. Saving the active prediction and syncing the server ledger..."
+        `${forecastNetworkLabel} transaction confirmed. Saving the active prediction and syncing the server ledger...`
       );
 
       /*
-       * Persist the confirmed Arc transaction before the
+       * Persist the confirmed network transaction before the
        * server request. If the network request fails, the
        * user can safely retry with the same request ID.
        */
@@ -684,12 +688,12 @@ export default function PredictionPanel() {
         );
 
         console.error(
-          "Server ledger sync failed after confirmed Arc transaction:",
+          `Server ledger sync failed after confirmed ${forecastNetworkLabel} transaction:`,
           serverError
         );
 
         setMessage(
-          "Arc transaction confirmed and the active prediction was preserved. Server ledger sync needs a retry from the active prediction card."
+          `${forecastNetworkLabel} transaction confirmed and the active prediction was preserved. Server ledger sync needs a retry from the active prediction card.`
         );
       }
     } catch (error) {
@@ -699,9 +703,7 @@ export default function PredictionPanel() {
       );
 
       setMessage(
-        getErrorMessage(
-          error
-        )
+        getErrorMessage(error, forecastNetworkLabel, network.nativeCurrency)
       );
     } finally {
       setIsConfirmingTransaction(
@@ -734,7 +736,7 @@ export default function PredictionPanel() {
               </span>
 
               <p className="text-[10px] leading-4 text-gray-500">
-                Forecast on Arc Testnet
+                Forecast on {forecastNetworkLabel}
               </p>
             </div>
           </div>
@@ -764,7 +766,7 @@ export default function PredictionPanel() {
             <p className="mt-1 text-[10px] leading-4 text-gray-400">
               {!isSignedIn
                 ? "Connect and sign in above to load your server points."
-                : "Complete the existing Arc Testnet onchain verification."}
+                : `Complete the existing ${forecastNetworkLabel} onchain verification.`}
             </p>
           </div>
         )}
@@ -1029,9 +1031,7 @@ export default function PredictionPanel() {
           ⛓{" "}
           {selectedMarket}{" "}
           forecast stored
-          through Arc Testnet.
-          Test USDC pays gas
-          only.
+          through {forecastNetworkLabel}. Wallet gas is paid in {network.nativeCurrency}.
         </p>
 
         {/* Submit */}
@@ -1054,9 +1054,9 @@ export default function PredictionPanel() {
             : !isVerified
               ? "VERIFY ONCHAIN TO PREDICT"
               : isWaitingForWallet
-                ? "CONFIRM IN METAMASK..."
+                ? "CONFIRM IN WALLET..."
                 : isConfirmingTransaction
-                  ? "WAITING FOR ARC CONFIRMATION..."
+                  ? `WAITING FOR ${network.shortLabel.toUpperCase()} CONFIRMATION...`
                   : !isPredictionOpen
                     ? "ROUND CLOSED"
                     : direction
@@ -1087,8 +1087,7 @@ export default function PredictionPanel() {
               <div className="mt-2 rounded-lg border border-white/10 bg-black/10 p-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[9px] text-gray-500">
-                    Arc Testnet
-                    transaction
+                    {forecastNetworkLabel} transaction
                   </p>
 
                   <p className="font-mono text-[9px] text-gray-300">
@@ -1099,13 +1098,12 @@ export default function PredictionPanel() {
                 </div>
 
                 <a
-                  href={`https://testnet.arcscan.app/tx/${transactionHash}`}
+                  href={`${network.explorerUrl}/tx/${transactionHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-2 flex w-full items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/[0.08] px-3 py-2 text-[10px] font-bold text-blue-300 transition hover:border-blue-400/50 hover:bg-blue-500/[0.14] hover:text-blue-200"
                 >
-                  View on Arc
-                  Explorer ↗
+                  View on {network.shortLabel} Explorer ↗
                 </a>
               </div>
             )}

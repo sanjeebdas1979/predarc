@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import {
-authChainId,
-authReply,
+  authReply,
   localAuthConfigured,
+  readAuthSession,
   requestOriginAllowed,
   sessionHash,
 } from "@/lib/auth-session";
@@ -24,7 +24,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   if (!localAuthConfigured()) {
     return authReply(
-      { error: "Account API is available only in the local testnet setup." },
+      { error: "Account API is not configured." },
       503
     );
   }
@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const tokenHash = sessionHash(request);
-    if (!tokenHash) {
+    const session = tokenHash ? await readAuthSession(request) : null;
+    if (!tokenHash || !session) {
       return authReply({ error: "Sign in with your wallet first." }, 401);
     }
 
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     return authReply({
       authenticated: true,
       wallet: account.wallet ?? null,
-      chainId: authChainId,
+      chainId: session.chainId,
       balance: String(account.balance ?? 0),
       points: Number(account.balance ?? 0),
       totalPredictions: 0,

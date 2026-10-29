@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import PredarcBrand from "@/app/components/brand/PredarcBrand";
+import GuideNetworkContext from "@/app/components/guide/GuideNetworkContext";
 
 export const metadata: Metadata = {
   title: "How to Use Predarc | Predarc",
@@ -19,7 +20,7 @@ const QUICK_START = [
     number: "02",
     title: "Sign in once",
     description:
-      "Approve the gas-free Predarc sign-in message. Your session stays active until you sign out.",
+      "Select Arc or Base, then approve the gas-free network-bound Predarc sign-in message.",
   },
   {
     number: "03",
@@ -39,7 +40,7 @@ const FEATURE_GUIDES = [
       "Predarc uses your connected wallet as your identity. Signing in loads your server-points balance and unlocks the connected product flow.",
     steps: [
       "Connect your wallet from Predarc.",
-      "Switch to Arc Mainnet if your wallet asks you to change networks.",
+      "Choose Arc Mainnet or Base Mainnet and approve the wallet network switch.",
       "Approve the Predarc sign-in message. This signature is gas-free and is not a token approval.",
       "Stay signed in while you move between Predarc pages. Use Sign out when you want to end the session.",
     ],
@@ -94,17 +95,17 @@ const FEATURE_GUIDES = [
   {
     id: "bridge",
     number: "04",
-    eyebrow: "Native USDC",
+    eyebrow: "Cross-chain USDC",
     title: "Bridge USDC across supported chains",
     summary:
-      "Move native USDC between Arc Mainnet, Ethereum, Base, Arbitrum and Polygon through a reviewable two-step wallet flow.",
+      "Move USDC between Arc Mainnet, Base, Ethereum, Arbitrum and Polygon through a reviewable wallet flow.",
     steps: [
       "Choose the source chain, destination chain and USDC amount.",
       "In the first wallet prompt, approve exactly the amount you entered.",
       "In the second wallet prompt, confirm the bridge transfer.",
       "Keep the page open until Predarc displays Bridge success.",
     ],
-    note: "Your wallet may describe the Circle contract as an unknown address on Arc. Verify the amount carefully; Predarc does not request an unlimited approval in this flow.",
+    note: "An ERC-20 source can require an exact-amount approval before the bridge transaction. Verify the selected source, destination, token and amount; Predarc does not request an unlimited approval.",
     href: "/bridge",
     cta: "Open Bridge",
     accent: "border-sky-400/20 bg-sky-400/[0.06]",
@@ -114,12 +115,12 @@ const FEATURE_GUIDES = [
   {
     id: "swap",
     number: "05",
-    eyebrow: "Arc Mainnet assets",
+    eyebrow: "Selected-network assets",
     title: "Swap supported assets",
     summary:
-      "Review a live Arc Mainnet route for supported assets before confirming the transaction in your wallet.",
+      "Review a live route on the selected Arc or Base network before confirming the transaction in your wallet.",
     steps: [
-      "Choose the input and output assets from USDC, EURC and cirBTC.",
+      "On Arc choose from USDC, EURC and cirBTC; on Base choose from USDC, EURC and WETH.",
       "Enter an amount and wait for the live quote.",
       "Review the amounts, route and displayed transaction details.",
       "Confirm in your wallet and wait for Predarc to display Swap success.",
@@ -154,13 +155,13 @@ const FEATURE_GUIDES = [
   {
     id: "research-paid",
     number: "07",
-    eyebrow: "BlockRun x402 · Arc Mainnet",
-    title: "Run paid AI research on Arc Mainnet",
+    eyebrow: "BlockRun x402 · Arc or Base",
+    title: "Run paid AI research on the selected network",
     summary:
-      "Purchase one allowlisted AI model call with native USDC while keeping the exact quote, wallet authorization and spending limits visible.",
+      "Purchase one allowlisted AI model call with the selected network's official USDC while keeping the exact quote, wallet authorization and spending limits visible.",
     steps: [
       "Choose a market and forecast horizon, then set the maximum per-call cost and rolling 24-hour USDC cap.",
-      "Select Get Mainnet quote and review the model, native USDC amount, recipient and expiry returned through BlockRun x402.",
+      "Select Get Mainnet quote and review the selected chain, model, USDC asset, amount, recipient and expiry returned through BlockRun x402.",
       "If every detail is correct, select Sign & run paid analysis and approve the one-time authorization in your connected wallet.",
       "Review the AI signal and open its public receipt to verify the evidence, model, actual cost, payment reference and SHA-256 fingerprint.",
     ],
@@ -197,9 +198,9 @@ const FEATURE_GUIDES = [
     eyebrow: "Transaction evidence",
     title: "Verify a supported receipt",
     summary:
-      "Use a transaction hash to inspect supported Arc transfer details in a clear receipt view.",
+      "Use a transaction hash to inspect supported Arc or Base USDC transfer details in a clear receipt view.",
     steps: [
-      "Copy the Arc transaction hash from your wallet or explorer.",
+      "Select the transaction's Arc or Base network, then copy its hash from your wallet or explorer.",
       "Open Payment Receipts and paste the complete hash.",
       "Review the status, sender, recipient, amount, block and timestamp shown by Predarc.",
     ],
@@ -235,10 +236,10 @@ const FEATURE_GUIDES = [
     eyebrow: "Verified product help",
     title: "Ask Predarc Assistant",
     summary:
-      "Open the chat button in the lower-right corner of any Predarc page for concise help grounded in current Predarc information and official Arc documentation.",
+      "Open the chat button in the lower-right corner for help grounded in current Predarc information and official Arc or Base documentation.",
     steps: [
       "Select Ask Predarc in the lower-right corner of any page.",
-      "Choose a suggested question or type a question about Predarc or Arc.",
+      "Choose a suggested question or type a question about Predarc, Arc or Base. The selected network is sent with the question.",
       "Read the answer and use the displayed trusted source buttons when you want to verify more detail.",
       "For wallet balances, live quotes or transaction status, use the relevant Predarc page or official explorer instead of relying on chat.",
     ],
@@ -294,7 +295,7 @@ export default function GuidePage() {
       <section className="relative z-10 mx-auto max-w-[1400px] px-4 pb-12 pt-16 sm:px-6 lg:pb-16 lg:pt-24">
         <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/[0.07] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-blue-200">
           <span className="h-2 w-2 rounded-full bg-emerald-400" />
-          Predarc Guide · Arc Mainnet
+          Predarc Guide · Arc + Base Mainnet
         </div>
         <h1 className="mt-7 max-w-5xl text-5xl font-black uppercase leading-[0.92] tracking-[-0.055em] sm:text-6xl lg:text-7xl">
           How to use
@@ -305,6 +306,7 @@ export default function GuidePage() {
           feature you want to use. Each wallet action remains visible and under
           your control.
         </p>
+        <GuideNetworkContext />
 
         <div className="mt-9 flex flex-wrap gap-2">
           {FEATURE_GUIDES.map((guide) => (
@@ -434,7 +436,7 @@ export default function GuidePage() {
           <div>
             <PredarcBrand compact />
             <p className="mt-2 text-[10px] text-gray-600">
-              Crypto forecasting and native stablecoin tools on Arc Mainnet.
+              Crypto forecasting and stablecoin tools on Arc + Base Mainnet.
             </p>
           </div>
           <nav

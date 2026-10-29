@@ -18,6 +18,7 @@ import {
 import PredarcBrand from "@/app/components/brand/PredarcBrand";
 import PredarcSessionCard from "@/app/components/auth/PredarcSessionCard";
 import { usePredarcSession } from "@/app/components/providers/PredarcSessionProvider";
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 import ConnectWallet from "@/app/components/wallet/ConnectWallet";
 import {
   FORECAST_REGISTRY_V2_ABI,
@@ -36,11 +37,6 @@ import {
   type CommunityMarketDirection,
   type CommunityMarketDuration,
 } from "@/lib/community-markets-core";
-import {
-  forecastChainId,
-  forecastNetworkLabel,
-  forecastRegistryAddress,
-} from "@/lib/forecast-network";
 import { pointsAsSafeNumber } from "@/lib/predarc-session-core";
 
 const SERVER_BALANCE_EVENT = "predarc:server-balance";
@@ -198,6 +194,8 @@ function CommunityMarketCard({
   onSettle: (market: CommunityMarket) => Promise<void>;
   onClaim: (market: CommunityMarket) => Promise<void>;
 }) {
+  const { network } = usePredarcNetwork();
+  const forecastNetworkLabel = network.label;
   const [direction, setDirection] =
     useState<CommunityMarketDirection>("higher");
   const [points, setPoints] = useState("100");
@@ -350,7 +348,7 @@ function CommunityMarketCard({
             />
           </label>
           <p className="mt-2 text-[11px] text-gray-500">
-            Available: {availablePoints.toLocaleString()} · Every entry still needs an Arc wallet confirmation.
+            Available: {availablePoints.toLocaleString()} · Every entry still needs a {network.shortLabel} wallet confirmation.
           </p>
           <button
             type="button"
@@ -407,6 +405,12 @@ function CommunityMarketCard({
 
 export default function CommunityMarketsClient() {
   const { address, chainId } = useAccount();
+  const {
+    selectedChainId: forecastChainId,
+    network,
+    forecastRegistryAddress,
+  } = usePredarcNetwork();
+  const forecastNetworkLabel = network.label;
   const publicClient = usePublicClient({ chainId: forecastChainId });
   const { switchChainAsync } = useSwitchChain();
   const { signMessageAsync } = useSignMessage();
@@ -445,7 +449,9 @@ export default function CommunityMarketsClient() {
 
   const loadMarkets = useCallback(async () => {
     try {
-      const result = await requestJson("/api/community-markets");
+      const result = await requestJson(
+        `/api/community-markets?chainId=${forecastChainId}`
+      );
       const parsed = parseCommunityMarketsResponse(result);
 
       if (!parsed) throw new Error("Predarc returned an invalid market list.");
@@ -457,7 +463,7 @@ export default function CommunityMarketsClient() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [forecastChainId]);
 
   useEffect(() => {
     const initial = window.setTimeout(() => void loadMarkets(), 0);
@@ -598,7 +604,7 @@ export default function CommunityMarketsClient() {
     });
     setFeedback(market.id, {
       tone: "success",
-      text: "Prediction confirmed on Arc and recorded successfully.",
+      text: `Prediction confirmed on ${network.shortLabel} and recorded successfully.`,
     });
     await loadMarkets();
   }
@@ -624,13 +630,13 @@ export default function CommunityMarketsClient() {
       if (pending) {
         setFeedback(market.id, {
           tone: "info",
-          text: "Retrying the server record for your confirmed Arc transaction…",
+          text: `Retrying the server record for your confirmed ${network.shortLabel} transaction…`,
         });
         await recordPrediction(market, pending);
         return;
       }
 
-      if (!publicClient) {
+      if (!publicClient || !forecastRegistryAddress) {
         throw new Error(`${forecastNetworkLabel} is not ready. Reconnect your wallet.`);
       }
       if (Date.parse(market.closesAt) - Date.now() <= 30_000) {
@@ -649,7 +655,7 @@ export default function CommunityMarketsClient() {
       const scaledTarget = communityPriceToScaledBigInt(market.targetPrice);
 
       if (forecastId === null || scaledTarget === null) {
-        throw new Error("This market cannot be encoded for Arc.");
+        throw new Error(`This market cannot be encoded for ${network.shortLabel}.`);
       }
 
       setFeedback(market.id, {
@@ -680,7 +686,7 @@ export default function CommunityMarketsClient() {
       });
 
       if (receipt.status !== "success") {
-        throw new Error("The Arc prediction transaction reverted.");
+        throw new Error(`The ${network.shortLabel} prediction transaction reverted.`);
       }
 
       const nextPending: PendingPrediction = {
@@ -696,7 +702,7 @@ export default function CommunityMarketsClient() {
       }));
       setFeedback(market.id, {
         tone: "info",
-        text: "Arc confirmed. Recording the points entry on Predarc…",
+        text: `${network.shortLabel} confirmed. Recording the points entry on Predarc…`,
       });
       await recordPrediction(market, nextPending);
     } catch (error) {
@@ -794,7 +800,7 @@ export default function CommunityMarketsClient() {
               Create a crypto question. Let the market answer it.
             </h1>
             <p className="mt-5 max-w-3xl text-sm leading-7 text-gray-400 sm:text-base">
-              Choose a supported asset, target and fixed duration. Players confirm every prediction on Arc, while Predarc settles the result from a finalized Binance 1-minute candle. Creators cannot choose the outcome.
+              Choose a supported asset, target and fixed duration. Players confirm every prediction on {network.shortLabel}, while Predarc settles the result from a finalized Binance 1-minute candle. Creators cannot choose the outcome.
             </p>
             <div className="mt-6 flex flex-wrap gap-2 text-[11px] font-bold text-gray-400">
               {[

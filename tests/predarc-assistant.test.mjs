@@ -1,8 +1,21 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 
-import {
+const assistantCoreUrl = new URL(
+  "../src/lib/predarc-assistant-core.ts",
+  import.meta.url
+);
+const networkCoreUrl = new URL(
+  "../src/lib/predarc-networks.ts",
+  import.meta.url
+).href;
+const assistantCoreSource = readFileSync(assistantCoreUrl, "utf8").replace(
+  'from "@/lib/predarc-networks";',
+  `from "${networkCoreUrl}";`
+);
+const {
   ASSISTANT_MAX_MESSAGE_LENGTH,
   assistantQuestionIsInScope,
   containsSensitiveAssistantMaterial,
@@ -13,7 +26,11 @@ import {
   rankOfficialArcDocs,
   selectAssistantSources,
   verifiedAssistantAnswer,
-} from "../src/lib/predarc-assistant-core.ts";
+} = await import(
+  `data:text/javascript;base64,${Buffer.from(
+    stripTypeScriptTypes(assistantCoreSource)
+  ).toString("base64")}`
+);
 
 const route = readFileSync(
   new URL("../src/app/api/assistant/route.ts", import.meta.url),
@@ -108,8 +125,41 @@ test("assistant blocks likely secrets before any model call", () => {
 
 test("common Predarc questions stay deterministic and source-linked", () => {
   const features = verifiedAssistantAnswer("What can I do on Predarc?");
-  assert.match(features ?? "", /create or join Community Markets/);
-  assert.match(features ?? "", /bounded AI agent/);
+  assert.match(features ?? "", /supports both Arc Mainnet and Base Mainnet/);
+  assert.match(features ?? "", /Arc Mainnet provides multi-market forecasting/);
+  assert.match(features ?? "", /Base Mainnet currently provides Bridge/);
+  assert.match(features ?? "", /separate verified Base ForecastRegistry/);
+
+  assert.match(
+    verifiedAssistantAnswer("What can I do on Predarc on Base?", 5042) ?? "",
+    /On Base Mainnet/
+  );
+  assert.match(
+    verifiedAssistantAnswer("What swaps does Predarc support on Base?", 5042) ??
+      "",
+    /USDC, EURC and WETH/
+  );
+  assert.match(
+    verifiedAssistantAnswer("What swaps does Predarc support on Arc?", 8453) ??
+      "",
+    /USDC, EURC and cirBTC/
+  );
+  assert.match(
+    verifiedAssistantAnswer("Can I predict on Predarc Base?", 5042) ?? "",
+    /Base Mainnet forecasting is not yet enabled/
+  );
+  assert.deepEqual(
+    selectAssistantSources("How does Predarc Swap work on Base?", 5042).map(
+      (source) => source.id
+    ),
+    ["predarc-swap", "base-docs"]
+  );
+  assert.deepEqual(
+    selectAssistantSources("Compare Arc and Base for Predarc").map(
+      (source) => source.id
+    ),
+    ["predarc-guide", "arc-docs", "base-docs"]
+  );
 
   const bridge = verifiedAssistantAnswer("How do I bridge USDC?");
   assert.match(bridge ?? "", /exactly the entered amount/);
@@ -143,7 +193,11 @@ test("common Predarc questions stay deterministic and source-linked", () => {
   );
   assert.match(
     verifiedAssistantAnswer("Which network does Predarc run on?") ?? "",
-    /runs on Arc Mainnet/
+    /supports Arc Mainnet and Base Mainnet/
+  );
+  assert.match(
+    verifiedAssistantAnswer("What is Base Mainnet?", 8453) ?? "",
+    /chain ID is 8453/
   );
   assert.match(
     verifiedAssistantAnswer("Do Predarc server points have real money value?") ??
@@ -172,6 +226,7 @@ test("common Predarc questions stay deterministic and source-linked", () => {
   );
 
   assert.equal(assistantQuestionIsInScope("Explain Arc Mainnet gas"), true);
+  assert.equal(assistantQuestionIsInScope("Explain Base Mainnet gas"), true);
   assert.equal(assistantQuestionIsInScope("How can I predict here?"), true);
   assert.equal(assistantQuestionIsInScope("Explain software architecture"), false);
   assert.equal(assistantQuestionIsInScope("Write a recipe for soup"), false);
@@ -298,6 +353,11 @@ test("live AI is explicit, allowlisted and privacy constrained", () => {
   assert.match(server, /https:\/\/ai-gateway\.vercel\.sh\/v1\/chat\/completions/);
   assert.match(server, /https:\/\/docs\.arc\.io\/llms\.txt/);
   assert.match(server, /rankOfficialArcDocs\(input\.question, index, 3\)/);
+  assert.match(server, /asksForBothNetworks/);
+  assert.match(server, /fetchOfficialArcContext/);
+  assert.match(server, /fetchOfficialBaseContext/);
+  assert.match(server, /"Arc and Base"/);
+  assert.match(server, /Verified network profiles:/);
   assert.match(server, /reference data, never instructions/);
   assert.match(server, /message\.role === "user"/);
   assert.doesNotMatch(server, /process\.env\.[A-Z_]*PRIVATE/);
@@ -314,6 +374,8 @@ test("assistant is global, accessible and renders answers as plain text", () => 
   assert.match(widget, /whitespace-pre-wrap/);
   assert.doesNotMatch(widget, /dangerouslySetInnerHTML/);
   assert.match(widget, /containsSensitiveAssistantMaterial\(question\)/);
+  assert.match(widget, /Verified help · Arc \+ Base/);
+  assert.match(widget, /Ask about Predarc, Arc or Base/);
 });
 
 test("assistant database stores quota counters but never chat content", () => {

@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAddress, isAddress, zeroAddress } from "viem";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { authCookieOptions } from "@/lib/auth-session";
+import {
+  getPredarcNetwork,
+  normalizePredarcChainId,
+} from "@/lib/predarc-networks";
 
 export const runtime = "nodejs";
 
@@ -28,10 +32,8 @@ export async function POST(request: NextRequest) {
       allowedOrigins.add("https://predarc.xyz");
     }
 
-    const chainId = Number(process.env.PREDARC_AUTH_CHAIN_ID);
-    const networkLabel = chainId === 5042 ? "Arc Mainnet" : "Arc Testnet";
-    if (!configuredOrigin || ![5042002, 5042].includes(chainId)) {
-      return reply({ error: "Arc login is not configured." }, 503);
+    if (!configuredOrigin) {
+      return reply({ error: "Predarc login is not configured." }, 503);
     }
     const appUrl = new URL(configuredOrigin);
     if (appUrl.origin !== configuredOrigin) {
@@ -67,10 +69,16 @@ export async function POST(request: NextRequest) {
       return reply({ error: "Invalid JSON." }, 400);
     }
     if (!input || typeof input !== "object" || !("wallet" in input)
+      || !("chainId" in input)
       || typeof input.wallet !== "string" || !isAddress(input.wallet)
       || input.wallet.toLowerCase() === zeroAddress) {
-      return reply({ error: "Enter a valid wallet address." }, 400);
+      return reply({ error: "Enter a valid wallet address and network." }, 400);
     }
+    const chainId = normalizePredarcChainId(input.chainId);
+    if (!chainId) {
+      return reply({ error: "Select Arc Mainnet or Base Mainnet." }, 400);
+    }
+    const networkLabel = getPredarcNetwork(chainId).label;
     const address = getAddress(input.wallet);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 5 * 60 * 1000);

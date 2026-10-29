@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import {
-  authChainId,
   authReply,
   localAuthConfigured,
   readAuthSession,
@@ -29,7 +28,7 @@ export async function POST(
     return authReply(
       {
         error:
-          "Claim API is available only in the local testnet setup.",
+          "Claim API is not configured.",
       },
       503
     );
@@ -225,7 +224,7 @@ export async function POST(
         wallet:
           session.wallet,
         chainId:
-          authChainId,
+          session.chainId,
         balance:
           data.balance,
         reward:

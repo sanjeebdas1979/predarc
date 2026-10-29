@@ -9,7 +9,6 @@ import {
   fetchCommunitySettlementPrice,
 } from "@/lib/community-markets-server";
 import {
-  authChainId,
   authReply,
   localAuthConfigured,
   readAuthSession,
@@ -61,7 +60,7 @@ export async function POST(
       .from("predarc_community_markets")
       .select("id,asset,closes_at,status,outcome,settlement_price")
       .eq("id", marketId)
-      .eq("chain_id", authChainId)
+      .eq("chain_id", session.chainId)
       .maybeSingle();
 
     if (marketError) throw new Error("Community market lookup failed.");

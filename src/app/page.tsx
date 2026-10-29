@@ -7,6 +7,8 @@ import BuilderExplorerSearch from "./components/builders/BuilderExplorerSearch";
 import HeroLivePreview from "./components/home/HeroLivePreview";
 import MarketLogo from "./components/market/MarketLogo";
 import { useBtcPrice } from "./components/providers/BtcPriceProvider";
+import { usePredarcNetwork } from "./components/providers/PredarcNetworkProvider";
+import PredarcNetworkSelector from "./components/wallet/PredarcNetworkSelector";
 
 const SUPPORTED_MARKETS = [
   { symbol: "BTC", name: "Bitcoin" },
@@ -48,18 +50,18 @@ const PRODUCT_LINKS = [
   {
     href: "/bridge",
     icon: "↔",
-    eyebrow: "Native USDC",
+    eyebrow: "Cross-chain USDC",
     title: "Bridge across chains",
     description:
-      "Move native USDC between Arc, Ethereum, Base, Arbitrum and Polygon.",
+      "Move USDC between Arc, Base, Ethereum, Arbitrum and Polygon.",
   },
   {
     href: "/swap",
     icon: "⇄",
-    eyebrow: "Arc Mainnet",
+    eyebrow: "Arc + Base Mainnet",
     title: "Swap live assets",
     description:
-      "Review live routes for USDC, EURC and cirBTC before confirming in your wallet.",
+      "Review selected-network routes for USDC, EURC and cirBTC or WETH before confirming.",
   },
   {
     href: "/receipts",
@@ -67,7 +69,7 @@ const PRODUCT_LINKS = [
     eyebrow: "Verification",
     title: "Check a receipt",
     description:
-      "Inspect supported Arc transfers with clear transaction details.",
+      "Inspect supported Arc or Base USDC transfers with clear transaction details.",
   },
   {
     href: "/research",
@@ -75,7 +77,7 @@ const PRODUCT_LINKS = [
     eyebrow: "Verifiable intelligence",
     title: "Run Agent Research",
     description:
-      "Choose free Preview or an opt-in Arc Mainnet paid AI call with strict limits and a tamper-evident receipt.",
+      "Choose free Preview or an opt-in Arc/Base x402 AI call with strict limits and a tamper-evident receipt.",
   },
   {
     href: "/agents",
@@ -119,6 +121,9 @@ const HOW_IT_WORKS = [
 
 export default function Home() {
   const { setSelectedMarket } = useBtcPrice();
+  const { network } = usePredarcNetwork();
+  const swapAssets =
+    network.key === "arc" ? "USDC · EURC · cirBTC" : "USDC · EURC · WETH";
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#070b12] text-[#f4f7ff] selection:bg-orange-500/30">
@@ -177,11 +182,11 @@ export default function Home() {
         <div className="mx-auto flex max-w-[1500px] items-center gap-6 overflow-x-auto px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.16em] text-gray-500 sm:px-6">
           <span className="flex shrink-0 items-center gap-2 text-gray-200">
             <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" />
-            Arc Mainnet
+            {network.label}
           </span>
           <span className="shrink-0">Live market data</span>
-          <span className="shrink-0">Native USDC bridge</span>
-          <span className="shrink-0">USDC · EURC · cirBTC swaps</span>
+          <span className="shrink-0">Cross-chain USDC bridge</span>
+          <span className="shrink-0">{swapAssets} swaps</span>
           <span className="shrink-0">Community-created markets</span>
           <span className="shrink-0">Verifiable agent research</span>
           <span className="shrink-0">Wallet-authorized AI agents</span>
@@ -192,7 +197,7 @@ export default function Home() {
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/[0.07] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-blue-200 shadow-[0_0_28px_rgba(59,130,246,0.08)]">
             <span className="text-orange-400">✦</span>
-            Built for Arc Mainnet
+            Built for Arc + Base Mainnet
           </div>
 
           <h1 className="mt-7 max-w-4xl text-5xl font-black uppercase leading-[0.92] tracking-[-0.055em] sm:text-6xl lg:text-[4.85rem]">
@@ -205,7 +210,7 @@ export default function Home() {
 
           <p className="mt-8 max-w-2xl text-base leading-7 text-gray-400 sm:text-lg">
             Follow live crypto markets, choose Higher or Lower and confirm your
-            prediction on Arc Mainnet. Bridge native USDC, swap supported assets
+            prediction on {network.label}. Bridge USDC, swap supported assets
             and create community markets from one connected experience.
           </p>
 
@@ -231,6 +236,10 @@ export default function Home() {
             >
               Bridge USDC
             </Link>
+          </div>
+
+          <div className="mt-6 max-w-xl">
+            <PredarcNetworkSelector compact />
           </div>
 
           <div className="mt-9 flex flex-wrap gap-2">
@@ -273,7 +282,7 @@ export default function Home() {
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-gray-500">
-            Move between Predarc&apos;s live Arc Mainnet tools without leaving the
+            Move between Predarc&apos;s selected-network tools without leaving the
             product flow.
           </p>
         </div>
@@ -319,7 +328,7 @@ export default function Home() {
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
                 Pick an asset and open its live candle-synced Higher or Lower
-                rounds on Arc Mainnet.
+                rounds on {network.label}.
               </p>
             </div>
 
@@ -453,7 +462,7 @@ export default function Home() {
                     </h3>
                     <p className="mt-2 text-[10px] leading-5 text-gray-500">
                       Forecast the direction of the next supported Binance candle
-                      on Arc Mainnet.
+                      on {network.label}.
                     </p>
 
                     <div className="mt-5 grid grid-cols-2 gap-2">
@@ -489,7 +498,7 @@ export default function Home() {
                 <article className="flex min-h-[300px] flex-col justify-between rounded-[1.6rem] border border-orange-400/20 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.14),transparent_42%),linear-gradient(145deg,#111a2b,#0d1420)] p-6 shadow-[3px_3px_0_0_rgba(255,255,255,0.09)]">
                   <div>
                     <p className="text-[9px] font-black uppercase tracking-[0.18em] text-orange-300">
-                      Arc Mainnet Suite
+                      {network.shortLabel} Mainnet Suite
                     </p>
                     <h3 className="mt-4 text-2xl font-black uppercase leading-[1.05] tracking-[-0.03em]">
                       Forecast.
@@ -566,7 +575,7 @@ export default function Home() {
 
           <div className="relative max-w-3xl">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-200">
-              Built around Arc Mainnet
+              Built around Arc + Base Mainnet
             </p>
             <h2 className="mt-4 text-3xl font-black uppercase leading-tight tracking-[-0.04em] sm:text-4xl lg:text-5xl">
               Bridge. Swap. Forecast.
@@ -576,7 +585,7 @@ export default function Home() {
             </h2>
             <p className="mt-5 max-w-2xl text-sm leading-6 text-blue-100/65 sm:text-base">
               Explore Predarc&apos;s connected tools and experience the latest
-              community market flow on Arc Mainnet.
+              community market flow on {network.label}.
             </p>
           </div>
 
@@ -615,7 +624,7 @@ export default function Home() {
             <div>
               <PredarcBrand compact />
               <p className="mt-2 text-[10px] text-gray-400">
-                Crypto forecasting and native stablecoin tools on Arc Mainnet.
+                Crypto forecasting and stablecoin tools on Arc + Base Mainnet.
               </p>
 
               <a
@@ -671,18 +680,19 @@ export default function Home() {
               </a>
 
               <a
-                href="https://faucet.circle.com"
+                href="https://docs.base.org"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-full border border-blue-400/20 bg-blue-400/[0.06] px-3 py-1.5 text-blue-300 transition hover:border-blue-300/40 hover:bg-blue-400/[0.12] hover:text-blue-100"
+                aria-label="Base Docs (opens in a new tab)"
+                className="transition hover:text-white"
               >
-                Arc Testnet Faucet ↗
+                Base Docs ↗
               </a>
             </nav>
           </div>
 
           <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-5 text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400">
-            <span>© 2026 Predarc · Built on Arc</span>
+            <span>© 2026 Predarc · Arc + Base Mainnet</span>
             <span>Demo Points · No Cash Value</span>
           </div>
         </div>

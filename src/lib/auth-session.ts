@@ -2,11 +2,10 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-
-export const authChainId =
-  Number(process.env.PREDARC_AUTH_CHAIN_ID) === 5042
-    ? 5042
-    : 5042002;
+import {
+  isPredarcChainId,
+  type PredarcChainId,
+} from "@/lib/predarc-networks";
 
 export const authSessionMaxAgeSeconds =
   30 * 24 * 60 * 60;
@@ -28,8 +27,7 @@ export function localAuthConfigured() {
   const appOrigin = process.env.PREDARC_APP_ORIGIN;
 
   return typeof appOrigin === "string"
-    && /^https?:\/\/[^/]+$/.test(appOrigin)
-    && Number(process.env.PREDARC_AUTH_CHAIN_ID) === authChainId;
+    && /^https?:\/\/[^/]+$/.test(appOrigin);
 }
 export function requestOriginAllowed(
   request: NextRequest
@@ -89,11 +87,17 @@ export async function readAuthSession(request: NextRequest) {
   if (!tokenHash) return null;
   const { data, error } = await getSupabaseAdmin().from("predarc_auth_sessions")
     .select("wallet,chain_id,expires_at")
-    .eq("token_hash", tokenHash).eq("chain_id", authChainId)
+    .eq("token_hash", tokenHash)
     .gt("expires_at", new Date().toISOString()).maybeSingle();
   if (error) throw new Error("Session lookup failed");
+  const chainId = data?.chain_id;
   if (!data || !/^[0-9a-f]{40}$/.test(String(data.wallet).slice(2))
     || !String(data.wallet).startsWith("0x")
+    || !isPredarcChainId(chainId)
     || !(Date.parse(data.expires_at) > Date.now())) return null;
-  return { wallet: String(data.wallet), chainId: authChainId, expiresAt: String(data.expires_at) };
+  return {
+    wallet: String(data.wallet),
+    chainId: chainId as PredarcChainId,
+    expiresAt: String(data.expires_at),
+  };
 }

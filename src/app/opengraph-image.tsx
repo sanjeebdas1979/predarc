@@ -39,7 +39,7 @@ export default function OpenGraphImage() {
           </div>
 
           <div style={{ display: "flex", color: "#cbd5e1", fontSize: 28 }}>
-            Live crypto market forecasts on Arc Mainnet
+            Live crypto market forecasts on Arc + Base Mainnet
           </div>
         </div>
 

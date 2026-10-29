@@ -9,11 +9,7 @@ import {
 } from "wagmi";
 import { formatUnits } from "viem";
 
-import {
-  forecastChainId,
-  forecastNetwork,
-  forecastNetworkLabel,
-} from "@/lib/forecast-network";
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 
 import { useDemoPoints } from "../providers/DemoPointsProvider";
 import { usePredarcSession } from "../providers/PredarcSessionProvider";
@@ -44,6 +40,11 @@ function formatDisplayedBalance(
 }
 
 export default function DemoBalanceCard() {
+  const {
+    selectedChainId: forecastChainId,
+    network,
+  } = usePredarcNetwork();
+  const forecastNetworkLabel = network.label;
   const { balance, resetPoints } = useDemoPoints();
   const {
     accountBalance,
@@ -91,7 +92,7 @@ export default function DemoBalanceCard() {
     );
 
   const balanceSymbol =
-    walletBalance?.symbol || "USDC";
+    walletBalance?.symbol || network.nativeCurrency;
 
   async function refreshWalletBalance(): Promise<void> {
     await refetch();
@@ -241,23 +242,12 @@ export default function DemoBalanceCard() {
 
       {/* Actions */}
       <div className="mt-4 grid gap-2">
-        {forecastNetwork === "mainnet" ? (
-          <a
-            href="/bridge"
-            className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-300 transition hover:border-blue-400 hover:bg-blue-500/20"
-          >
-            Bridge to Arc Mainnet ↗
-          </a>
-        ) : (
-          <a
-            href="https://faucet.circle.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-300 transition hover:border-blue-400 hover:bg-blue-500/20"
-          >
-            💧 Get Arc Testnet USDC ↗
-          </a>
-        )}
+        <a
+          href="/bridge"
+          className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-300 transition hover:border-blue-400 hover:bg-blue-500/20"
+        >
+          Bridge USDC ↗
+        </a>
 
         <button
           type="button"
@@ -270,9 +260,9 @@ export default function DemoBalanceCard() {
 
       <div className="mt-3 rounded-xl border border-white/10 bg-black/10 p-3">
         <p className="text-[10px] leading-4 text-gray-500">
-          {forecastNetwork === "mainnet"
+          {network.key === "arc"
             ? "Arc Mainnet uses native USDC for transaction gas. Mainnet USDC has real-world value."
-            : "Arc Testnet USDC is used only for test-network transaction gas. It has no real-world value."}
+            : "Base Mainnet uses ETH for transaction gas; USDC remains an ERC-20 token. Both assets have real-world value."}
         </p>
       </div>
     </section>

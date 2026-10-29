@@ -10,6 +10,7 @@ import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import { arcMainnet } from "@/lib/daily";
 import PredarcSessionCard from "../components/auth/PredarcSessionCard";
 import { usePredarcSession } from "../components/providers/PredarcSessionProvider";
+import { usePredarcNetwork } from "../components/providers/PredarcNetworkProvider";
 import WalletConnectOptions from "../components/wallet/WalletConnectOptions";
 
 type Direction = "arc-eth" | "eth-arc" | "arc-base" | "base-arc" | "arc-arbitrum" | "arbitrum-arc" | "arc-polygon" | "polygon-arc";
@@ -17,6 +18,12 @@ type CircleChain = "Arc" | "Ethereum" | "Base" | "Arbitrum" | "Polygon";
 type MessageTone = "info" | "success" | "error";
 
 export default function BridgePage() {
+  const { selectedChainId } = usePredarcNetwork();
+  return <BridgePageContent key={selectedChainId} />;
+}
+
+function BridgePageContent() {
+  const { network } = usePredarcNetwork();
   const { address, connector, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
@@ -38,7 +45,9 @@ export default function BridgePage() {
                 ? "Arc Testnet"
                 : "Unknown network (" + chainId + ")";
 
-  const [route, setRoute] = useState<Direction>("arc-eth");
+  const [route, setRoute] = useState<Direction>(
+    network.key === "base" ? "base-arc" : "arc-base"
+  );
   const [amount, setAmount] = useState("0.01");
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<MessageTone>("info");
@@ -173,7 +182,7 @@ export default function BridgePage() {
 
         <section className="rounded-3xl border border-white/10 bg-[#0d121a] p-6">
           <p className="font-black uppercase tracking-[0.2em] text-orange-400">
-            Arc Tools
+            Mainnet Tools
           </p>
 
           <h1 className="mt-3 text-4xl font-black">
@@ -181,7 +190,7 @@ export default function BridgePage() {
           </h1>
 
           <p className="mt-3 text-gray-400">
-            Bridge native USDC between Arc Mainnet, Ethereum Mainnet, Base Mainnet, Arbitrum One and Polygon PoS.
+            Bridge USDC between Arc Mainnet, Ethereum Mainnet, Base Mainnet, Arbitrum One and Polygon PoS.
           </p>
 
           <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
@@ -280,7 +289,7 @@ export default function BridgePage() {
               </ol>
               <p className="mt-3 text-xs leading-5 text-gray-400">
                 Your wallet may label the Circle contract as an &quot;unknown
-                address&quot; on Arc. Treat that as a security review: continue
+                address&quot; on the source network. Treat that as a security review: continue
                 only when the approval amount matches the amount entered above.
                 Predarc never asks for an unlimited approval in this flow.
               </p>

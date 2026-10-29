@@ -1,12 +1,18 @@
 const zeroAddress = "0x0000000000000000000000000000000000000000";
 
-export function paymentValue(amount: string): bigint {
+export function paymentValue(amount: string, decimals = 18): bigint {
+  if (decimals !== 6 && decimals !== 18) {
+    throw new Error("Unsupported USDC decimals.");
+  }
   if (!/^(0|[1-9][0-9]*)(\.[0-9]{1,6})?$/.test(amount)) {
     throw new Error("Enter a positive amount with up to 6 decimal places.");
   }
-  const value = (BigInt(amount.split(".")[0]) * 10n ** 18n + BigInt((amount.split(".")[1] || "").padEnd(18, "0"))); // Arc native USDC uses 18 decimals.
-  if (value <= 0n || value > 10n * 10n ** 18n) {
-    throw new Error("For this testnet demo, send more than 0 and at most 10 USDC.");
+  const [whole, fraction = ""] = amount.split(".");
+  const value =
+    BigInt(whole) * 10n ** BigInt(decimals) +
+    BigInt(fraction.padEnd(decimals, "0"));
+  if (value <= 0n || value > 10n * 10n ** BigInt(decimals)) {
+    throw new Error("Send more than 0 and at most 10 USDC.");
   }
   return value;
 }

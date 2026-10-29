@@ -14,6 +14,10 @@ import {
   requestAssistantAnswer,
 } from "@/lib/predarc-assistant-server";
 import { requestOriginAllowed } from "@/lib/auth-session";
+import {
+  normalizePredarcChainId,
+  type PredarcChainId,
+} from "@/lib/predarc-networks";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
@@ -47,12 +51,13 @@ function reply(
 function safeReply(
   answer: string,
   question: string,
+  chainId: PredarcChainId,
   mode: PredarcAssistantReply["mode"] = "verified"
 ) {
   return reply({
     answer,
     mode,
-    sources: selectAssistantSources(question),
+    sources: selectAssistantSources(question, chainId),
   } satisfies PredarcAssistantReply);
 }
 
@@ -119,6 +124,12 @@ export async function POST(request: NextRequest) {
   if (!messages) {
     return reply({ error: "Invalid assistant conversation." }, 400);
   }
+  const chainId = isRecord(body)
+    ? normalizePredarcChainId(body.chainId)
+    : null;
+  if (!chainId) {
+    return reply({ error: "Invalid Predarc network." }, 400);
+  }
 
   const latestQuestion = messages.at(-1)?.content ?? "";
   if (
@@ -130,12 +141,13 @@ export async function POST(request: NextRequest) {
   ) {
     return safeReply(
       "Please remove the secret-like material from your message. Predarc Assistant never needs seed phrases, private keys, API keys, agent tokens or wallet credentials. Use Predarc Receipts for transaction hashes.",
-      latestQuestion
+      latestQuestion,
+      chainId
     );
   }
 
-  const verified = verifiedAssistantAnswer(latestQuestion);
-  if (verified) return safeReply(verified, latestQuestion);
+  const verified = verifiedAssistantAnswer(latestQuestion, chainId);
+  if (verified) return safeReply(verified, latestQuestion, chainId);
 
   const recentUserContext = messages
     .filter((message) => message.role === "user")
@@ -145,15 +157,17 @@ export async function POST(request: NextRequest) {
 
   if (!assistantQuestionIsInScope(recentUserContext)) {
     return safeReply(
-      "I can help with Predarc features and verified Arc information. Please ask about forecasting, Community Markets, Bridge, Swap, Agent Research, AI agents, receipts, wallets or the Arc network.",
-      latestQuestion
+      "I can help with Predarc features and verified Arc or Base information. Please ask about forecasting, Community Markets, Bridge, Swap, Agent Research, AI agents, receipts, wallets or either supported network.",
+      latestQuestion,
+      chainId
     );
   }
 
   if (!assistantAiEnabled()) {
     return safeReply(
       "I cannot verify that detail from the built-in Predarc knowledge right now. Please use the trusted source links below. Live AI answers remain disabled until the project owner enables a budgeted server-side AI Gateway connection.",
-      latestQuestion
+      latestQuestion,
+      chainId
     );
   }
 
@@ -175,11 +189,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const fallbackSources = selectAssistantSources(recentUserContext);
+    const fallbackSources = selectAssistantSources(recentUserContext, chainId);
     const result = await requestAssistantAnswer({
       messages,
       question: recentUserContext,
       fallbackSources,
+      chainId,
     });
     return reply({
       answer: result.answer,
@@ -193,7 +208,8 @@ export async function POST(request: NextRequest) {
     );
     return safeReply(
       "Live assistance is temporarily unavailable, so I will not guess. Please check the trusted Predarc and Arc sources below and try again later.",
-      latestQuestion
+      latestQuestion,
+      chainId
     );
   }
 }

@@ -20,11 +20,12 @@ import {
   type Hash,
 } from "viem";
 
-import { forecastChainId, forecastNetworkLabel } from "@/lib/forecast-network";
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 
 import { useVerification } from "../providers/VerificationProvider";
 import PredarcSessionCard from "../auth/PredarcSessionCard";
 import { usePredarcSession } from "../providers/PredarcSessionProvider";
+import PredarcNetworkSelector from "./PredarcNetworkSelector";
 import WalletConnectOptions from "./WalletConnectOptions";
 
 const LEGACY_PENDING_VERIFICATION_KEY =
@@ -63,9 +64,10 @@ function shortenHash(
 }
 
 function getPendingVerificationKey(
-  address: string
+  address: string,
+  chainId: number
 ): string {
-  return `prederc-pending-verification-${address.toLowerCase()}`;
+  return `prederc-pending-verification-${chainId}-${address.toLowerCase()}`;
 }
 
 function sleep(
@@ -113,7 +115,9 @@ function isReceiptNotFoundError(
 }
 
 function getErrorMessage(
-  error: unknown
+  error: unknown,
+  networkLabel: string,
+  nativeCurrency: string
 ): string {
   if (!(error instanceof Error)) {
     return "Verification failed. Please try again.";
@@ -138,19 +142,24 @@ function getErrorMessage(
       "insufficient funds"
     )
   ) {
-    return `Not enough ${forecastNetworkLabel} USDC for transaction gas.`;
+    return `Not enough ${nativeCurrency} for ${networkLabel} transaction gas.`;
   }
 
   if (
     message.includes("reverted")
   ) {
-    return `The verification transaction reverted on ${forecastNetworkLabel}.`;
+    return `The verification transaction reverted on ${networkLabel}.`;
   }
 
-  return "Verification could not be confirmed. Please check Arc Explorer or try again.";
+  return `Verification could not be confirmed. Please check ${networkLabel} Explorer or try again.`;
 }
 
 export default function ConnectWallet() {
+  const {
+    selectedChainId: forecastChainId,
+    network,
+  } = usePredarcNetwork();
+  const forecastNetworkLabel = network.label;
   const {
     address,
     chainId,
@@ -238,66 +247,56 @@ export default function ConnectWallet() {
    * verification saved by VerificationProvider.
    */
   useEffect(() => {
-    setTransactionHash(null);
-    setVerificationMessage("");
-    setVerificationError("");
+    const timeout = window.setTimeout(() => {
+      setTransactionHash(null);
+      setVerificationMessage("");
+      setVerificationError("");
+      resumedHashRef.current = null;
+    }, 0);
 
-    resumedHashRef.current =
-      null;
-  }, [address]);
+    return () => window.clearTimeout(timeout);
+  }, [address, forecastChainId]);
 
-  function savePendingVerification(
+  const savePendingVerification = useCallback((
     walletAddress: string,
     hash: Hash
-  ): void {
-    const pending:
-      PendingVerification = {
+  ): void => {
+    const pending: PendingVerification = {
       hash,
       createdAt: Date.now(),
     };
 
     try {
       window.localStorage.setItem(
-        getPendingVerificationKey(
-          walletAddress
-        ),
-        JSON.stringify(
-          pending
-        )
+        getPendingVerificationKey(walletAddress, forecastChainId),
+        JSON.stringify(pending)
       );
     } catch (error) {
-      console.error(
-        "Could not save pending verification:",
-        error
-      );
+      console.error("Could not save pending verification:", error);
     }
-  }
+  }, [forecastChainId]);
 
-  function removePendingVerification(
+  const removePendingVerification = useCallback((
     walletAddress: string
-  ): void {
+  ): void => {
     try {
       window.localStorage.removeItem(
-        getPendingVerificationKey(
-          walletAddress
-        )
+        getPendingVerificationKey(walletAddress, forecastChainId)
       );
     } catch (error) {
-      console.error(
-        "Could not remove pending verification:",
-        error
-      );
+      console.error("Could not remove pending verification:", error);
     }
-  }
+  }, [forecastChainId]);
 
-  function loadPendingVerification(
+  const loadPendingVerification = useCallback((
     walletAddress: string
-  ): PendingVerification | null {
+  ): PendingVerification | null => {
     try {
       const raw =
         window.localStorage.getItem(
           getPendingVerificationKey(
-            walletAddress
+            walletAddress,
+            forecastChainId
           )
         );
 
@@ -351,7 +350,7 @@ export default function ConnectWallet() {
 
       return null;
     }
-  }
+  }, [forecastChainId, removePendingVerification]);
 
   const confirmTransaction =
     useCallback(
@@ -453,7 +452,7 @@ export default function ConnectWallet() {
                   RECEIPT_MAX_ATTEMPTS
               ) {
                 console.error(
-                  "Arc receipt check failed:",
+                  `${network.shortLabel} receipt check failed:`,
                   receiptError
                 );
               }
@@ -488,7 +487,7 @@ export default function ConnectWallet() {
           );
 
           setVerificationError(
-            "Arc confirmation was not found within the verification window. You can check the transaction in Arc Explorer or submit a new verification."
+            `${forecastNetworkLabel} confirmation was not found within the verification window. You can check the transaction in ${network.shortLabel} Explorer or submit a new verification.`
           );
 
           return false;
@@ -507,9 +506,7 @@ export default function ConnectWallet() {
           );
 
           setVerificationError(
-            getErrorMessage(
-              error
-            )
+            getErrorMessage(error, forecastNetworkLabel, network.nativeCurrency)
           );
 
           return false;
@@ -521,7 +518,11 @@ export default function ConnectWallet() {
       },
       [
         address,
+        forecastNetworkLabel,
+        network.nativeCurrency,
+        network.shortLabel,
         publicClient,
+        removePendingVerification,
         setVerified,
       ]
     );
@@ -616,9 +617,7 @@ export default function ConnectWallet() {
       );
 
       setVerificationError(
-        getErrorMessage(
-          error
-        )
+        getErrorMessage(error, forecastNetworkLabel, network.nativeCurrency)
       );
     }
   }
@@ -713,10 +712,12 @@ export default function ConnectWallet() {
   }, [
     address,
     chainId,
+    forecastChainId,
     isConnected,
     isSignedIn,
     isVerified,
     confirmTransaction,
+    loadPendingVerification,
   ]);
 
   if (!isConnected) {
@@ -732,7 +733,9 @@ export default function ConnectWallet() {
     forecastChainId
   ) {
     return (
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex w-full max-w-md flex-col items-center gap-3">
+        <PredarcNetworkSelector />
+
         <p className="text-sm text-yellow-300">
           Detected chain ID:{" "}
           {chainId ??
@@ -783,7 +786,7 @@ export default function ConnectWallet() {
       <div className="flex flex-wrap items-center justify-center gap-3">
         <div className="rounded-xl border border-green-500/50 bg-green-500/10 px-4 py-2">
           <p className="text-xs text-green-400">
-            Arc Testnet
+            {forecastNetworkLabel}
           </p>
 
           <p className="font-medium">
@@ -830,7 +833,7 @@ export default function ConnectWallet() {
 
           <p className="mt-2 text-sm text-gray-300">
             Complete one tiny
-            Arc Testnet
+            {` ${forecastNetworkLabel} `}
             transaction to
             verify your wallet.
           </p>
@@ -848,13 +851,13 @@ export default function ConnectWallet() {
               : isWaitingForWallet
               ? "Confirm In Wallet..."
               : isCheckingReceipt
-                ? "Checking Arc Confirmation..."
+                ? `Checking ${network.shortLabel} Confirmation...`
                 : "Verify Onchain"}
           </button>
 
           <p className="mt-3 text-xs text-gray-500">
             Amount: 0.000001
-            Arc Testnet USDC
+            {network.nativeCurrency}
           </p>
         </div>
       )}
@@ -890,12 +893,12 @@ export default function ConnectWallet() {
               </button>
 
               <a
-                href={`https://testnet.arcscan.app/tx/${transactionHash}`}
+                href={`${network.explorerUrl}/tx/${transactionHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-300"
               >
-                View on Arc
+                View on {network.shortLabel}
                 Explorer ↗
               </a>
             </div>

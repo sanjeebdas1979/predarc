@@ -11,12 +11,12 @@ import {
 import { AppKit } from "@circle-fin/app-kit";
 import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import type { EIP1193Provider } from "viem";
-import { arcMainnet } from "@/lib/daily";
 import PredarcSessionCard from "../components/auth/PredarcSessionCard";
 import { usePredarcSession } from "../components/providers/PredarcSessionProvider";
+import { usePredarcNetwork } from "../components/providers/PredarcNetworkProvider";
 import WalletConnectOptions from "../components/wallet/WalletConnectOptions";
 
-type TokenKey = "USDC" | "EURC" | "cirBTC";
+type TokenKey = "USDC" | "EURC" | "cirBTC" | "WETH";
 type StatusTone = "info" | "success" | "error";
 
 const tokens: Record<
@@ -38,7 +38,16 @@ const tokens: Record<
     name: "Circle Bitcoin",
     color: "bg-orange-500",
   },
+  WETH: {
+    name: "Wrapped Ether",
+    color: "bg-indigo-500",
+  },
 };
+
+const NETWORK_TOKENS = {
+  arc: ["USDC", "EURC", "cirBTC"],
+  base: ["USDC", "EURC", "WETH"],
+} as const satisfies Record<string, readonly TokenKey[]>;
 
 type QuoteState = {
   amount: string;
@@ -54,7 +63,7 @@ function TokenIcon({ token }: { token: TokenKey }) {
     <span
       className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-black text-white ${tokens[token].color}`}
     >
-      {token === "USDC" ? "$" : token === "EURC" ? "E" : "B"}
+      {token === "USDC" ? "$" : token === "EURC" ? "E" : token === "WETH" ? "W" : "B"}
     </span>
   );
 }
@@ -65,6 +74,7 @@ function TokenInput({
   amount,
   readOnly,
   disabled,
+  tokenOptions,
   onAmountChange,
   onTokenChange,
 }: {
@@ -73,6 +83,7 @@ function TokenInput({
   amount: string;
   readOnly?: boolean;
   disabled?: boolean;
+  tokenOptions: readonly TokenKey[];
   onAmountChange?: (value: string) => void;
   onTokenChange?: (value: TokenKey) => void;
 }) {
@@ -102,9 +113,9 @@ function TokenInput({
           }
           className="rounded-xl border border-white/10 bg-[#151d29] px-3 py-2 text-sm font-bold text-white outline-none"
         >
-          <option value="USDC">USDC</option>
-          <option value="EURC">EURC</option>
-          <option value="cirBTC">cirBTC</option>
+          {tokenOptions.map((option) => (
+            <option key={option} value={option}>{option}</option>
+          ))}
         </select>
       </div>
 
@@ -117,6 +128,12 @@ function TokenInput({
 }
 
 export default function SwapPage() {
+  const { selectedChainId } = usePredarcNetwork();
+  return <SwapPageContent key={selectedChainId} />;
+}
+
+function SwapPageContent() {
+  const { selectedChainId, network } = usePredarcNetwork();
   const { address, connector, isConnected } = useAccount();
   const chainId = useChainId();
   const { disconnect } = useDisconnect();
@@ -132,7 +149,8 @@ export default function SwapPage() {
   const [statusTone, setStatusTone] = useState<StatusTone>("info");
   const [busy, setBusy] = useState(false);
 
-  const onArcMainnet = chainId === arcMainnet.id;
+  const onSelectedNetwork = chainId === selectedChainId;
+  const tokenOptions = NETWORK_TOKENS[network.key];
   const validAmount =
     Number.isFinite(Number(amount)) && Number(amount) > 0;
 
@@ -162,10 +180,10 @@ export default function SwapPage() {
       return;
     }
 
-    if (!onArcMainnet) {
+    if (!onSelectedNetwork) {
       if (switchChainAsync) {
-        await switchChainAsync({ chainId: arcMainnet.id });
-        setStatus("Wallet switched to Arc Mainnet.");
+        await switchChainAsync({ chainId: selectedChainId });
+        setStatus(`Wallet switched to ${network.label}.`);
       }
       return;
     }
@@ -211,7 +229,7 @@ export default function SwapPage() {
       const params = {
         from: {
           adapter,
-          chain: "Arc" as const,
+          chain: network.circleChain,
         },
         tokenIn: fromToken,
         tokenOut: toToken,
@@ -300,10 +318,10 @@ export default function SwapPage() {
     ? "Choose wallet above"
     : !isSignedIn
       ? "Sign in to activate swap"
-      : !onArcMainnet
+      : !onSelectedNetwork
         ? isSwitching
           ? "Switching network..."
-          : "Switch to Arc Mainnet"
+          : `Switch to ${network.label}`
         : quote
           ? "Execute swap"
           : "Get live quote";
@@ -347,15 +365,15 @@ export default function SwapPage() {
           <div className="mb-8 text-center">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/[0.08] px-3 py-1.5 text-xs font-bold text-orange-300">
               <span className="h-2 w-2 rounded-full bg-orange-400" />
-              {onArcMainnet ? "Arc Mainnet" : "Arc Mainnet required"}
+              {onSelectedNetwork ? network.label : `${network.label} required`}
             </div>
 
             <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
-              Arc DEX Swap
+              {network.shortLabel} DEX Swap
             </h1>
 
             <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-gray-500">
-              Swap supported tokens on Arc Mainnet with a live quote,
+              Swap supported tokens on {network.label} with a live quote,
               slippage controls and wallet confirmation.
             </p>
           </div>
@@ -386,7 +404,7 @@ export default function SwapPage() {
               <div>
                 <p className="text-sm font-bold text-white">Swap tokens</p>
                 <p className="mt-1 text-xs text-gray-500">
-                  Powered by Arc Mainnet liquidity
+                  Powered by {network.label} liquidity
                 </p>
               </div>
 
@@ -398,6 +416,7 @@ export default function SwapPage() {
             <TokenInput
               label="You pay"
               token={fromToken}
+              tokenOptions={tokenOptions}
               amount={amount}
               disabled={!isSignedIn || busy}
               onAmountChange={(value) => {
@@ -425,6 +444,7 @@ export default function SwapPage() {
             <TokenInput
               label="You receive"
               token={toToken}
+              tokenOptions={tokenOptions}
               amount="--"
               readOnly
               disabled={!isSignedIn || busy}
@@ -512,7 +532,9 @@ export default function SwapPage() {
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Network gas fee</span>
                 <span className="font-semibold text-gray-300">
-                  {quote ? quote.gasFee + " USDC" : "-- USDC"}
+                  {quote
+                    ? `${quote.gasFee} ${network.nativeCurrency}`
+                    : `-- ${network.nativeCurrency}`}
                 </span>
               </div>
             </div>

@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import {
-  authChainId,
   authReply,
   localAuthConfigured,
   readAuthSession,
@@ -174,7 +173,7 @@ export async function POST(
     return authReply(
       {
         error:
-          "Settlement API is available only in the local testnet setup.",
+          "Settlement API is not configured.",
       },
       503
     );
@@ -267,6 +266,7 @@ export async function POST(
         .from("predarc_predictions")
         .select("closes_at,duration_seconds")
         .eq("id", input.predictionId)
+        .eq("chain_id", session.chainId)
         .eq("wallet", session.wallet.toLowerCase())
         .maybeSingle();
 
@@ -390,7 +390,7 @@ export async function POST(
         wallet:
           session.wallet,
         chainId:
-          authChainId,
+          session.chainId,
         prediction:
           data.prediction,
         replayed:

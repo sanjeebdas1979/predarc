@@ -18,7 +18,7 @@ import {
 } from "wagmi";
 import { getAccount } from "wagmi/actions";
 
-import { forecastChainId } from "@/lib/forecast-network";
+import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 import {
   parsePredarcAccount,
   parsePredarcSession,
@@ -43,6 +43,7 @@ type PredarcSessionContextValue = {
   isAuthenticated: boolean;
   isSignedIn: boolean;
   hasWalletMismatch: boolean;
+  hasNetworkMismatch: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -83,7 +84,8 @@ export function PredarcSessionProvider({
   children: ReactNode;
 }) {
   const config = useConfig();
-  const { address, isConnected } = useAccount();
+  const { address, chainId: walletChainId, isConnected } = useAccount();
+  const { selectedChainId, network } = usePredarcNetwork();
   const { disconnectAsync } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
 
@@ -184,7 +186,7 @@ export function PredarcSessionProvider({
 
       const nextSession = parsePredarcSession(
         result,
-        forecastChainId
+        selectedChainId
       );
 
       if (!nextSession) {
@@ -224,7 +226,7 @@ export function PredarcSessionProvider({
         )
       );
     }
-  }, [loadAccount]);
+  }, [loadAccount, selectedChainId]);
 
   const signIn = useCallback(async () => {
     if (actionLock.current) return;
@@ -238,6 +240,10 @@ export function PredarcSessionProvider({
 
       if (!initial.isConnected || !initial.address) {
         throw new Error("Connect your wallet first.");
+      }
+
+      if (initial.chainId !== selectedChainId) {
+        throw new Error(`Switch your wallet to ${network.label} first.`);
       }
 
       const wallet = initial.address;
@@ -254,9 +260,12 @@ export function PredarcSessionProvider({
 
         if (
           !current.isConnected ||
-          current.address?.toLowerCase() !== normalizedWallet
+          current.address?.toLowerCase() !== normalizedWallet ||
+          current.chainId !== selectedChainId
         ) {
-          throw new Error("Wallet changed. Start sign-in again.");
+          throw new Error(
+            `Wallet or network changed. Switch to ${network.label} and start sign-in again.`
+          );
         }
       }
 
@@ -266,7 +275,7 @@ export function PredarcSessionProvider({
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ wallet }),
+          body: JSON.stringify({ wallet, chainId: selectedChainId }),
         }
       );
       const challenge = await readJson(challengeResponse);
@@ -286,7 +295,7 @@ export function PredarcSessionProvider({
         typeof challenge !== "object" ||
         challenge === null ||
         !("chainId" in challenge) ||
-        challenge.chainId !== forecastChainId ||
+        challenge.chainId !== selectedChainId ||
         !("message" in challenge) ||
         typeof challenge.message !== "string" ||
         !("challengeId" in challenge) ||
@@ -332,7 +341,7 @@ export function PredarcSessionProvider({
 
       const nextSession = parsePredarcSession(
         verified,
-        forecastChainId
+        selectedChainId
       );
 
       if (!nextSession || nextSession.wallet !== normalizedWallet) {
@@ -359,7 +368,14 @@ export function PredarcSessionProvider({
       actionLock.current = false;
       setIsBusy(false);
     }
-  }, [config, loadAccount, session, signMessageAsync]);
+  }, [
+    config,
+    loadAccount,
+    network.label,
+    selectedChainId,
+    session,
+    signMessageAsync,
+  ]);
 
   const signOut = useCallback(async () => {
     if (actionLock.current) return;
@@ -473,9 +489,21 @@ export function PredarcSessionProvider({
 
   const isAuthenticated = session !== null;
   const isSignedIn =
-    isConnected && sessionMatchesWallet(session, address);
+    isConnected &&
+    walletChainId === selectedChainId &&
+    session?.chainId === selectedChainId &&
+    sessionMatchesWallet(session, address);
+  const hasNetworkMismatch = Boolean(
+    isConnected &&
+    (walletChainId !== selectedChainId ||
+      (session &&
+        session.chainId !== selectedChainId &&
+        sessionMatchesWallet(session, address)))
+  );
   const hasWalletMismatch = Boolean(
-    isConnected && session && !isSignedIn
+    isConnected &&
+    session &&
+    !sessionMatchesWallet(session, address)
   );
 
   const value = useMemo(
@@ -488,6 +516,7 @@ export function PredarcSessionProvider({
       isAuthenticated,
       isSignedIn,
       hasWalletMismatch,
+      hasNetworkMismatch,
       signIn,
       signOut,
       refreshSession,
@@ -502,6 +531,7 @@ export function PredarcSessionProvider({
       isAuthenticated,
       isSignedIn,
       hasWalletMismatch,
+      hasNetworkMismatch,
       signIn,
       signOut,
       refreshSession,

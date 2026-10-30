@@ -12,6 +12,8 @@ Arc.
 - server-ledger balances, Arena history and Community Markets isolated by
   `chain_id`;
 - Circle App Kit Bridge routes with the selected network as the default side;
+- Circle App Kit Bridge routes from Base to Arc, Ethereum, Arbitrum,
+  OP Mainnet, Polygon PoS and Avalanche, with the reverse routes available;
 - Circle App Kit Swap assets (`USDC`, `EURC`, `WETH` on Base);
 - Agent Research Preview receipts and BlockRun x402 paid calls;
 - bounded AI-agent policies and usage;

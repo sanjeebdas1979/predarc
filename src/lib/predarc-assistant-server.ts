@@ -112,7 +112,7 @@ Verified network profiles:
 Current Predarc capabilities:
 - Forecast Arena supports BTC, ETH, SOL, BNB and XRP Higher/Lower rounds at 1, 5 and 15 minutes using server points. Manual submissions retain an explicit wallet confirmation. ${registryStatus}
 - Community Markets uses the same selected-network boundary and never shares market activity across Arc and Base.
-- Bridge routes USDC between supported Circle App Kit chains including Arc Mainnet, Base, Ethereum, Arbitrum and Polygon. An ERC-20 source can require an exact-amount approval followed by the bridge transaction; it does not request an unlimited approval.
+- Bridge routes USDC between supported Circle App Kit chains including Arc Mainnet, Base, Ethereum, Arbitrum, OP Mainnet, Polygon PoS and Avalanche. Popular Base routes work in both directions. An ERC-20 source can require an exact-amount approval followed by the bridge transaction; it does not request an unlimited approval.
 - Swap requests live ${network.label} quotes for supported routes involving ${swapAssets}.
 - Agent Research Preview deterministically evaluates finalized Binance market evidence and creates an immutable zero-cost receipt. It never submits or prefills a prediction.
 - Paid Agent Research is a separate opt-in BlockRun x402 exact model call bound to ${network.label} and its official USDC asset. It validates model, recipient, amount, expiry, per-call limit and rolling 24-hour cap before requesting a one-time wallet authorization. It never automatically retries a submitted payment.

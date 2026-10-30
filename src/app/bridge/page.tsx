@@ -4,7 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAccount, useChainId, useDisconnect, useSwitchChain } from "wagmi";
 import type { EIP1193Provider } from "viem";
-import { arbitrum, base, mainnet, polygon } from "viem/chains";
+import {
+  arbitrum,
+  avalanche,
+  base,
+  mainnet,
+  optimism,
+  polygon,
+} from "viem/chains";
 import { AppKit } from "@circle-fin/app-kit";
 import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import { arcMainnet } from "@/lib/daily";
@@ -13,9 +20,17 @@ import { usePredarcSession } from "../components/providers/PredarcSessionProvide
 import { usePredarcNetwork } from "../components/providers/PredarcNetworkProvider";
 import WalletConnectOptions from "../components/wallet/WalletConnectOptions";
 import { withBaseBuilderAttribution } from "@/lib/base-builder-code";
+import {
+  CIRCLE_BRIDGE_CHAIN_LABELS,
+  getBridgeRouteLabel,
+  getDefaultBridgeRoute,
+  getOrderedBridgeRoutes,
+  getPredarcBridgeRoute,
+  PREDARC_BRIDGE_ROUTES,
+  type CircleBridgeChain,
+  type PredarcBridgeRouteKey,
+} from "@/lib/predarc-bridge-routes";
 
-type Direction = "arc-eth" | "eth-arc" | "arc-base" | "base-arc" | "arc-arbitrum" | "arbitrum-arc" | "arc-polygon" | "polygon-arc";
-type CircleChain = "Arc" | "Ethereum" | "Base" | "Arbitrum" | "Polygon";
 type MessageTone = "info" | "success" | "error";
 
 export default function BridgePage() {
@@ -40,59 +55,43 @@ function BridgePageContent() {
           ? "Base Mainnet"
           : chainId === arbitrum.id
             ? "Arbitrum One"
-            : chainId === polygon.id
-              ? "Polygon PoS"
-              : chainId === 5042002
-                ? "Arc Testnet"
-                : "Unknown network (" + chainId + ")";
+            : chainId === optimism.id
+              ? "OP Mainnet"
+              : chainId === polygon.id
+                ? "Polygon PoS"
+                : chainId === avalanche.id
+                  ? "Avalanche"
+                  : chainId === 5042002
+                    ? "Arc Testnet"
+                    : "Unknown network (" + chainId + ")";
 
-  const [route, setRoute] = useState<Direction>(
-    network.key === "base" ? "base-arc" : "arc-base"
+  const [routeKey, setRouteKey] = useState<PredarcBridgeRouteKey>(
+    getDefaultBridgeRoute(network.key)
   );
   const [amount, setAmount] = useState("0.01");
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<MessageTone>("info");
   const [busy, setBusy] = useState(false);
 
-  const fromChain: CircleChain = route.startsWith("arc")
-    ? "Arc"
-    : route.startsWith("eth")
-      ? "Ethereum"
-      : route.startsWith("base")
-        ? "Base"
-        : route.startsWith("arbitrum")
-          ? "Arbitrum"
-          : "Polygon";
+  const route =
+    getPredarcBridgeRoute(routeKey) ?? PREDARC_BRIDGE_ROUTES[0];
+  const fromChain: CircleBridgeChain = route.from;
+  const toChain: CircleBridgeChain = route.to;
 
-  const toChain: CircleChain = route.endsWith("arc")
-    ? "Arc"
-    : route.endsWith("eth")
-      ? "Ethereum"
-      : route.endsWith("base")
-        ? "Base"
-        : route.endsWith("arbitrum")
-          ? "Arbitrum"
-          : "Polygon";
-
-  const chainLabel: Record<CircleChain, string> = {
-    Arc: "Arc Mainnet",
-    Ethereum: "Ethereum Mainnet",
-    Base: "Base Mainnet",
-    Arbitrum: "Arbitrum One",
-    Polygon: "Polygon PoS",
-  };
-
-  const chainIdByName: Record<CircleChain, number> = {
+  const chainIdByName: Record<CircleBridgeChain, number> = {
     Arc: arcMainnet.id,
     Ethereum: mainnet.id,
     Base: base.id,
     Arbitrum: arbitrum.id,
+    Optimism: optimism.id,
     Polygon: polygon.id,
+    Avalanche: avalanche.id,
   };
 
-  const fromLabel = chainLabel[fromChain];
-  const toLabel = chainLabel[toChain];
+  const fromLabel = CIRCLE_BRIDGE_CHAIN_LABELS[fromChain];
+  const toLabel = CIRCLE_BRIDGE_CHAIN_LABELS[toChain];
   const fromId = chainIdByName[fromChain];
+  const orderedRoutes = getOrderedBridgeRoutes(network.key);
   async function bridge() {
     setMessage("");
     setMessageTone("info");
@@ -198,7 +197,8 @@ function BridgePageContent() {
           </h1>
 
           <p className="mt-3 text-gray-400">
-            Bridge USDC between Arc Mainnet, Ethereum Mainnet, Base Mainnet, Arbitrum One and Polygon PoS.
+            Bridge USDC between Arc Mainnet, Base Mainnet, Ethereum Mainnet,
+            Arbitrum One, OP Mainnet, Polygon PoS and Avalanche.
           </p>
 
           <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
@@ -234,39 +234,24 @@ function BridgePageContent() {
           <label className="mt-6 block text-sm text-gray-400">
             Route
             <select
-              value={route}
+              value={routeKey}
               onChange={(event) =>
-                setRoute(event.target.value as Direction)
+                setRouteKey(event.target.value as PredarcBridgeRouteKey)
               }
               disabled={!isSignedIn || busy}
               className="mt-2 w-full rounded-xl bg-black/30 p-3 text-white"
             >
-              <option value="arc-eth">
-                Arc Mainnet → Ethereum Mainnet
-              </option>
-              <option value="eth-arc">
-                Ethereum Mainnet → Arc Mainnet
-              </option>
-              <option value="arc-base">
-                Arc Mainnet -&gt; Base Mainnet
-              </option>
-              <option value="base-arc">
-                Base Mainnet -&gt; Arc Mainnet
-              </option>
-              <option value="arc-arbitrum">
-                Arc Mainnet -&gt; Arbitrum One
-              </option>
-              <option value="arbitrum-arc">
-                Arbitrum One -&gt; Arc Mainnet
-              </option>
-              <option value="arc-polygon">
-                Arc Mainnet -&gt; Polygon PoS
-              </option>
-              <option value="polygon-arc">
-                Polygon PoS -&gt; Arc Mainnet
-              </option>
+              {orderedRoutes.map((bridgeRoute) => (
+                <option key={bridgeRoute.key} value={bridgeRoute.key}>
+                  {getBridgeRouteLabel(bridgeRoute)}
+                </option>
+              ))}
             </select>
           </label>
+
+          <p className="mt-2 text-xs text-gray-500">
+            Popular routes from the active Predarc network are listed first.
+          </p>
 
           <label className="mt-4 block text-sm text-gray-400">
             USDC amount

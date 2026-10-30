@@ -1,10 +1,27 @@
 import { createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { arbitrum, arcTestnet, base, mainnet, polygon } from "viem/chains";
+import {
+  arbitrum,
+  arcTestnet,
+  avalanche,
+  base,
+  mainnet,
+  optimism,
+  polygon,
+} from "viem/chains";
 import { arcMainnet } from "./daily";
 
 export const wagmiConfig = createConfig({
-  chains: [arcTestnet, arcMainnet, mainnet, base, arbitrum, polygon],
+  chains: [
+    arcTestnet,
+    arcMainnet,
+    mainnet,
+    base,
+    arbitrum,
+    optimism,
+    polygon,
+    avalanche,
+  ],
 
   connectors: [
     injected({
@@ -35,8 +52,16 @@ export const wagmiConfig = createConfig({
       "https://arb1.arbitrum.io/rpc"
     ),
 
+    [optimism.id]: http(
+      "https://mainnet.optimism.io"
+    ),
+
     [polygon.id]: http(
       "https://polygon-rpc.com"
+    ),
+
+    [avalanche.id]: http(
+      "https://api.avax.network/ext/bc/C/rpc"
     ),
   },
 

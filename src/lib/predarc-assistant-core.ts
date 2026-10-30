@@ -963,7 +963,7 @@ export function verifiedAssistantAnswer(
       "ব্রিজ",
     ])
   ) {
-    return `Open Bridge, choose the source chain, destination chain and USDC amount, then review every wallet prompt. Predarc defaults the route from the selected ${network.label}, while still supporting Arc, Base, Ethereum, Arbitrum and Polygon routes exposed by Circle App Kit. An ERC-20 source may require an approval for exactly the entered amount before the bridge transaction. Never approve an unexpected or unlimited amount.`;
+    return `Open Bridge, choose the source chain, destination chain and USDC amount, then review every wallet prompt. Predarc defaults the route from the selected ${network.label}. Popular Base routes are available in both directions with Arc, Ethereum, Arbitrum, OP Mainnet, Polygon PoS and Avalanche through Circle App Kit. An ERC-20 source may require an approval for exactly the entered amount before the bridge transaction. Never approve an unexpected or unlimited amount.`;
   }
 
   if (

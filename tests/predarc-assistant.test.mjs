@@ -164,6 +164,10 @@ test("common Predarc questions stay deterministic and source-linked", () => {
   const bridge = verifiedAssistantAnswer("How do I bridge USDC?");
   assert.match(bridge ?? "", /exactly the entered amount/);
   assert.match(
+    bridge ?? "",
+    /Arc, Ethereum, Arbitrum, OP Mainnet, Polygon PoS and Avalanche/
+  );
+  assert.match(
     verifiedAssistantAnswer("Predarc e Bridge ki kore korbo?") ?? "",
     /Open Bridge/
   );

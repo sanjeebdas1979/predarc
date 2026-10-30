@@ -29,8 +29,9 @@ that may use real assets, native USDC and provider or network fees.
 - **Agent Research:** a zero-cost deterministic preview and an opt-in selected-
   network model call with an exact short-lived USDC quote, per-call and rolling
   limits, one-time wallet authorization and an immutable receipt.
-- **Bridge:** USDC movement between Arc Mainnet, Ethereum, Base,
-  Arbitrum and Polygon through Circle App Kit.
+- **Bridge:** USDC movement between Arc Mainnet, Base, Ethereum, Arbitrum,
+  OP Mainnet, Polygon PoS and Avalanche through Circle App Kit, including
+  popular bidirectional routes from Base.
 - **Swap:** live Arc or Base quote and execution flows for supported routes
   involving USDC, EURC and cirBTC or WETH through Circle App Kit.
 - **Receipts:** verification surfaces for supported transfers and Agent

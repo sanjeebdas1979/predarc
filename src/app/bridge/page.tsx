@@ -12,6 +12,7 @@ import PredarcSessionCard from "../components/auth/PredarcSessionCard";
 import { usePredarcSession } from "../components/providers/PredarcSessionProvider";
 import { usePredarcNetwork } from "../components/providers/PredarcNetworkProvider";
 import WalletConnectOptions from "../components/wallet/WalletConnectOptions";
+import { withBaseBuilderAttribution } from "@/lib/base-builder-code";
 
 type Direction = "arc-eth" | "eth-arc" | "arc-base" | "base-arc" | "arc-arbitrum" | "arbitrum-arc" | "arc-polygon" | "polygon-arc";
 type CircleChain = "Arc" | "Ethereum" | "Base" | "Arbitrum" | "Polygon";
@@ -131,8 +132,15 @@ function BridgePageContent() {
       const provider =
         (await connector.getProvider()) as EIP1193Provider;
 
+      const attributedProvider = withBaseBuilderAttribution(
+        provider,
+        fromId
+      );
+
       const adapter =
-        await createViemAdapterFromProvider({ provider });
+        await createViemAdapterFromProvider({
+          provider: attributedProvider,
+        });
 
       const kit = new AppKit();
 

@@ -5,3 +5,10 @@ out = "out"
 solc_version = "0.8.24"
 optimizer = true
 optimizer_runs = 200
+
+# Reproduces the reviewed Arc Mainnet ForecastRegistryV2 runtime logic for the
+# separate Base Mainnet deployment. Keep the default profile unchanged so the
+# existing PredarcDaily build and tests retain their current settings.
+[profile.base_mainnet]
+solc_version = "0.8.34"
+optimizer = false

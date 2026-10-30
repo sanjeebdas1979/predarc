@@ -11,6 +11,7 @@ import {
   useWriteContract,
 } from "wagmi";
 import type { Address } from "viem";
+import { baseBuilderAttribution } from "@/lib/base-builder-code";
 
 import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 import PredarcNetworkSelector from "@/app/components/wallet/PredarcNetworkSelector";
@@ -174,6 +175,7 @@ export default function ReceiptsClient({
               functionName: "transfer",
               args: [destination as Address, value],
               chainId: selectedChainId,
+              ...baseBuilderAttribution(selectedChainId),
             });
       setSubmittedHash(result);
       router.push(`/receipts/${result}?chain=${selectedChainId}`);

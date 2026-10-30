@@ -15,6 +15,7 @@ import PredarcSessionCard from "../components/auth/PredarcSessionCard";
 import { usePredarcSession } from "../components/providers/PredarcSessionProvider";
 import { usePredarcNetwork } from "../components/providers/PredarcNetworkProvider";
 import WalletConnectOptions from "../components/wallet/WalletConnectOptions";
+import { withBaseBuilderAttribution } from "@/lib/base-builder-code";
 
 type TokenKey = "USDC" | "EURC" | "cirBTC" | "WETH";
 type StatusTone = "info" | "success" | "error";
@@ -220,8 +221,13 @@ function SwapPageContent() {
         throw new Error("No connected wallet provider found.");
       }
 
-      const adapter = await createViemAdapterFromProvider({
+      const attributedProvider = withBaseBuilderAttribution(
         provider,
+        selectedChainId
+      );
+
+      const adapter = await createViemAdapterFromProvider({
+        provider: attributedProvider,
       });
 
       const kit = new AppKit();

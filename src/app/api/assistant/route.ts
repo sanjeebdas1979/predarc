@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
       error instanceof Error ? error.message : "Unknown assistant error"
     );
     return safeReply(
-      "Live assistance is temporarily unavailable, so I will not guess. Please check the trusted Predarc and Arc sources below and try again later.",
+      "Live assistance is temporarily unavailable, so I will not guess. Please check the trusted Predarc, Arc and Base sources below and try again later.",
       latestQuestion,
       chainId
     );

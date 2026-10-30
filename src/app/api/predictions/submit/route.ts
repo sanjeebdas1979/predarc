@@ -5,6 +5,9 @@ import {
   readAuthSession,
   sessionHash,
 } from "@/lib/auth-session";
+import {
+  verifyCommunityForecastTransaction,
+} from "@/lib/community-markets-server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
@@ -27,6 +30,9 @@ type SubmitPredictionInput = {
   direction?: unknown;
   points?: unknown;
   durationSeconds?: unknown;
+  entryPrice?: unknown;
+  forecastId?: unknown;
+  transactionHash?: unknown;
 };
 
 const markets =
@@ -51,12 +57,6 @@ const durations =
     900,
             3600,
   ]);
-
-const binanceEndpoints = [
-  "https://data-api.binance.vision",
-  "https://api.binance.com",
-  "https://api-gcp.binance.com",
-];
 
 function isMarket(
   value: unknown
@@ -87,106 +87,6 @@ function isRequestId(
     typeof value === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       value
-    )
-  );
-}
-
-async function fetchBinancePrice(
-  market: Market
-): Promise<{
-  price: number;
-  observedAt: string;
-}> {
-  let lastError:
-    Error | null = null;
-
-  for (
-    const baseUrl of binanceEndpoints
-  ) {
-    const controller =
-      new AbortController();
-
-    const timeout =
-      setTimeout(
-        () => controller.abort(),
-        8000
-      );
-
-    try {
-      const url =
-        new URL(
-          "/api/v3/ticker/price",
-          baseUrl
-        );
-
-      url.searchParams.set(
-        "symbol",
-        `${market}USDT`
-      );
-
-      const response =
-        await fetch(
-          url,
-          {
-            cache: "no-store",
-            signal:
-              controller.signal,
-            headers: {
-              Accept:
-                "application/json",
-            },
-          }
-        );
-
-      if (!response.ok) {
-        throw new Error(
-          `Binance returned HTTP ${response.status}.`
-        );
-      }
-
-      const data =
-        await response.json();
-
-      const price =
-        Number(
-          data?.price
-        );
-
-      if (
-        !Number.isFinite(
-          price
-        ) ||
-        price <= 0
-      ) {
-        throw new Error(
-          "Binance returned an invalid price."
-        );
-      }
-
-      return {
-        price,
-        observedAt:
-          new Date()
-            .toISOString(),
-      };
-    } catch (error) {
-      lastError =
-        error instanceof Error
-          ? error
-          : new Error(
-              "Unknown Binance price error."
-            );
-    } finally {
-      clearTimeout(
-        timeout
-      );
-    }
-  }
-
-  throw (
-    lastError ??
-    new Error(
-      "All Binance price endpoints failed."
     )
   );
 }
@@ -293,6 +193,23 @@ export async function POST(
       ) ||
       !durations.has(
         input.durationSeconds
+      ) ||
+      typeof input.entryPrice !==
+        "number" ||
+      !Number.isFinite(
+        input.entryPrice
+      ) ||
+      input.entryPrice <= 0 ||
+      input.entryPrice > 1_000_000_000_000 ||
+      typeof input.forecastId !==
+        "string" ||
+      !/^[1-9][0-9]{0,77}$/.test(
+        input.forecastId
+      ) ||
+      typeof input.transactionHash !==
+        "string" ||
+      !/^0x[0-9a-fA-F]{64}$/.test(
+        input.transactionHash
       )
     ) {
       return authReply(
@@ -304,10 +221,52 @@ export async function POST(
       );
     }
 
-    const quote =
-      await fetchBinancePrice(
-        input.market
+    const scaledEntryPrice =
+      BigInt(
+        Math.round(
+          input.entryPrice * 1_000_000
+        )
       );
+
+    const canonicalEntryPrice =
+      Number(
+        scaledEntryPrice
+      ) / 1_000_000;
+
+    try {
+      await verifyCommunityForecastTransaction({
+        wallet:
+          session.wallet,
+        transactionHash:
+          input.transactionHash as `0x${string}`,
+        forecastId:
+          BigInt(
+            input.forecastId
+          ),
+        direction:
+          input.direction === "higher"
+            ? 0
+            : 1,
+        durationSeconds:
+          input.durationSeconds,
+        points:
+          BigInt(
+            input.points
+          ),
+        targetPrice:
+          scaledEntryPrice,
+        chainId:
+          session.chainId,
+      });
+    } catch {
+      return authReply(
+        {
+          error:
+            "The confirmed transaction does not match this prediction.",
+        },
+        422
+      );
+    }
 
     const { data, error } =
       await getSupabaseAdmin()
@@ -327,11 +286,12 @@ export async function POST(
             p_duration_seconds:
               input.durationSeconds,
             p_entry_price:
-              quote.price,
+              canonicalEntryPrice,
             p_price_source:
               "binance",
             p_entry_observed_at:
-              quote.observedAt,
+              new Date()
+                .toISOString(),
           }
         )
         .abortSignal(

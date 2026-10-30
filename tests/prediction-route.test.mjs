@@ -18,6 +18,7 @@ function loadPostRoute(path) {
 
   return (options = {}) => {
     const calls = [];
+    const verificationCalls = [];
     const reply = (body, status = 200) => ({ body, status });
     const client = () => ({
       from() {
@@ -29,7 +30,7 @@ function loadPostRoute(path) {
               },
               maybeSingle: async () => ({
                 data: {
-                  closes_at: '2026-09-23T12:18:39.570939+00:00',
+                  closes_at: '2026-09-23T12:18:00.000+00:00',
                   duration_seconds: 60,
                 },
                 error: null,
@@ -60,6 +61,7 @@ function loadPostRoute(path) {
       'localAuthConfigured',
       'readAuthSession',
       'sessionHash',
+      'verifyCommunityForecastTransaction',
       'getSupabaseAdmin',
       'process',
       js + '\nreturn POST;',
@@ -69,6 +71,12 @@ function loadPostRoute(path) {
       () => options.configured ?? true,
       async () => (options.session === false ? null : { wallet, chainId: 5042002 }),
       () => (options.cookie === false ? null : 'a'.repeat(64)),
+      async (input) => {
+        verificationCalls.push(input);
+        if (options.verificationError) {
+          throw new Error('private verification failure');
+        }
+      },
       client,
       { env: { PREDARC_APP_ORIGIN: origin } },
     );
@@ -79,7 +87,11 @@ function loadPostRoute(path) {
       json: async () => options.body ?? {},
     };
 
-    return { run: () => handler(request), calls };
+    return {
+      run: () => handler(request),
+      calls,
+      verificationCalls,
+    };
   };
 }
 
@@ -98,12 +110,18 @@ async function withMockFetch(result, fn) {
             return result.body;
           }
 
+          const requestedStart = Number(
+            new URL(String(url)).searchParams.get('startTime') ?? 0,
+          );
+
           const price =
             result.body?.price ?? '1.37';
+          const openPrice =
+            result.body?.openPrice ?? price;
 
           return [[
-            0,
-            String(price),
+            requestedStart,
+            String(openPrice),
             String(price),
             String(price),
             String(price),
@@ -151,6 +169,9 @@ test('submit route validates input, debits through RPC and whitelists response',
     direction: 'higher',
     points: 10,
     durationSeconds: 60,
+    entryPrice: 750.44,
+    forecastId: '123456789',
+    transactionHash: `0x${'a'.repeat(64)}`,
   };
 
   assert.equal((await submitHarness({ body: { ...validBody, points: 9 } }).run()).status, 400);
@@ -174,7 +195,10 @@ test('submit route validates input, debits through RPC and whitelists response',
       prediction: { id: predictionId, status: 'pending', secret: 'must not leak through validation' },
       replayed: false,
     });
-    assert.equal(requests.length, 1);
+    assert.equal(requests.length, 0);
+    assert.equal(h.verificationCalls.length, 1);
+    assert.equal(h.verificationCalls[0].targetPrice, 750_440_000n);
+    assert.equal(h.verificationCalls[0].chainId, 5042002);
     assert.equal(h.calls[0].name, 'predarc_submit_prediction_v1');
     assert.equal(h.calls[0].args.p_session_hash, 'a'.repeat(64));
     assert.equal(h.calls[0].args.p_market, 'BNB');
@@ -183,7 +207,16 @@ test('submit route validates input, debits through RPC and whitelists response',
 });
 
 test('submit route maps expected failures without leaking private details', async () => {
-  const body = { requestId, market: 'BNB', direction: 'higher', points: 10, durationSeconds: 60 };
+  const body = {
+    requestId,
+    market: 'BNB',
+    direction: 'higher',
+    points: 10,
+    durationSeconds: 60,
+    entryPrice: 123.45,
+    forecastId: '123456789',
+    transactionHash: `0x${'a'.repeat(64)}`,
+  };
   for (const [options, expected] of [
     [{ error: { code: '28000', message: 'AUTH_REQUIRED private' } }, 401],
     [{ error: { code: 'P0001', message: 'INSUFFICIENT_POINTS private' } }, 409],
@@ -204,14 +237,21 @@ test('submit route maps expected failures without leaking private details', asyn
     assert.equal(result.status, 503);
     assert.equal(JSON.stringify(result).includes('private'), false);
   });
+
+  const verificationFailure = await submitHarness({
+    body,
+    verificationError: true,
+  }).run();
+  assert.equal(verificationFailure.status, 422);
+  assert.equal(JSON.stringify(verificationFailure).includes('private'), false);
 });
 
-test('settle route settles through RPC and maps domain failures', async () => {
+test('settle route preserves entry and uses the finalized candle close', async () => {
   const body = { predictionId, market: 'XRP' };
 
   assert.equal((await settleHarness({ body: { predictionId, market: 'DOGE' } }).run()).status, 400);
 
-  await withMockFetch({ body: { price: '1.37' } }, async () => {
+  await withMockFetch({ body: { openPrice: '1.42', price: '1.37' } }, async () => {
     const h = settleHarness({
       body,
       data: {
@@ -222,9 +262,10 @@ test('settle route settles through RPC and maps domain failures', async () => {
     const result = await h.run();
     assert.equal(result.status, 200);
     assert.equal(result.body.prediction.status, 'won');
-    assert.equal(h.calls[0].name, 'predarc_settle_prediction_v1');
+    assert.equal(h.calls[0].name, 'predarc_settle_prediction_v2');
     assert.equal(h.calls[0].args.p_prediction_id, predictionId);
     assert.equal(h.calls[0].args.p_exit_price, 1.37);
+    assert.equal('p_entry_price' in h.calls[0].args, false);
   });
 
   for (const [options, expected] of [

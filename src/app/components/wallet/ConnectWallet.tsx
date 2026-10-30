@@ -21,6 +21,7 @@ import {
 } from "viem";
 
 import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
+import { baseBuilderAttribution } from "@/lib/base-builder-code";
 
 import { useVerification } from "../providers/VerificationProvider";
 import PredarcSessionCard from "../auth/PredarcSessionCard";
@@ -587,6 +588,10 @@ export default function ConnectWallet() {
 
             chainId:
               forecastChainId,
+
+            ...baseBuilderAttribution(
+              forecastChainId
+            ),
           }
         );
 

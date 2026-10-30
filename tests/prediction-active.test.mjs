@@ -211,6 +211,10 @@ test("server retry preserves the original idempotency request ID", async () => {
         direction: "lower",
         points: 100,
         durationSeconds: 60,
+        entryPrice: 789.18,
+        forecastId: "123456789",
+        transactionHash:
+          `0x${"a".repeat(64)}`,
       });
 
     assert.equal(
@@ -233,6 +237,14 @@ test("server retry preserves the original idempotency request ID", async () => {
     assert.equal(
       body.market,
       "BNB"
+    );
+    assert.equal(
+      body.entryPrice,
+      789.18
+    );
+    assert.equal(
+      body.forecastId,
+      "123456789"
     );
     assert.equal(
       result.replayed,

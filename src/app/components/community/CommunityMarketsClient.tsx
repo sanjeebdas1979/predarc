@@ -38,6 +38,7 @@ import {
   type CommunityMarketDuration,
 } from "@/lib/community-markets-core";
 import { pointsAsSafeNumber } from "@/lib/predarc-session-core";
+import { baseBuilderAttribution } from "@/lib/base-builder-code";
 
 const SERVER_BALANCE_EVENT = "predarc:server-balance";
 
@@ -674,6 +675,7 @@ export default function CommunityMarketsClient() {
           scaledTarget,
         ],
         chainId: forecastChainId,
+        ...baseBuilderAttribution(forecastChainId),
       });
 
       setFeedback(market.id, {

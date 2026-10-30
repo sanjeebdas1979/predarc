@@ -11,6 +11,10 @@ import {
   type ReactNode,
 } from "react";
 
+import {
+  forecastDirectionForPrices,
+} from "@/lib/forecast-price-core";
+
 export type PredictionDirection =
   | "higher"
   | "lower";
@@ -18,7 +22,8 @@ export type PredictionDirection =
 export type PredictionStatus =
   | "pending"
   | "won"
-  | "lost";
+  | "lost"
+  | "void";
 
 export type PredictionDuration =
   | 60
@@ -159,8 +164,7 @@ type DemoPointsContextValue = {
   setPredictionServerSync: (
     predictionId: number,
     status:
-      PredictionServerSyncStatus,
-    entryPrice?: number
+      PredictionServerSyncStatus
   ) => boolean;
 
   /*
@@ -291,7 +295,8 @@ function normalizeStatus(
   if (
     status === "pending" ||
     status === "won" ||
-    status === "lost"
+    status === "lost" ||
+    status === "void"
   ) {
     return status;
   }
@@ -338,7 +343,8 @@ function normalizeOnchainStatus(
   }
 
   if (
-    status === "lost"
+    status === "lost" ||
+    status === "void"
   ) {
     return "resolved";
   }
@@ -885,8 +891,7 @@ export function DemoPointsProvider({
       (
         predictionId: number,
         status:
-          PredictionServerSyncStatus,
-        entryPrice?: number
+          PredictionServerSyncStatus
       ): boolean => {
         let becameSynced =
           false;
@@ -913,16 +918,6 @@ export function DemoPointsProvider({
 
                 serverSyncStatus:
                   status,
-
-                startPrice:
-                  typeof entryPrice ===
-                    "number" &&
-                  Number.isFinite(
-                    entryPrice
-                  ) &&
-                  entryPrice > 0
-                    ? entryPrice
-                    : prediction.startPrice,
               };
             }
           );
@@ -952,7 +947,7 @@ export function DemoPointsProvider({
     useCallback(
       (
         roundNumber: number,
-        result:
+        _result:
           PredictionDirection,
         startPrice: number,
         endPrice: number,
@@ -971,10 +966,6 @@ export function DemoPointsProvider({
         ) {
           return;
         }
-
-        const priceDifference =
-          endPrice -
-          startPrice;
 
         const nextPredictions:
           PredictionRecord[] =
@@ -1001,9 +992,29 @@ export function DemoPointsProvider({
                 return prediction;
               }
 
+              const predictionStartPrice =
+                prediction.startPrice ??
+                startPrice;
+
+              if (
+                !Number.isFinite(
+                  predictionStartPrice
+                ) ||
+                predictionStartPrice <= 0
+              ) {
+                return prediction;
+              }
+
+              const predictionResult =
+                forecastDirectionForPrices(
+                  predictionStartPrice,
+                  endPrice
+                );
+
               const didWin =
+                predictionResult !== null &&
                 prediction.direction ===
-                result;
+                  predictionResult;
 
               const reward =
                 didWin
@@ -1013,15 +1024,19 @@ export function DemoPointsProvider({
 
               const nextStatus:
                 PredictionStatus =
-                didWin
-                  ? "won"
-                  : "lost";
+                predictionResult === null
+                  ? "void"
+                  : didWin
+                    ? "won"
+                    : "lost";
 
               const nextOnchainStatus:
                 PredictionOnchainStatus =
                 didWin
                   ? "submitted"
-                  : "resolved";
+                  : predictionResult === null
+                    ? "submitted"
+                    : "resolved";
 
               return {
                 ...prediction,
@@ -1029,7 +1044,8 @@ export function DemoPointsProvider({
                 status:
                   nextStatus,
 
-                result,
+                result:
+                  predictionResult,
 
                 reward,
 
@@ -1039,11 +1055,14 @@ export function DemoPointsProvider({
                 claimed:
                   false,
 
-                startPrice,
+                startPrice:
+                  predictionStartPrice,
 
                 endPrice,
 
-                priceDifference,
+                priceDifference:
+                  endPrice -
+                  predictionStartPrice,
 
                 onchainStatus:
                   nextOnchainStatus,

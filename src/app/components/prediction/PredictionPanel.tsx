@@ -12,6 +12,7 @@ import {
 } from "../../contracts/forecastRegistryV2";
 
 import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
+import { baseBuilderAttribution } from "@/lib/base-builder-code";
 
 import {
   useDemoPoints,
@@ -128,6 +129,7 @@ export default function PredictionPanel() {
   } = useDemoPoints();
 
   const {
+    data,
     selectedMarket,
   } = useBtcPrice();
 
@@ -149,7 +151,6 @@ export default function PredictionPanel() {
     roundDuration,
     setPredictionDuration,
     canChangeDuration,
-    startPrice,
   } = useRound();
 
   const publicClient =
@@ -459,16 +460,25 @@ export default function PredictionPanel() {
       return;
     }
 
+    const livePriceAge =
+      data === null
+        ? Number.POSITIVE_INFINITY
+        : Date.now() - data.updatedAt;
+
     if (
-      startPrice ===
-        null ||
+      data === null ||
       !Number.isFinite(
-        startPrice
+        data.price
       ) ||
-      startPrice <= 0
+      data.price <= 0 ||
+      !Number.isFinite(
+        livePriceAge
+      ) ||
+      livePriceAge < -5_000 ||
+      livePriceAge > 15_000
     ) {
       setMessage(
-        `${selectedMarket} round entry price is not ready yet.`
+        `A fresh ${selectedMarket} entry price is not ready yet. Retry when live market data reconnects.`
       );
 
       return;
@@ -499,7 +509,9 @@ export default function PredictionPanel() {
       roundNumber;
 
     const submittedStartPrice =
-      startPrice;
+      Math.round(
+        data.price * PRICE_SCALE
+      ) / PRICE_SCALE;
 
     const serverRequestId =
       crypto.randomUUID();
@@ -551,6 +563,10 @@ export default function PredictionPanel() {
 
             chainId:
               forecastChainId,
+
+            ...baseBuilderAttribution(
+              forecastChainId
+            ),
           }
         );
 
@@ -646,14 +662,19 @@ export default function PredictionPanel() {
                 submittedStakeValue,
               durationSeconds:
                 submittedDurationValue,
+              entryPrice:
+                submittedStartPrice,
+              forecastId:
+                onchainForecastId.toString(),
+              transactionHash:
+                hash,
             }
           );
 
         const becameSynced =
           setPredictionServerSync(
             localPredictionId,
-            "synced",
-            serverPrediction.entryPrice
+            "synced"
           );
 
         if (becameSynced) {

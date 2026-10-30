@@ -1,6 +1,7 @@
 import {
   ARC_MAINNET_CHAIN_ID,
   BASE_MAINNET_CHAIN_ID,
+  getForecastRegistryAddress,
   getPredarcNetwork,
   isForecastRegistryReady,
   type PredarcChainId,
@@ -233,7 +234,10 @@ function includesArcWord(value: string): boolean {
 }
 
 function includesBaseWord(value: string): boolean {
-  return /\bbase(?:\s+(?:mainnet|network|blockchain))?\b/.test(value);
+  return (
+    /\bbase(?:\s+(?:mainnet|network|blockchain))?\b/.test(value) ||
+    value.includes("বেস")
+  );
 }
 
 function includesPredarcWord(value: string): boolean {
@@ -251,6 +255,39 @@ function matchesPredictionIntent(value: string): boolean {
       "প্রেডিক্ট",
       "কিভাবে অনুমান",
       "কীভাবে অনুমান",
+    ])
+  );
+}
+
+function matchesPredarcProductIntent(value: string): boolean {
+  return (
+    matchesPredictionIntent(value) ||
+    includesAny(value, [
+      "what can i",
+      "what can predarc",
+      "features",
+      "available",
+      "use predarc",
+      "bridge",
+      "cross-chain",
+      "crosschain",
+      "swap",
+      "agent research",
+      "market analysis",
+      "x402",
+      "ai agent",
+      "automation",
+      "community market",
+      "create market",
+      "join market",
+      "receipt",
+      "transaction hash",
+      "server point",
+      "demo point",
+      "ব্রিজ",
+      "সোয়াপ",
+      "সোয়াপ",
+      "প্রেডিকশন",
     ])
   );
 }
@@ -708,10 +745,13 @@ export function selectAssistantSources(
   ) {
     add("arc-docs");
     add("arc-connect");
-  } else if (baseOnly) {
+  } else if (baseOnly && !matchesPredarcProductIntent(normalized)) {
     add("base-docs");
     add("base-connect");
-  } else if (arcOnly) {
+  } else if (
+    arcOnly &&
+    (!matchesPredarcProductIntent(normalized) || normalized.includes("app kit"))
+  ) {
     add("arc-docs");
     add("arc-connect");
   } else if (includesAny(normalized, ["bridge", "cross-chain", "crosschain"])) {
@@ -739,6 +779,29 @@ export function selectAssistantSources(
   } else if (matchesPredictionIntent(normalized)) {
     add("predarc-arena");
     add("predarc-guide");
+  } else if (
+    includesAny(normalized, [
+      "what can i",
+      "features",
+      "available",
+      "use predarc",
+    ])
+  ) {
+    add("predarc-guide");
+    add(questionNetwork.key === "arc" ? "arc-docs" : "base-docs");
+  } else if (
+    includesAny(normalized, [
+      "builder code",
+      "erc-8021",
+      "erc8021",
+      "forecastregistry",
+      "forecast registry",
+      "prediction contract",
+      "smart contract address",
+    ])
+  ) {
+    add("predarc-guide");
+    add(questionNetwork.key === "arc" ? "arc-docs" : "base-docs");
   } else if (
     includesAny(normalized, ["chain id", "rpc", "gas", "wallet", "mainnet", "testnet"])
   ) {
@@ -768,6 +831,7 @@ export function verifiedAssistantAnswer(
   const baseOnly = isBaseOnlyQuestion(normalized);
   const answerChainId = questionNetworkChainId(normalized, chainId);
   const network = getPredarcNetwork(answerChainId);
+  const forecastRegistryAddress = getForecastRegistryAddress(answerChainId);
   const forecastReady = isForecastRegistryReady(answerChainId);
 
   if (
@@ -817,7 +881,12 @@ export function verifiedAssistantAnswer(
   }
 
   // Broader Arc-only questions must use retrieved official Arc documentation.
-  if (arcOnly) return null;
+  if (
+    arcOnly &&
+    (!matchesPredarcProductIntent(normalized) || normalized.includes("app kit"))
+  ) {
+    return null;
+  }
 
   if (
     baseOnly &&
@@ -837,8 +906,53 @@ export function verifiedAssistantAnswer(
     return "Base Mainnet is an Ethereum Layer-2 network. Its chain ID is 8453, public RPC is https://mainnet.base.org, explorer is https://basescan.org, and gas is paid in ETH. Predarc supports MetaMask and Rabby and keeps Base activity separate from Arc Mainnet activity.";
   }
 
+  if (
+    baseOnly &&
+    (/^(?:(?:what|whai)(?:'s| is)|explain|tell me about)\s+(?:the\s+)?base(?:\s+(?:mainnet|network|blockchain))?\s*[?.!]*$/.test(
+      normalized.trim()
+    ) ||
+      includesAny(normalized, ["base ki", "বেস কি", "বেস কী"]))
+  ) {
+    return "Base is an Ethereum Layer-2 network. Base Mainnet uses chain ID 8453, settles transactions to Ethereum, and uses ETH for gas. Predarc supports Base as a separate production network alongside Arc Mainnet, with network-bound sign-in, activity and wallet prompts.";
+  }
+
+  if (
+    baseOnly &&
+    includesAny(normalized, [
+      "usdc address",
+      "usdc contract",
+      "official usdc",
+      "which usdc",
+      "usdc decimals",
+    ])
+  ) {
+    return "Official native USDC on Base Mainnet is the ERC-20 token at 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 and uses 6 decimals. Base gas is still paid in ETH. Always verify the network and token address before approving or transferring an asset.";
+  }
+
+  if (
+    includesBaseWord(normalized) &&
+    includesAny(normalized, ["builder code", "erc-8021", "erc8021"])
+  ) {
+    return "Predarc uses Base Builder Code attribution only on eligible Base Mainnet wallet writes. The ERC-8021 data suffix identifies Predarc as the originating app without changing the transaction destination, value or contract call. It is not a fee, token approval or wallet permission, and it is never attached to Arc transactions.";
+  }
+
+  if (
+    predarcMentioned &&
+    includesAny(normalized, [
+      "forecastregistry",
+      "forecast registry",
+      "prediction contract",
+      "contract address",
+      "smart contract address",
+    ])
+  ) {
+    return forecastRegistryAddress
+      ? `Predarc's ${network.label} ForecastRegistryV2 is configured at ${forecastRegistryAddress}. Forecast submissions and settlement stay bound to this network; Predarc never reuses the Arc registry on Base or the Base registry on Arc.`
+      : `Predarc does not currently have a verified ForecastRegistryV2 address configured for ${network.label}. Forecasting, Community Markets and AI-agent automation fail closed on that network instead of falling back to another chain.`;
+  }
+
   // Broader Base-only questions must use retrieved official Base documentation.
-  if (baseOnly) return null;
+  if (baseOnly && !matchesPredarcProductIntent(normalized)) return null;
 
   if (
     includesAny(normalized, [
@@ -1032,7 +1146,7 @@ export function verifiedAssistantAnswer(
       "decided",
     ])
   ) {
-    return "Predarc records the entry price server-side and settles a closed Arena prediction with the corresponding Binance market price. Higher wins when the exit price is above entry, Lower wins when it is below, and an equal price is void. The user cannot provide the settlement price, and each prediction is settled only once.";
+    return "Predarc captures the live Binance price when an Arena prediction is submitted, records that exact entry in the Arc or Base ForecastRegistryV2 transaction, and verifies the confirmed transaction before the server ledger accepts it. Settlement compares the finalized Binance close with that stored entry: Higher wins above entry, Lower wins below entry, and an equal price is void. Each prediction is settled only once.";
   }
 
   if (
@@ -1044,7 +1158,7 @@ export function verifiedAssistantAnswer(
   }
 
   if (
-    predarcMentioned &&
+    (predarcMentioned || arcOnly || baseOnly) &&
     includesAny(normalized, [
       "what can i",
       "what can predarc",

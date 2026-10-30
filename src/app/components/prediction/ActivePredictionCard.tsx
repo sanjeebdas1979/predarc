@@ -14,6 +14,12 @@ import {
 } from "../../contracts/forecastRegistryV2";
 
 import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
+import { baseBuilderAttribution } from "@/lib/base-builder-code";
+import {
+  detectForecastPriceScale,
+  isForecastDirectionCorrect,
+  scaleForecastPrice,
+} from "@/lib/forecast-price-core";
 import {
   parseServerActivePrediction,
   selectActivePrediction,
@@ -195,6 +201,7 @@ export default function ActivePredictionCard() {
     spendPoints,
     setPredictionServerSync,
     setResolveTransaction,
+    markResolvedOnchain,
     claimRewardLocally,
   } = useDemoPoints();
 
@@ -468,7 +475,8 @@ export default function ActivePredictionCard() {
       : null;
 
   const entryPrice =
-    currentPrediction.startPrice ?? startPrice;
+    currentPrediction.startPrice ??
+    startPrice;
 
   const finalPrice =
     currentPrediction.endPrice ?? endPrice;
@@ -484,11 +492,14 @@ export default function ActivePredictionCard() {
       : null;
 
   const isDirectionCurrentlyCorrect =
-    priceDifference === null
+    entryPrice === null ||
+    displayPrice === null
       ? null
-      : currentPrediction.direction === "higher"
-        ? priceDifference > 0
-        : priceDifference < 0;
+      : isForecastDirectionCorrect(
+          currentPrediction.direction,
+          entryPrice,
+          displayPrice
+        );
 
   const isSettled =
     currentPrediction.status !== "pending";
@@ -522,6 +533,8 @@ export default function ActivePredictionCard() {
             : "WON"
           : currentPrediction.status === "lost"
             ? "LOST"
+            : currentPrediction.status === "void"
+              ? "VOID"
             : status === "resolving"
               ? "RESOLVING"
               : "LIVE";
@@ -535,6 +548,8 @@ export default function ActivePredictionCard() {
           ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
           : currentPrediction.status === "lost"
             ? "border-rose-500/30 bg-rose-500/10 text-rose-400"
+            : currentPrediction.status === "void"
+              ? "border-gray-500/30 bg-gray-500/10 text-gray-300"
             : status === "resolving"
               ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-400"
               : "border-blue-500/30 bg-blue-500/10 text-blue-400";
@@ -553,6 +568,25 @@ export default function ActivePredictionCard() {
     if (!serverRequestId) {
       setTransactionMessage(
         "This prediction does not have a server retry ID."
+      );
+      return;
+    }
+
+    const retryEntryPrice =
+      activePrediction.startPrice ??
+      entryPrice;
+
+    if (
+      retryEntryPrice === null ||
+      !Number.isFinite(
+        retryEntryPrice
+      ) ||
+      retryEntryPrice <= 0 ||
+      !activePrediction.forecastId ||
+      !activePrediction.transactionHash
+    ) {
+      setTransactionMessage(
+        "This confirmed prediction is missing its onchain entry evidence."
       );
       return;
     }
@@ -580,13 +614,18 @@ export default function ActivePredictionCard() {
           durationSeconds:
             activePrediction.duration ??
             roundDuration,
+          entryPrice:
+            retryEntryPrice,
+          forecastId:
+            activePrediction.forecastId,
+          transactionHash:
+            activePrediction.transactionHash,
         });
 
       const becameSynced =
         setPredictionServerSync(
           activePrediction.id,
-          "synced",
-          serverPrediction.entryPrice
+          "synced"
         );
 
       if (becameSynced) {
@@ -644,6 +683,9 @@ export default function ActivePredictionCard() {
     }
 
     if (
+      entryPrice === null ||
+      !Number.isFinite(entryPrice) ||
+      entryPrice <= 0 ||
       finalPrice === null ||
       !Number.isFinite(finalPrice) ||
       finalPrice <= 0
@@ -663,13 +705,85 @@ export default function ActivePredictionCard() {
 
     try {
       setTransactionMessage(
-        "Confirm forecast resolution in your wallet."
+        `Checking the ${forecastNetworkLabel} forecast price boundary...`
       );
 
       setLatestTransactionHash(null);
 
-      const scaledFinalPrice = BigInt(
-        Math.round(finalPrice * 100)
+      const onchainForecast =
+        await publicClient.readContract({
+          address:
+            forecastRegistryAddress,
+          abi:
+            FORECAST_REGISTRY_V2_ABI,
+          functionName:
+            "getForecast",
+          args: [
+            BigInt(forecastId),
+          ],
+        }) as {
+          startPrice: bigint;
+          endPrice: bigint;
+          resolvedAt: bigint;
+          status: number;
+          exists: boolean;
+        };
+
+      if (!onchainForecast.exists) {
+        setTransactionMessage(
+          "This forecast does not exist onchain."
+        );
+        return;
+      }
+
+      if (
+        onchainForecast.endPrice >
+          BigInt(0) ||
+        onchainForecast.resolvedAt >
+          BigInt(0) ||
+        onchainForecast.status !== 0
+      ) {
+        markResolvedOnchain(
+          activePrediction.id
+        );
+        setIsResolvedOnchain(true);
+        setTransactionMessage(
+          "Forecast is already resolved onchain. Reward status updated."
+        );
+        return;
+      }
+
+      const detectedPriceScale =
+        detectForecastPriceScale(
+          onchainForecast.startPrice,
+          entryPrice
+        );
+
+      if (detectedPriceScale === null) {
+        setTransactionMessage(
+          "The recorded entry price does not match this onchain forecast. Resolution was not submitted."
+        );
+        return;
+      }
+
+      const scaledFinalPrice =
+        scaleForecastPrice(
+          finalPrice,
+          detectedPriceScale
+        );
+
+      if (
+        scaledFinalPrice ===
+        onchainForecast.startPrice
+      ) {
+        setTransactionMessage(
+          "The scaled opening and closing prices are equal. No resolution transaction was submitted."
+        );
+        return;
+      }
+
+      setTransactionMessage(
+        `Confirm forecast resolution in your wallet. Price precision: x${detectedPriceScale.toLocaleString()}.`
       );
 
       const hash = await writeContractAsync({
@@ -682,6 +796,7 @@ export default function ActivePredictionCard() {
           scaledFinalPrice,
         ],
         chainId: forecastChainId,
+        ...baseBuilderAttribution(forecastChainId),
       });
 
       setLatestTransactionHash(hash);
@@ -704,9 +819,9 @@ export default function ActivePredictionCard() {
       }
 
       setResolveTransaction(
-  activePrediction.id,
-  hash
-);
+        activePrediction.id,
+        hash
+      );
 
       setIsResolvedOnchain(true);
 
@@ -756,6 +871,7 @@ export default function ActivePredictionCard() {
         functionName: "claimReward",
         args: [BigInt(forecastId)],
         chainId: forecastChainId,
+        ...baseBuilderAttribution(forecastChainId),
       });
 
       setLatestTransactionHash(hash);

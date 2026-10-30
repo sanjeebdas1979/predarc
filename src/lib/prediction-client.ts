@@ -27,6 +27,9 @@ export async function submitServerPrediction(input: {
   direction: PredictionSubmitDirection;
   points: number;
   durationSeconds: PredictionSubmitDuration;
+  entryPrice: number;
+  forecastId: string;
+  transactionHash: `0x${string}`;
 }): Promise<ServerPredictionSubmission> {
   const response = await fetch(
     "/api/predictions/submit",

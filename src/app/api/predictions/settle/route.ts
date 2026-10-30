@@ -133,9 +133,17 @@ async function fetchBinanceClosePrice(
       }
 
       const data = await response.json();
-      const price = Number(data?.[0]?.[4]);
+      const candle = data?.[0];
+      const candleStartedAt =
+        Number(candle?.[0]);
+      const price =
+        Number(candle?.[4]);
 
-      if (!Number.isFinite(price) || price <= 0) {
+      if (
+        candleStartedAt !== candleStart ||
+        !Number.isFinite(price) ||
+        price <= 0
+      ) {
         throw new Error(
           "Binance returned an invalid historical price."
         );
@@ -143,7 +151,8 @@ async function fetchBinanceClosePrice(
 
       return {
         price,
-        observedAt: closesAt,
+        observedAt:
+          closesAt,
       };
     } catch (error) {
       lastError =
@@ -294,7 +303,7 @@ export async function POST(
     const { data, error } =
       await getSupabaseAdmin()
         .rpc(
-          "predarc_settle_prediction_v1",
+          "predarc_settle_prediction_v2",
           {
             p_session_hash:
               tokenHash,

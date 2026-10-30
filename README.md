@@ -49,6 +49,7 @@ that may use real assets, native USDC and provider or network fees.
 | Circle App Kit | Bridge and Swap orchestration |
 | Circle viem adapter | Connects App Kit flows to the user's EIP-1193 wallet provider |
 | Circle-supported assets | USDC, EURC and cirBTC routes exposed when available from the live provider |
+| Base Builder Code | ERC-8021 attribution on Base wallet writes, Bridge and Swap submissions |
 
 Predarc never requests a private key or seed phrase. Users review transactions
 and one-time authorizations in their own wallet.
@@ -69,6 +70,13 @@ Open `http://localhost:3000`.
 ```bash
 npm test
 npm run build
+```
+
+The Base forecasting contract additionally uses a pinned deployment profile:
+
+```bash
+FOUNDRY_PROFILE=base_mainnet forge test
+npm run verify:forecast-bytecode
 ```
 
 The test suite covers core forecasting rules, wallet sessions, Community

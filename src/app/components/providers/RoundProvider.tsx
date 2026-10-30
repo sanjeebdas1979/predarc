@@ -17,7 +17,12 @@ import {
 } from "./DemoPointsProvider";
 
 import {
+  forecastDirectionForPrices,
+} from "@/lib/forecast-price-core";
+
+import {
   useBtcPrice,
+  type BtcCandle,
   type BtcTimeframe,
 } from "./BtcPriceProvider";
 
@@ -125,6 +130,39 @@ function getRemainingSeconds(
   );
 }
 
+function getCurrentCandleOpen(
+  candles: BtcCandle[],
+  duration: PredictionDuration
+): number | null {
+  const expectedCandleTime =
+    Math.floor(
+      Date.now() /
+        (duration * 1000)
+    ) * duration;
+
+  for (
+    let index = candles.length - 1;
+    index >= 0;
+    index -= 1
+  ) {
+    const candle =
+      candles[index];
+
+    if (
+      candle.time ===
+        expectedCandleTime &&
+      Number.isFinite(
+        candle.open
+      ) &&
+      candle.open > 0
+    ) {
+      return candle.open;
+    }
+  }
+
+  return null;
+}
+
 function durationForTimeframe(
   value: BtcTimeframe
 ): PredictionDuration {
@@ -135,6 +173,18 @@ function durationForTimeframe(
       : value === "15m"
         ? 900
         : 3600;
+}
+
+function timeframeForDuration(
+  duration: PredictionDuration
+): BtcTimeframe {
+  return duration === 60
+    ? "1m"
+    : duration === 300
+      ? "5m"
+      : duration === 900
+        ? "15m"
+        : "1h";
 }
 const RoundContext =
   createContext<
@@ -153,6 +203,7 @@ export function RoundProvider({
     data,
     candles,
     timeframe,
+    setTimeframe,
     isConnected,
     selectedMarket,
   } = useBtcPrice();
@@ -306,7 +357,10 @@ export function RoundProvider({
     const currentPrice =
       latestPriceMarketRef.current ===
         selectedMarket
-        ? latestPriceRef.current
+        ? getCurrentCandleOpen(
+            candles,
+            chartDuration
+          )
         : null;
 
     setRoundDuration(chartDuration);
@@ -343,6 +397,7 @@ export function RoundProvider({
     chartDuration,
     roundDuration,
     selectedMarket,
+    candles,
   ]);
 
   const canChangeDuration =
@@ -425,12 +480,18 @@ export function RoundProvider({
       null
     );
 
-    /*
-     * Give the newly selected
-     * market a fresh full round.
-     */
+    const nextBoundary =
+      getNextBoundaryTimestamp(
+        roundDuration
+      );
+
+    roundEndsAtRef.current =
+      nextBoundary;
+
     setTimeLeft(
-      roundDuration
+      getRemainingSeconds(
+        nextBoundary
+      )
     );
   }, [
     selectedMarket,
@@ -461,7 +522,14 @@ export function RoundProvider({
     }
 
     const openingPrice =
-      latestPriceRef.current;
+      getCurrentCandleOpen(
+        candles,
+        roundDuration
+      );
+
+    if (openingPrice === null) {
+      return;
+    }
 
     startPriceRef.current =
       openingPrice;
@@ -469,6 +537,11 @@ export function RoundProvider({
     startPriceMarketRef.current =
       roundMarket;
 
+    /*
+     * Candle history arrives from the external Binance stream after render.
+     * This effect is the synchronization boundary that publishes its open.
+     */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStartPrice(
       openingPrice
     );
@@ -478,7 +551,9 @@ export function RoundProvider({
     roundMarket,
     selectedMarket,
     data,
+    candles,
     isConnected,
+    roundDuration,
   ]);
 
   /*
@@ -523,8 +598,24 @@ export function RoundProvider({
           duration
         );
 
+        setTimeframe(
+          timeframeForDuration(
+            duration
+          )
+        );
+
+        const nextBoundary =
+          getNextBoundaryTimestamp(
+            duration
+          );
+
+        roundEndsAtRef.current =
+          nextBoundary;
+
         setTimeLeft(
-          duration
+          getRemainingSeconds(
+            nextBoundary
+          )
         );
 
         /*
@@ -539,7 +630,10 @@ export function RoundProvider({
 
         const currentPrice =
           priceMatchesMarket
-            ? latestPriceRef.current
+            ? getCurrentCandleOpen(
+                candles,
+                duration
+              )
             : null;
 
         startPriceRef.current =
@@ -570,6 +664,8 @@ export function RoundProvider({
         status,
         predictions,
         roundMarket,
+        candles,
+        setTimeframe,
       ]
     );
 
@@ -801,97 +897,11 @@ export function RoundProvider({
       return;
     }
 
-    /*
-     * A genuinely flat finalized candle is a real
-     * tie and should later be handled as DRAW/VOID.
-     *
-     * Do not replace it with a future live price.
-     */
-    if (
-      closingPrice ===
-      openingPrice
-    ) {
-      /*
-       * Flat finalized candle.
-       *
-       * Do not leave the round stuck in RESOLVING.
-       * Treat this round as a frontend VOID and
-       * immediately continue with the new Binance
-       * candle.
-       *
-       * Proper onchain draw/refund support will be
-       * handled separately because ForecastRegistryV2
-       * was designed around Higher/Lower outcomes.
-       */
-      console.info(
-        "PredArc: flat candle detected. Voiding frontend round and starting the next candle."
-      );
-
-      const nextMarket:
-        PredictionMarket =
-        selectedMarket;
-
-      setRoundNumber(
-        (
-          currentRound
-        ) =>
-          currentRound + 1
-      );
-
-      setRoundMarket(
-        nextMarket
-      );
-
-      startPriceRef.current =
-        nextOpeningPrice;
-
-      startPriceMarketRef.current =
-        nextMarket;
-
-      settledRoundRef.current =
-        null;
-
-      setStartPrice(
-        nextOpeningPrice
-      );
-
-      setEndPrice(
-        null
-      );
-
-      setResult(
-        null
-      );
-
-      setStatus(
-        "open"
-      );
-
-      const nextBoundary =
-        (
-          latestCandle.time +
-          roundDuration
-        ) *
-        1000;
-
-      roundEndsAtRef.current =
-        nextBoundary;
-
-      setTimeLeft(
-        getRemainingSeconds(
-          nextBoundary
-        )
-      );
-
-      return;
-    }
-
-    const marketResult:
-      RoundDirection =
-      closingPrice >
-      openingPrice
-        ? "higher"
-        : "lower";
+    const marketResult =
+      forecastDirectionForPrices(
+        openingPrice,
+        closingPrice
+      ) ?? "higher";
 
     settledRoundRef.current =
       roundNumber;

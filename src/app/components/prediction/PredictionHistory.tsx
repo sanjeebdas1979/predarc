@@ -19,6 +19,11 @@ import {
 } from "../../contracts/forecastRegistryV2";
 
 import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
+import { baseBuilderAttribution } from "@/lib/base-builder-code";
+import {
+  detectForecastPriceScale,
+  scaleForecastPrice,
+} from "@/lib/forecast-price-core";
 
 import {
   useDemoPoints,
@@ -1066,38 +1071,13 @@ export default function PredictionHistory() {
        * Legacy forecasts: x100
        * New forecasts:    x1,000,000
        */
-      const legacyStartPrice =
-        BigInt(
-          Math.round(
-            prediction.startPrice *
-              100
-          )
+      const detectedPriceScale =
+        detectForecastPriceScale(
+          onchainForecast.startPrice,
+          prediction.startPrice
         );
 
-      const preciseStartPrice =
-        BigInt(
-          Math.round(
-            prediction.startPrice *
-              1_000_000
-          )
-        );
-
-      let detectedPriceScale:
-        100 | 1_000_000;
-
-      if (
-        onchainForecast.startPrice ===
-        preciseStartPrice
-      ) {
-        detectedPriceScale =
-          1_000_000;
-      } else if (
-        onchainForecast.startPrice ===
-        legacyStartPrice
-      ) {
-        detectedPriceScale =
-          100;
-      } else {
+      if (detectedPriceScale === null) {
         updateMessage(
           prediction.id,
           "Could not safely match the local start price with the onchain forecast. Resolution was not submitted."
@@ -1107,11 +1087,9 @@ export default function PredictionHistory() {
       }
 
       const scaledEndPrice =
-        BigInt(
-          Math.round(
-            prediction.endPrice *
-              detectedPriceScale
-          )
+        scaleForecastPrice(
+          prediction.endPrice,
+          detectedPriceScale
         );
 
       /*
@@ -1166,6 +1144,10 @@ export default function PredictionHistory() {
 
           chainId:
             forecastChainId,
+
+          ...baseBuilderAttribution(
+            forecastChainId
+          ),
         });
 
       setLatestHashes(
@@ -1348,6 +1330,10 @@ export default function PredictionHistory() {
 
             chainId:
               forecastChainId,
+
+            ...baseBuilderAttribution(
+              forecastChainId
+            ),
           }
         );
 

@@ -10,6 +10,7 @@ import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProv
 import PredarcNetworkSelector from "@/app/components/wallet/PredarcNetworkSelector";
 import WalletConnectOptions from "@/app/components/wallet/WalletConnectOptions";
 import { getDailyAddress } from "@/lib/predarc-networks";
+import { baseBuilderAttribution } from "@/lib/base-builder-code";
 
 const button = "rounded-xl bg-orange-500 px-5 py-3 font-bold text-black disabled:cursor-not-allowed disabled:opacity-40";
 const card = "rounded-3xl border border-white/10 bg-[#0d121a] p-6";
@@ -79,6 +80,7 @@ export default function DailyDashboard() {
       const submitted = await writeContractAsync({
         account: address, address: dailyAddress, abi: dailyAbi,
         functionName: action, chainId: selectedChainId,
+        ...baseBuilderAttribution(selectedChainId),
       });
       setHash(submitted);
       setMessage("Transaction submitted. Waiting for confirmation; no timer has been started locally.");

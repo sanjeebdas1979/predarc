@@ -200,6 +200,36 @@ test("common Predarc questions stay deterministic and source-linked", () => {
     /chain ID is 8453/
   );
   assert.match(
+    verifiedAssistantAnswer("What is Base?", 5042) ?? "",
+    /Ethereum Layer-2 network/
+  );
+  assert.match(
+    verifiedAssistantAnswer("whai is Base ?", 5042) ?? "",
+    /chain ID 8453/
+  );
+  assert.match(
+    verifiedAssistantAnswer("বেস কী?", 5042) ?? "",
+    /uses ETH for gas/
+  );
+  assert.match(
+    verifiedAssistantAnswer("What is the official USDC address on Base?") ?? "",
+    /0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/
+  );
+  assert.match(
+    verifiedAssistantAnswer("How does the Base Builder Code work?") ?? "",
+    /ERC-8021 data suffix/
+  );
+  assert.match(
+    verifiedAssistantAnswer("What can I do on Base?", 5042) ?? "",
+    /On Base Mainnet/
+  );
+  assert.deepEqual(
+    selectAssistantSources("How do I bridge USDC on Base?").map(
+      (source) => source.id
+    ),
+    ["predarc-bridge", "base-docs"]
+  );
+  assert.match(
     verifiedAssistantAnswer("Do Predarc server points have real money value?") ??
       "",
     /no cash value/
@@ -227,6 +257,7 @@ test("common Predarc questions stay deterministic and source-linked", () => {
 
   assert.equal(assistantQuestionIsInScope("Explain Arc Mainnet gas"), true);
   assert.equal(assistantQuestionIsInScope("Explain Base Mainnet gas"), true);
+  assert.equal(assistantQuestionIsInScope("বেস কী?"), true);
   assert.equal(assistantQuestionIsInScope("How can I predict here?"), true);
   assert.equal(assistantQuestionIsInScope("Explain software architecture"), false);
   assert.equal(assistantQuestionIsInScope("Write a recipe for soup"), false);

@@ -71,7 +71,7 @@ export default function BuilderExplorerSearch({
                   : "mt-1 text-lg font-black"
               }
             >
-              Discover an Arc project
+              Discover an Arc / Base project
             </h2>
             <p className="mt-2 max-w-2xl text-xs leading-5 text-gray-500 sm:text-sm">
               Search by project name, GitHub username, or owner/repository.
@@ -88,7 +88,7 @@ export default function BuilderExplorerSearch({
           htmlFor={isLanding ? "landing-builder-search" : "builder-search"}
           className="sr-only"
         >
-          Search public Arc project data
+          Search public Arc and Base project data
         </label>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <div className="relative min-w-0 flex-1">

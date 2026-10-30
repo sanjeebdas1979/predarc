@@ -1041,7 +1041,7 @@ export function verifiedAssistantAnswer(
   }
 
   if (includesAny(normalized, ["builder explorer", "public builder"])) {
-    return "Builder Explorer organizes source-linked public GitHub activity for Arc projects. Search by a public GitHub username, repository or project name, then inspect the original evidence links. Results are public activity signals, not an official ranking, identity claim or Arc community role.";
+    return "Builder Explorer organizes source-linked public GitHub activity for Arc and Base projects. Search by a public GitHub username, repository or project name, then inspect the original evidence links. Results are public activity signals, not an official ranking, identity claim or Arc or Base community role.";
   }
 
   if (

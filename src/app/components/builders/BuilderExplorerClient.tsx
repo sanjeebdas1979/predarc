@@ -18,6 +18,7 @@ type BuilderProject = {
   forks: number;
   pushedAt: string | null;
   topics: string[];
+  networks: Array<"Arc" | "Base">;
   evidence: string[];
 };
 
@@ -32,6 +33,7 @@ type BuilderCommit = {
 
 type BuilderContribution = {
   repository: string;
+  network: "Arc" | "Base";
   number: number;
   title: string;
   url: string;
@@ -55,7 +57,7 @@ type BuilderExplorerResult = {
     followers: number;
     joinedAt: string | null;
   };
-  arcProjects: BuilderProject[];
+  projects: BuilderProject[];
   activity: {
     recentCommits: BuilderCommit[];
     recentCommitCount: number;
@@ -160,7 +162,7 @@ export default function BuilderExplorerClient() {
         <div className="mx-auto flex h-[76px] max-w-[1400px] items-center justify-between gap-4 px-4 sm:px-6">
           <PredarcBrand compact />
           <nav
-            aria-label="Arc Project Explorer navigation"
+            aria-label="Arc and Base Project Explorer navigation"
             className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.08em]"
           >
             <Link
@@ -187,10 +189,10 @@ export default function BuilderExplorerClient() {
           </div>
           <h1 className="mt-6 text-4xl font-black uppercase leading-[0.95] tracking-[-0.045em] sm:text-5xl lg:text-6xl">
             Discover
-            <span className="block text-blue-300">Arc projects.</span>
+            <span className="block text-blue-300">Arc + Base projects.</span>
           </h1>
           <p className="mt-5 max-w-3xl text-sm leading-7 text-gray-400 sm:text-base">
-            Search public GitHub evidence for projects building on Arc.
+            Search public GitHub evidence for projects building on Arc or Base.
           </p>
         </div>
 
@@ -211,7 +213,7 @@ export default function BuilderExplorerClient() {
               ? error
               : result
                 ? `Public project result loaded for ${result.profile.name}.`
-                : "Arc Project Explorer is ready."}
+                : "Arc and Base Project Explorer is ready."}
         </p>
 
         <div className="mt-8">
@@ -226,8 +228,8 @@ export default function BuilderExplorerClient() {
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
                   Predarc surfaces observable GitHub evidence for projects
-                  building on Arc without exposing private data or assigning a
-                  score.
+                  building on Arc or Base without exposing private data or
+                  assigning a score.
                 </p>
                 <button
                   type="button"
@@ -244,7 +246,7 @@ export default function BuilderExplorerClient() {
                 </p>
                 <ul className="mt-4 space-y-3 text-xs leading-5 text-gray-400">
                   <li>✓ Public GitHub profiles and repositories</li>
-                  <li>✓ Explicit Arc and Circle project evidence</li>
+                  <li>✓ Explicit Arc, Base and Circle project evidence</li>
                   <li>✓ Recent public push-event evidence</li>
                   <li>✓ Fix-related commit signals</li>
                 </ul>
@@ -306,7 +308,7 @@ export default function BuilderExplorerClient() {
                   <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {[
                       ["Public repos", result.profile.publicRepositories],
-                      ["Project matches", result.arcProjects.length],
+                      ["Project matches", result.projects.length],
                       [
                         "Merged PRs",
                         result.activity.contributionSearchAvailable
@@ -314,7 +316,7 @@ export default function BuilderExplorerClient() {
                           : "—",
                       ],
                       [
-                        "Arc issues",
+                        "Public issues",
                         result.activity.contributionSearchAvailable
                           ? result.activity.publicIssueCount
                           : "—",
@@ -336,7 +338,8 @@ export default function BuilderExplorerClient() {
 
                   <p className="mt-5 text-xs leading-5 text-gray-400">
                     Contribution counts use source-linked public GitHub records
-                    from recognized Arc repositories—not lifetime totals.
+                    from recognized Arc and Base repositories—not lifetime
+                    totals.
                   </p>
                 </article>
 
@@ -349,7 +352,7 @@ export default function BuilderExplorerClient() {
                       Public open-source activity
                     </p>
                     <h2 className="mt-2 text-2xl font-black">
-                      Arc contributions
+                      Arc + Base contributions
                     </h2>
                   </div>
                   {result.activity.contributionSearchAvailable && (
@@ -367,7 +370,8 @@ export default function BuilderExplorerClient() {
                 ) : result.activity.contributions.length === 0 ? (
                   <p className="mt-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 text-sm leading-6 text-gray-500">
                     No authored merged pull requests or issues were found in the
-                    recognized public Arc repositories checked by this MVP.
+                    recognized public Arc and Base repositories checked by this
+                    MVP.
                   </p>
                 ) : (
                   <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -381,7 +385,7 @@ export default function BuilderExplorerClient() {
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="font-mono text-[9px] text-gray-600">
-                            {contribution.repository} #{contribution.number}
+                            {contribution.network} · {contribution.repository} #{contribution.number}
                           </span>
                           <span className="rounded-full border border-emerald-400/20 bg-emerald-400/[0.07] px-2 py-1 text-[7px] font-black uppercase tracking-[0.1em] text-emerald-300">
                             {contribution.kind === "pull-request"
@@ -413,7 +417,7 @@ export default function BuilderExplorerClient() {
                       Matched public repositories
                     </p>
                     <h2 className="mt-2 text-2xl font-black">
-                      Project and Arc evidence
+                      Project and network evidence
                     </h2>
                   </div>
                   <span className="text-[9px] text-gray-600">
@@ -421,15 +425,15 @@ export default function BuilderExplorerClient() {
                   </span>
                 </div>
 
-                {result.arcProjects.length === 0 ? (
+                {result.projects.length === 0 ? (
                   <p className="mt-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 text-sm leading-6 text-gray-500">
-                    No repository with clear Arc evidence was found in the public
-                    GitHub data. This is not evidence that the builder has no Arc
-                    work.
+                    No repository with clear Arc or Base evidence was found in
+                    the public GitHub data. This is not evidence that the builder
+                    has no Arc or Base work.
                   </p>
                 ) : (
                   <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                    {result.arcProjects.map((project) => (
+                    {result.projects.map((project) => (
                       <article
                         key={project.fullName}
                         className="rounded-[1.5rem] border border-white/[0.08] bg-[#0a101a] p-5"
@@ -459,6 +463,18 @@ export default function BuilderExplorerClient() {
                           </p>
                         )}
                         <div className="mt-4 flex flex-wrap gap-2">
+                          {project.networks.map((network) => (
+                            <span
+                              key={network}
+                              className={
+                                network === "Base"
+                                  ? "rounded-full border border-blue-400/25 bg-blue-400/[0.09] px-2.5 py-1 text-[8px] font-black text-blue-200"
+                                  : "rounded-full border border-orange-400/25 bg-orange-400/[0.09] px-2.5 py-1 text-[8px] font-black text-orange-200"
+                              }
+                            >
+                              {network}
+                            </span>
+                          ))}
                           {project.evidence.map((item) => (
                             <span
                               key={item}

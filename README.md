@@ -93,7 +93,7 @@ connectors and important UI contracts.
 - [Community Markets](docs/COMMUNITY-MARKETS.md)
 - [Daily Access](docs/DAILY-ACCESS.md)
 - [Predarc Assistant](docs/PREDARC-ASSISTANT.md)
-- [Builder Explorer](docs/ARC-BUILDER-EXPLORER.md)
+- [Arc and Base Builder Explorer](docs/ARC-BUILDER-EXPLORER.md)
 
 ## Safety boundary
 

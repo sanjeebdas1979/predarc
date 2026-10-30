@@ -48,7 +48,7 @@ test("guide covers every current public Predarc feature", () => {
     "Run paid AI research on the selected network",
     "Connect an AI agent",
     "Verify a supported receipt",
-    "Explore public Arc projects",
+    "Explore public Arc and Base projects",
     "Ask Predarc Assistant",
   ]) {
     assert.ok(guide.includes(heading), `Missing guide section: ${heading}`);

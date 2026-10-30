@@ -20,6 +20,8 @@ export type PublicRepositoryShape = {
   topics?: unknown;
 };
 
+export type BuilderNetwork = "Arc" | "Base";
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const GITHUB_USERNAME_PATTERN = /^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i;
 const GITHUB_REPOSITORY_PATTERN = /^([a-z\d](?:[a-z\d-]{0,37}[a-z\d])?)\/([a-z\d._-]{1,100})$/i;
@@ -39,12 +41,45 @@ const ARC_REPOSITORY_SIGNALS = [
   "build-on-arc",
 ];
 
-export const PUBLIC_ARC_CONTRIBUTION_REPOSITORIES = [
+const BASE_REPOSITORY_SIGNALS = [
+  "base mainnet",
+  "base sepolia",
+  "base network",
+  "base chain",
+  "base l2",
+  "build on base",
+  "built on base",
+  "deployed on base",
+  "base builder code",
+  "chain id 8453",
+  "buildonbase",
+  "base-mainnet",
+  "base-sepolia",
+  "base-network",
+  "base-chain",
+  "base-l2",
+  "build-on-base",
+  "built-on-base",
+  "chain-id-8453",
+];
+
+export const PUBLIC_ECOSYSTEM_CONTRIBUTION_REPOSITORIES = [
   "circlefin/arc-node",
+  "base/base",
 ] as const;
 
-const RECOGNIZED_ARC_REPOSITORIES = new Map<string, string>([
-  [PUBLIC_ARC_CONTRIBUTION_REPOSITORIES[0], "Arc Node repository"],
+const RECOGNIZED_ECOSYSTEM_REPOSITORIES = new Map<
+  string,
+  { label: string; network: BuilderNetwork }
+>([
+  [
+    PUBLIC_ECOSYSTEM_CONTRIBUTION_REPOSITORIES[0],
+    { label: "Arc Node repository", network: "Arc" },
+  ],
+  [
+    PUBLIC_ECOSYSTEM_CONTRIBUTION_REPOSITORIES[1],
+    { label: "Base core repository", network: "Base" },
+  ],
 ]);
 
 function cleanQuery(value: unknown) {
@@ -164,10 +199,12 @@ export function arcRepositoryEvidence(repository: PublicRepositoryShape) {
   const searchable = [name, fullName, description, homepage, ...topics].join(" ");
   const evidence = new Set<string>();
 
-  const recognizedRepository = RECOGNIZED_ARC_REPOSITORIES.get(fullName);
-  if (recognizedRepository) evidence.add(recognizedRepository);
+  const recognizedRepository = RECOGNIZED_ECOSYSTEM_REPOSITORIES.get(fullName);
+  if (recognizedRepository?.network === "Arc") {
+    evidence.add(recognizedRepository.label);
+  }
 
-  if (name === "predarc" || /(?:^|[-_.])predarc(?:$|[-_.])/.test(name)) {
+  if (fullName === "sanjeebdas1979/predarc") {
     evidence.add("Predarc project name");
   }
 
@@ -186,6 +223,81 @@ export function arcRepositoryEvidence(repository: PublicRepositoryShape) {
 
 export function isArcRepository(repository: PublicRepositoryShape) {
   return arcRepositoryEvidence(repository).length > 0;
+}
+
+export function baseRepositoryEvidence(repository: PublicRepositoryShape) {
+  const name = stringValue(repository.name).toLowerCase();
+  const fullName = stringValue(repository.full_name).toLowerCase();
+  const description = stringValue(repository.description).toLowerCase();
+  const homepage = stringValue(repository.homepage).toLowerCase();
+  const topics = topicValues(repository.topics);
+  const searchable = [name, fullName, description, homepage, ...topics].join(" ");
+  const evidence = new Set<string>();
+
+  const recognizedRepository = RECOGNIZED_ECOSYSTEM_REPOSITORIES.get(fullName);
+  if (recognizedRepository?.network === "Base") {
+    evidence.add(recognizedRepository.label);
+  }
+
+  if (fullName === "sanjeebdas1979/predarc") {
+    evidence.add("Predarc Base integration");
+  }
+
+  if (/(?:^|[-_.])base(?:$|[-_.])/.test(name)) {
+    evidence.add("Base project name");
+  }
+
+  for (const signal of BASE_REPOSITORY_SIGNALS) {
+    if (searchable.includes(signal)) {
+      evidence.add(signal.replaceAll("-", " "));
+    }
+  }
+
+  if (
+    topics.some((topic) =>
+      [
+        "base",
+        "base-mainnet",
+        "base-sepolia",
+        "base-chain",
+        "build-on-base",
+      ].includes(topic)
+    )
+  ) {
+    evidence.add("Base topic");
+  }
+
+  return [...evidence];
+}
+
+export function isBaseRepository(repository: PublicRepositoryShape) {
+  return baseRepositoryEvidence(repository).length > 0;
+}
+
+export function ecosystemRepositoryEvidence(
+  repository: PublicRepositoryShape
+) {
+  return [
+    ...new Set([
+      ...arcRepositoryEvidence(repository),
+      ...baseRepositoryEvidence(repository),
+    ]),
+  ];
+}
+
+export function ecosystemRepositoryNetworks(
+  repository: PublicRepositoryShape
+): BuilderNetwork[] {
+  const networks: BuilderNetwork[] = [];
+
+  if (isArcRepository(repository)) networks.push("Arc");
+  if (isBaseRepository(repository)) networks.push("Base");
+
+  return networks;
+}
+
+export function isEcosystemRepository(repository: PublicRepositoryShape) {
+  return ecosystemRepositoryNetworks(repository).length > 0;
 }
 
 export function isFixRelatedCommit(message: unknown) {

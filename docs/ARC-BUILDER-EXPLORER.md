@@ -1,8 +1,8 @@
-# Arc Project Explorer MVP
+# Arc and Base Project Explorer MVP
 
-Predarc's Arc Project Explorer is a public GitHub discovery surface. It helps a
-user find observable project evidence without turning those signals into an
-official Arc status or a project ranking.
+Predarc's Arc and Base Project Explorer is a public GitHub discovery surface.
+It helps a user find observable project evidence without turning those signals
+into an official Arc or Base status or a project ranking.
 
 ## MVP flow
 
@@ -23,8 +23,9 @@ No Supabase migration is required for this MVP.
 ## What the MVP can show
 
 - Public GitHub identity and profile link.
-- Repositories carrying explicit Arc/Circle evidence.
-- Authored merged pull requests and issues in recognized Arc repositories.
+- Repositories carrying explicit Arc, Base or Circle evidence.
+- Authored merged pull requests and issues in recognized Arc or Base
+  repositories.
 - Recent commits visible in GitHub's public event window.
 - Fix-related commit-message signals.
 - Source notes and observation time.
@@ -34,8 +35,8 @@ signal. It is not presented as a lifetime commit total.
 
 External contributions are accepted only when the repository is recognized by
 an explicit evidence rule. The MVP currently recognizes `circlefin/arc-node`
-directly, so merged Arc Node pull requests and authored issues can appear even
-when the repository is not owned by the searched GitHub user.
+and `base/base` directly, so source-linked Arc or Base pull requests and issues
+can appear even when the repository is not owned by the searched GitHub user.
 
 ## GitHub API configuration
 

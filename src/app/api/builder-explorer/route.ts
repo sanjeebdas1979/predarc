@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
-  arcRepositoryEvidence,
-  isArcRepository,
+  ecosystemRepositoryEvidence,
+  ecosystemRepositoryNetworks,
+  isEcosystemRepository,
   isFixRelatedCommit,
   normalizeBuilderExplorerQuery,
-  PUBLIC_ARC_CONTRIBUTION_REPOSITORIES,
+  PUBLIC_ECOSYSTEM_CONTRIBUTION_REPOSITORIES,
   safePublicUrl,
   type BuilderExplorerQuery,
+  type BuilderNetwork,
 } from "@/lib/builder-explorer-core";
 import { requestOriginAllowed } from "@/lib/auth-session";
 
@@ -15,7 +17,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const GITHUB_API_ROOT = "https://api.github.com";
-const MAX_REPOSITORIES = 6;
+const MAX_REPOSITORIES = 12;
+const MAX_REPOSITORIES_PER_NETWORK = 6;
 const MAX_PUBLIC_EVENTS = 100;
 const MAX_PUBLIC_CONTRIBUTIONS = 20;
 
@@ -77,8 +80,9 @@ type GitHubPublicEvent = {
   } | null;
 };
 
-type PublicArcContribution = {
+type PublicEcosystemContribution = {
   repository: string;
+  network: BuilderNetwork;
   number: number;
   title: string;
   url: string;
@@ -234,7 +238,9 @@ async function resolveProjectOwner(query: BuilderExplorerQuery) {
       cleanString(repository.name, 100)?.toLowerCase() ===
       query.normalized.toLowerCase()
   );
-  const fallback = repositories.find((repository) => isArcRepository(repository));
+  const fallback = repositories.find((repository) =>
+    isEcosystemRepository(repository)
+  );
   const repository = exact ?? fallback;
 
   return repository
@@ -287,7 +293,8 @@ function publicRepository(repository: GitHubRepository, selected: boolean) {
         .filter((topic): topic is string => typeof topic === "string")
         .slice(0, 8)
     : [];
-  const evidence = arcRepositoryEvidence(repository);
+  const evidence = ecosystemRepositoryEvidence(repository);
+  const networks = ecosystemRepositoryNetworks(repository);
 
   if (selected) evidence.unshift("Exact project match");
 
@@ -301,6 +308,7 @@ function publicRepository(repository: GitHubRepository, selected: boolean) {
     forks: cleanNumber(repository.forks_count),
     pushedAt: cleanDate(repository.pushed_at),
     topics,
+    networks,
     evidence: [...new Set(evidence)].slice(0, 6),
   };
 }
@@ -373,9 +381,9 @@ function repositoryFromApiUrl(value: unknown) {
   }
 }
 
-function publicArcContribution(
+function publicEcosystemContribution(
   item: GitHubContributionSearchItem,
-  kind: PublicArcContribution["kind"]
+  kind: PublicEcosystemContribution["kind"]
 ) {
   const repository = repositoryFromApiUrl(item.repository_url);
   const number = cleanNumber(item.number);
@@ -387,13 +395,19 @@ function publicArcContribution(
     number < 1 ||
     !title ||
     !url ||
-    !isArcRepository({
+    !isEcosystemRepository({
       name: repository.name,
       full_name: repository.fullName,
     })
   ) {
     return null;
   }
+
+  const network = ecosystemRepositoryNetworks({
+    name: repository.name,
+    full_name: repository.fullName,
+  })[0];
+  if (!network) return null;
 
   const issueState = cleanString(item.state, 20)?.toLowerCase();
   if (kind === "issue" && !["open", "closed"].includes(issueState ?? "")) {
@@ -402,6 +416,7 @@ function publicArcContribution(
 
   return {
     repository: repository.fullName,
+    network,
     number,
     title,
     url,
@@ -417,11 +432,11 @@ function publicArcContribution(
       cleanDate(item.updated_at) ??
       cleanDate(item.created_at),
     fixRelated: isFixRelatedCommit(title),
-  } satisfies PublicArcContribution;
+  } satisfies PublicEcosystemContribution;
 }
 
-async function publicArcContributions(login: string) {
-  const repositories = PUBLIC_ARC_CONTRIBUTION_REPOSITORIES.map(
+async function publicEcosystemContributions(login: string) {
+  const repositories = PUBLIC_ECOSYSTEM_CONTRIBUTION_REPOSITORIES.map(
     (repository) => `repo:${repository}`
   ).join(" ");
   const mergedPullRequestSearch = new URLSearchParams({
@@ -449,13 +464,13 @@ async function publicArcContributions(login: string) {
     const candidates = [
       ...(pullRequests?.items ?? [])
         .filter((item) => item.pull_request !== null && item.pull_request !== undefined)
-        .map((item) => publicArcContribution(item, "pull-request")),
+        .map((item) => publicEcosystemContribution(item, "pull-request")),
       ...(issues?.items ?? [])
         .filter((item) => item.pull_request === null || item.pull_request === undefined)
-        .map((item) => publicArcContribution(item, "issue")),
+        .map((item) => publicEcosystemContribution(item, "issue")),
     ]
       .filter(
-        (item): item is PublicArcContribution => item !== null
+        (item): item is PublicEcosystemContribution => item !== null
       )
       .sort((left, right) =>
         (right.occurredAt ?? "").localeCompare(left.occurredAt ?? "")
@@ -480,7 +495,7 @@ async function publicArcContributions(login: string) {
 
     return {
       available: false,
-      contributions: [] as PublicArcContribution[],
+      contributions: [] as PublicEcosystemContribution[],
     };
   }
 }
@@ -508,7 +523,7 @@ export async function POST(request: NextRequest) {
     return jsonReply(
       {
         error:
-          "Use a public email, @GitHub username, GitHub repository or Arc project name.",
+          "Use a public email, @GitHub username, GitHub repository or Arc/Base project name.",
       },
       400
     );
@@ -548,17 +563,29 @@ export async function POST(request: NextRequest) {
       return jsonReply({ error: "The public GitHub profile was not found." }, 404);
     }
 
-    const contributionResult = await publicArcContributions(profileLogin);
+    const contributionResult = await publicEcosystemContributions(profileLogin);
 
     const selectedFullName = repositoryFullName(resolved?.repository ?? {})?.toLowerCase();
+    const ownedProjectRepositories = (repositories ?? []).filter(
+      (repository) =>
+        repository.archived !== true &&
+        repository.fork !== true &&
+        isEcosystemRepository(repository)
+    );
+    const arcRepositories = ownedProjectRepositories
+      .filter((repository) =>
+        ecosystemRepositoryNetworks(repository).includes("Arc")
+      )
+      .slice(0, MAX_REPOSITORIES_PER_NETWORK);
+    const baseRepositories = ownedProjectRepositories
+      .filter((repository) =>
+        ecosystemRepositoryNetworks(repository).includes("Base")
+      )
+      .slice(0, MAX_REPOSITORIES_PER_NETWORK);
     const candidates = uniqueRepositories([
       ...(resolved?.repository ? [resolved.repository] : []),
-      ...(repositories ?? []).filter(
-        (repository) =>
-          repository.archived !== true &&
-          repository.fork !== true &&
-          isArcRepository(repository)
-      ),
+      ...arcRepositories,
+      ...baseRepositories,
     ]).slice(0, MAX_REPOSITORIES);
     const publicRepositories = candidates
       .map((repository) =>
@@ -604,7 +631,7 @@ export async function POST(request: NextRequest) {
         followers: cleanNumber(profile.followers),
         joinedAt: cleanDate(profile.created_at),
       },
-      arcProjects: publicRepositories,
+      projects: publicRepositories,
       activity: {
         recentCommits,
         recentCommitCount: recentCommits.length,
@@ -637,7 +664,7 @@ export async function POST(request: NextRequest) {
       },
       sourceNotes: [
         "GitHub profile, repositories, recent public events, merged pull requests and issues",
-        "Repository relevance is evidence-based and never treated as an official Arc role",
+        "Repository relevance is evidence-based and never treated as an official Arc or Base role",
         "Only public GitHub data is used; no private account data or project ranking is requested",
       ],
       observedAt: new Date().toISOString(),

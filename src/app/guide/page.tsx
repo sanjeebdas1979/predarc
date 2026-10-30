@@ -215,7 +215,7 @@ const FEATURE_GUIDES = [
     id: "builders",
     number: "10",
     eyebrow: "Public discovery",
-    title: "Explore public Arc projects",
+    title: "Explore public Arc and Base projects",
     summary:
       "Builder Explorer organizes source-linked public GitHub signals without guessing private information or official community roles.",
     steps: [
@@ -223,7 +223,7 @@ const FEATURE_GUIDES = [
       "Open the matched repositories and contribution evidence from their source links.",
       "Treat the results as public activity signals, not as an official ranking or role directory.",
     ],
-    note: "Arc House status and Discord roles are not inferred when no reliable public or opt-in source is available.",
+    note: "Arc or Base community status and Discord roles are not inferred when no reliable public or opt-in source is available.",
     href: "/builders",
     cta: "Open Builder Explorer",
     accent: "border-cyan-400/20 bg-cyan-400/[0.06]",

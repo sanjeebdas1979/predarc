@@ -179,6 +179,10 @@ test("common Predarc questions stay deterministic and source-linked", () => {
     selectAssistantSources("What is Predarc?").map((source) => source.id),
     ["predarc-guide", "predarc-home"]
   );
+  assert.match(
+    verifiedAssistantAnswer("How does Builder Explorer work?") ?? "",
+    /Arc and Base projects/
+  );
 
   const prediction = verifiedAssistantAnswer("how can I predict on predarc?");
   assert.match(prediction ?? "", /open Forecast Arena/i);

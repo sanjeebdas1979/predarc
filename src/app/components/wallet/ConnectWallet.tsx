@@ -15,13 +15,12 @@ import {
   useSwitchChain,
 } from "wagmi";
 
-import {
-  parseEther,
-  type Hash,
-} from "viem";
+import type { Hash } from "viem";
 
 import { usePredarcNetwork } from "@/app/components/providers/PredarcNetworkProvider";
 import { baseBuilderAttribution } from "@/lib/base-builder-code";
+import { getForecastRegistryAddress } from "@/lib/predarc-networks";
+import { createWalletVerificationTransaction } from "@/lib/wallet-verification";
 
 import { useVerification } from "../providers/VerificationProvider";
 import PredarcSessionCard from "../auth/PredarcSessionCard";
@@ -161,6 +160,10 @@ export default function ConnectWallet() {
     network,
   } = usePredarcNetwork();
   const forecastNetworkLabel = network.label;
+  const forecastRegistryAddress =
+    getForecastRegistryAddress(
+      forecastChainId
+    );
   const {
     address,
     chainId,
@@ -571,6 +574,14 @@ export default function ConnectWallet() {
       return;
     }
 
+    if (!forecastRegistryAddress) {
+      setVerificationError(
+        `${forecastNetworkLabel} forecast contract is not configured.`
+      );
+
+      return;
+    }
+
     try {
       setVerificationMessage(
         "Confirm the verification transaction in your connected wallet."
@@ -578,21 +589,15 @@ export default function ConnectWallet() {
 
       const hash =
         await sendTransactionAsync(
-          {
-            to: address,
-
-            value:
-              parseEther(
-                "0.000001"
+          createWalletVerificationTransaction(
+            forecastRegistryAddress,
+            forecastChainId,
+            {
+              ...baseBuilderAttribution(
+                forecastChainId
               ),
-
-            chainId:
-              forecastChainId,
-
-            ...baseBuilderAttribution(
-              forecastChainId
-            ),
-          }
+            }
+          )
         );
 
       setTransactionHash(
@@ -837,10 +842,10 @@ export default function ConnectWallet() {
           </p>
 
           <p className="mt-2 text-sm text-gray-300">
-            Complete one tiny
+            Confirm one gas-only
             {` ${forecastNetworkLabel} `}
-            transaction to
-            verify your wallet.
+            contract transaction
+            to verify your wallet.
           </p>
 
           <button
@@ -861,8 +866,9 @@ export default function ConnectWallet() {
           </button>
 
           <p className="mt-3 text-xs text-gray-500">
-            Amount: 0.000001
-            {network.nativeCurrency}
+            Transfer amount: 0
+            {` ${network.nativeCurrency}`}
+            {" · Network gas only"}
           </p>
         </div>
       )}

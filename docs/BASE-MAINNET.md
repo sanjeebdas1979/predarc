@@ -118,6 +118,13 @@ non-Base transaction remain unchanged. An absent code preserves transaction
 functionality but produces no Predarc attribution; an invalid configured code
 fails the build instead of writing malformed attribution.
 
+Wallet verification is a zero-value call to the selected network's
+ForecastRegistryV2 `owner()` getter, not a transfer back to the connected
+wallet. This keeps the verification transaction compatible with EIP-7702
+delegated accounts: attributed calldata sent to a delegated account itself can
+execute its wallet implementation and revert. The contract call transfers no
+ETH or USDC, uses network gas only and retains Base Builder Code attribution.
+
 After deployment, make one low-value Base transaction, open it in BaseScan and
 confirm its input ends in the ERC-8021 marker
 `80218021802180218021802180218021`. Decode the suffix or use Base's Builder

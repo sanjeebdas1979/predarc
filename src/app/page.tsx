@@ -663,10 +663,10 @@ export default function Home() {
                 href="https://docs.arc.network"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Docs (opens in a new tab)"
+                aria-label="Arc Docs (opens in a new tab)"
                 className="transition hover:text-white"
               >
-                Docs ↗
+                Arc Docs ↗
               </a>
 
               <a

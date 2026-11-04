@@ -27,8 +27,8 @@ test("landing page links to the official Predarc X profile", () => {
 
 test("landing footer links to the official Arc documentation", () => {
   assert.match(landing, /href="https:\/\/docs\.arc\.network"/);
-  assert.match(landing, /aria-label="Docs \(opens in a new tab\)"/);
-  assert.match(landing, />\s*Docs ↗\s*<\/a>/);
+  assert.match(landing, /aria-label="Arc Docs \(opens in a new tab\)"/);
+  assert.match(landing, />\s*Arc Docs ↗\s*<\/a>/);
 });
 
 test("landing footer links to the official Arc GitHub repository", () => {

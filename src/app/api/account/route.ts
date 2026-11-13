@@ -45,7 +45,20 @@ export async function POST(request: NextRequest) {
         p_session_hash: tokenHash,
       });
 
-    if (accountError || !accountResult) {
+    if (accountError) {
+      // Keep the session hash and RPC arguments out of logs, but retain the
+      // database error fields needed to diagnose production schema drift.
+      console.error("Account RPC failed", {
+        code: accountError.code,
+        message: accountError.message,
+        details: accountError.details,
+        hint: accountError.hint,
+      });
+      throw new Error("Account lookup failed");
+    }
+
+    if (!accountResult) {
+      console.error("Account RPC returned no account");
       throw new Error("Account lookup failed");
     }
 

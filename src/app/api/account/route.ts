@@ -7,12 +7,10 @@ import {
   sessionHash,
 } from "@/lib/auth-session";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-
-type AccountRpcResult = {
-  wallet?: string | null;
-  balance?: number | string | null;
-  sessionExpiresAt?: string | null;
-};
+import {
+  describeAccountRpcShape,
+  normalizePredarcAccountRpc,
+} from "@/lib/predarc-account-core";
 
 export async function GET() {
   return authReply(
@@ -62,19 +60,31 @@ export async function POST(request: NextRequest) {
       throw new Error("Account lookup failed");
     }
 
-    const account = accountResult as AccountRpcResult;
+    const account = normalizePredarcAccountRpc(
+      accountResult,
+      session.wallet,
+      session.chainId
+    );
+
+    if (!account) {
+      console.error(
+        "Account RPC returned an unexpected shape",
+        describeAccountRpcShape(accountResult)
+      );
+      throw new Error("Account response validation failed");
+    }
 
     return authReply({
       authenticated: true,
-      wallet: account.wallet ?? null,
+      wallet: account.wallet,
       chainId: session.chainId,
-      balance: String(account.balance ?? 0),
-      points: Number(account.balance ?? 0),
+      balance: account.balance,
+      points: Number(account.balance),
       totalPredictions: 0,
       wins: 0,
       losses: 0,
       rewardsClaimed: 0,
-      updatedAt: account.sessionExpiresAt ?? null,
+      updatedAt: account.sessionExpiresAt,
     });
   } catch (error) {
     console.error("Account API failed", error);

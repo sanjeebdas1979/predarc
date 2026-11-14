@@ -28,6 +28,34 @@ export function normalizeWallet(
   return value.toLowerCase();
 }
 
+function normalizeUnsignedInteger(
+  value: unknown
+): string | null {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value >= 0
+      ? String(value)
+      : null;
+  }
+
+  if (typeof value !== "string") return null;
+
+  const match = value.match(/^(0|[1-9][0-9]*)(?:\.0+)?$/);
+  return match?.[1] ?? null;
+}
+
+function normalizeChainId(value: unknown): number | null {
+  const numeric =
+    typeof value === "string" && /^[0-9]+$/.test(value)
+      ? Number(value)
+      : value;
+
+  return typeof numeric === "number" &&
+    Number.isSafeInteger(numeric) &&
+    numeric > 0
+    ? numeric
+    : null;
+}
+
 export function parsePredarcSession(
   value: unknown,
   expectedChainId: number,
@@ -67,14 +95,14 @@ export function parsePredarcAccount(
   }
 
   const wallet = normalizeWallet(value.wallet);
-  const balance =
-    typeof value.balance === "string"
-      ? value.balance
-      : null;
+  const chainId = normalizeChainId(value.chainId);
+  const balance = normalizeUnsignedInteger(
+    value.balance ?? value.points
+  );
 
   if (
     wallet !== session.wallet ||
-    value.chainId !== session.chainId ||
+    chainId !== session.chainId ||
     !balance ||
     !/^(0|[1-9][0-9]*)$/.test(balance)
   ) {

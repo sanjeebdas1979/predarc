@@ -138,10 +138,45 @@ export function PredarcSessionProvider({
         throw new Error(error);
       }
 
-      const account = parsePredarcAccount(
+      let account = parsePredarcAccount(
         result,
         expectedSession
       );
+
+      // The HttpOnly cookie is the authorization source. If another tab or a
+      // recent sign-in replaced the in-memory session between requests, sync
+      // the latest server session and validate the same account response once
+      // more before reporting a contract error.
+      if (!account) {
+        const sessionResponse = await fetch("/api/auth/session", {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        const sessionResult = await readJson(sessionResponse);
+
+        if (
+          requestId !== undefined &&
+          requestId !== requestSequence.current
+        ) {
+          throw new Error("A newer session check replaced this request.");
+        }
+
+        const latestSession = sessionResponse.ok
+          ? parsePredarcSession(
+              sessionResult,
+              expectedSession.chainId
+            )
+          : null;
+
+        if (latestSession) {
+          account = parsePredarcAccount(result, latestSession);
+
+          if (account) {
+            setSession(latestSession);
+            setStatus("signed-in");
+          }
+        }
+      }
 
       if (!account) {
         throw new Error("Predarc returned an unexpected account response.");

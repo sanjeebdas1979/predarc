@@ -68,6 +68,36 @@ test("account must belong to the authenticated session", () => {
   );
 });
 
+test("account accepts production-compatible integer encodings", () => {
+  const session = { wallet, chainId, expiresAt: future };
+
+  for (const value of [
+    {
+      authenticated: true,
+      wallet,
+      chainId: String(chainId),
+      balance: "1000.000",
+    },
+    {
+      authenticated: true,
+      wallet,
+      chainId,
+      balance: 1000,
+    },
+    {
+      authenticated: true,
+      wallet,
+      chainId,
+      points: 1000,
+    },
+  ]) {
+    assert.deepEqual(parsePredarcAccount(value, session), {
+      wallet,
+      balance: "1000",
+    });
+  }
+});
+
 test("server points convert safely for numeric controls", () => {
   assert.equal(pointsAsSafeNumber("1000"), 1000);
   assert.equal(pointsAsSafeNumber("not-a-balance"), 0);

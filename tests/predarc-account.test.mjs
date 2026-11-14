@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   describeAccountRpcShape,
@@ -14,6 +15,37 @@ const account = {
   balance: "1000",
   sessionExpiresAt: "2030-01-01T00:00:00.000Z",
 };
+
+const sessionProviderSource = readFileSync(
+  new URL(
+    "../src/app/components/providers/PredarcSessionProvider.tsx",
+    import.meta.url
+  ),
+  "utf8"
+);
+const serverPointsRouteSource = readFileSync(
+  new URL("../src/app/api/server-points/route.ts", import.meta.url),
+  "utf8"
+);
+
+test("browser loads points through a security-filter-neutral route", () => {
+  assert.match(
+    sessionProviderSource,
+    /fetch\("\/api\/server-points"/
+  );
+  assert.doesNotMatch(
+    sessionProviderSource,
+    /fetch\("\/api\/account"/
+  );
+  assert.match(
+    serverPointsRouteSource,
+    /export \{ GET, POST \} from "\.\.\/account\/route"/
+  );
+  assert.match(
+    sessionProviderSource,
+    /security filter blocked the server-points response/
+  );
+});
 
 test("account RPC accepts direct and production-compatible wrapped results", () => {
   for (const value of [

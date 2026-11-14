@@ -77,7 +77,7 @@ Auth/session:
 
 Server ledger:
 
-- `POST /api/account`
+- `POST /api/server-points` (the legacy `/api/account` alias remains available)
   - Creates/reads the wallet account.
   - Grants initial `1000` server demo points once per wallet.
 - `GET /api/predictions`

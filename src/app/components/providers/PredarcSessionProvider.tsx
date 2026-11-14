@@ -106,12 +106,19 @@ export function PredarcSessionProvider({
       expectedSession: PredarcSession,
       requestId?: number
     ): Promise<string> => {
-      const response = await fetch("/api/account", {
+      const response = await fetch("/api/server-points", {
         method: "POST",
         credentials: "same-origin",
         cache: "no-store",
       });
+      const contentType = response.headers.get("content-type") ?? "";
       const result = await readJson(response);
+
+      if (!contentType.toLowerCase().includes("application/json")) {
+        throw new Error(
+          "A browser or security filter blocked the server-points response."
+        );
+      }
 
       if (
         requestId !== undefined &&

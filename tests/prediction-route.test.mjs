@@ -19,6 +19,8 @@ function loadPostRoute(path) {
   return (options = {}) => {
     const calls = [];
     const verificationCalls = [];
+    let sessionCalls = 0;
+    let rpcCalls = 0;
     const reply = (body, status = 200) => ({ body, status });
     const client = () => ({
       from() {
@@ -45,7 +47,26 @@ function loadPostRoute(path) {
         calls.push({ name, args });
         return {
           abortSignal: async () => {
-            if (options.throwRpc) throw new Error('private rpc failure');
+            rpcCalls += 1;
+            if (
+              options.throwRpc ||
+              rpcCalls <= (options.throwRpcAttempts ?? 0)
+            ) {
+              throw new Error('private rpc failure');
+            }
+
+            if (
+              rpcCalls <= (options.transientRpcErrors ?? 0)
+            ) {
+              return {
+                data: null,
+                error: {
+                  code: 'PGRST000',
+                  message: 'private transient failure',
+                },
+              };
+            }
+
             return {
               data: options.data ?? {},
               error: options.error ?? null,
@@ -69,7 +90,20 @@ function loadPostRoute(path) {
       5042002,
       reply,
       () => options.configured ?? true,
-      async () => (options.session === false ? null : { wallet, chainId: 5042002 }),
+      async () => {
+        sessionCalls += 1;
+
+        if (
+          sessionCalls <=
+            (options.sessionFailures ?? 0)
+        ) {
+          throw new Error('private session failure');
+        }
+
+        return options.session === false
+          ? null
+          : { wallet, chainId: 5042002 };
+      },
       () => (options.cookie === false ? null : 'a'.repeat(64)),
       async (input) => {
         verificationCalls.push(input);
@@ -91,6 +125,9 @@ function loadPostRoute(path) {
       run: () => handler(request),
       calls,
       verificationCalls,
+      get sessionCalls() {
+        return sessionCalls;
+      },
     };
   };
 }
@@ -160,6 +197,56 @@ test('prediction POST routes block disallowed requests before any RPC', async ()
       assert.equal(h.calls.length, 0);
     }
   }
+});
+
+test('submit route safely retries transient session and idempotent RPC failures', async () => {
+  const body = {
+    requestId,
+    market: 'BTC',
+    direction: 'lower',
+    points: 100,
+    durationSeconds: 60,
+    entryPrice: 67090.01,
+    forecastId: '123456789',
+    transactionHash: `0x${'a'.repeat(64)}`,
+  };
+  const success = {
+    balance: '370',
+    replayed: true,
+    prediction: {
+      id: predictionId,
+      status: 'pending',
+    },
+  };
+
+  const transportRetry = submitHarness({
+    body,
+    sessionFailures: 1,
+    throwRpcAttempts: 1,
+    data: success,
+  });
+  const transportResult =
+    await transportRetry.run();
+
+  assert.equal(transportResult.status, 200);
+  assert.equal(transportResult.body.balance, '370');
+  assert.equal(transportRetry.sessionCalls, 2);
+  assert.equal(transportRetry.calls.length, 2);
+  assert.equal(
+    transportRetry.calls[0].args.p_request_id,
+    transportRetry.calls[1].args.p_request_id
+  );
+
+  const gatewayRetry = submitHarness({
+    body,
+    transientRpcErrors: 1,
+    data: success,
+  });
+  const gatewayResult =
+    await gatewayRetry.run();
+
+  assert.equal(gatewayResult.status, 200);
+  assert.equal(gatewayRetry.calls.length, 2);
 });
 
 test('submit route validates input, debits through RPC and whitelists response', async () => {

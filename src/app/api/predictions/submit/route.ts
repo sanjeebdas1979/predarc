@@ -91,6 +91,42 @@ function isRequestId(
   );
 }
 
+async function readPredictionSession(
+  request: NextRequest
+) {
+  try {
+    return await readAuthSession(
+      request
+    );
+  } catch {
+    // Supabase can occasionally drop a gateway request. A read-only retry is
+    // safe and prevents a confirmed onchain forecast from being stranded.
+    console.warn(
+      "Prediction session lookup failed; retrying once."
+    );
+
+    return readAuthSession(
+      request
+    );
+  }
+}
+
+function isRetryablePredictionRpcError(
+  error: { code?: string } | null
+) {
+  const code =
+    error?.code ?? "";
+
+  return (
+    /^08/.test(code) ||
+    /^PGRST00[0-3]$/.test(code) ||
+    code === "53300" ||
+    code === "57P01" ||
+    code === "57P02" ||
+    code === "57P03"
+  );
+}
+
 export async function POST(
   request: NextRequest
 ) {
@@ -151,7 +187,7 @@ export async function POST(
     }
 
     const session =
-      await readAuthSession(
+      await readPredictionSession(
         request
       );
 
@@ -268,8 +304,8 @@ export async function POST(
       );
     }
 
-    const { data, error } =
-      await getSupabaseAdmin()
+    const submitToLedger = () =>
+      getSupabaseAdmin()
         .rpc(
           "predarc_submit_prediction_v1",
           {
@@ -299,6 +335,44 @@ export async function POST(
             8000
           )
         );
+
+    let ledgerResult;
+
+    try {
+      ledgerResult =
+        await submitToLedger();
+
+      if (
+        ledgerResult.error &&
+        isRetryablePredictionRpcError(
+          ledgerResult.error
+        )
+      ) {
+        console.warn(
+          "Prediction ledger RPC returned a transient error; retrying once.",
+          {
+            code:
+              ledgerResult.error.code,
+          }
+        );
+
+        ledgerResult =
+          await submitToLedger();
+      }
+    } catch {
+      // The request ID is unique and the database RPC checks it before any
+      // debit. Retrying is safe even when the first response was lost after a
+      // successful commit: the second call replays without a second debit.
+      console.warn(
+        "Prediction ledger RPC transport failed; retrying once."
+      );
+
+      ledgerResult =
+        await submitToLedger();
+    }
+
+    const { data, error } =
+      ledgerResult;
 
     if (error) {
       if (

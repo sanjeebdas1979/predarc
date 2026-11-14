@@ -189,6 +189,10 @@ test("server retry preserves the original idempotency request ID", async () => {
 
     return {
       ok: true,
+      headers: new Headers({
+        "content-type":
+          "application/json; charset=utf-8",
+      }),
       json: async () => ({
         authenticated: true,
         balance: "900",
@@ -223,7 +227,7 @@ test("server retry preserves the original idempotency request ID", async () => {
     );
     assert.equal(
       calls[0].url,
-      "/api/predictions/submit"
+      "/api/ledger-sync"
     );
 
     const body = JSON.parse(
@@ -253,6 +257,42 @@ test("server retry preserves the original idempotency request ID", async () => {
     assert.equal(
       result.entryPrice,
       789.18
+    );
+  } finally {
+    globalThis.fetch =
+      originalFetch;
+  }
+});
+
+test("server retry rejects HTML injected by a browser security filter", async () => {
+  const originalFetch =
+    globalThis.fetch;
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    headers: new Headers({
+      "content-type": "text/html",
+    }),
+    json: async () => {
+      throw new Error("must not parse HTML");
+    },
+  });
+
+  try {
+    await assert.rejects(
+      submitServerPrediction({
+        requestId:
+          "11111111-1111-4111-8111-111111111111",
+        market: "BTC",
+        direction: "higher",
+        points: 100,
+        durationSeconds: 60,
+        entryPrice: 67_090,
+        forecastId: "123456789",
+        transactionHash:
+          `0x${"a".repeat(64)}`,
+      }),
+      /security filter blocked/
     );
   } finally {
     globalThis.fetch =

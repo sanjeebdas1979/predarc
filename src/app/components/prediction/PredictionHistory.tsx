@@ -726,8 +726,16 @@ export default function PredictionHistory() {
           );
 
           window.dispatchEvent(
-            new Event(
-              SERVER_BALANCE_EVENT
+            new CustomEvent(
+              SERVER_BALANCE_EVENT,
+              {
+                detail: {
+                  balance:
+                    result.balance,
+                  message:
+                    "Server balance updated after reward claim.",
+                },
+              }
             )
           );
 

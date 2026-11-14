@@ -32,7 +32,7 @@ export async function submitServerPrediction(input: {
   transactionHash: `0x${string}`;
 }): Promise<ServerPredictionSubmission> {
   const response = await fetch(
-    "/api/predictions/submit",
+    "/api/ledger-sync",
     {
       method: "POST",
       credentials: "same-origin",
@@ -43,19 +43,50 @@ export async function submitServerPrediction(input: {
     }
   );
 
-  const result = await response.json();
+  const contentType =
+    response.headers.get("content-type") ?? "";
+
+  if (
+    !contentType
+      .toLowerCase()
+      .includes("application/json")
+  ) {
+    throw new Error(
+      "A browser security filter blocked the server-ledger response. Allow predarc.xyz, then retry the same server sync."
+    );
+  }
+
+  let result: unknown;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(
+      "The server ledger returned an unreadable response. Retry the same server sync."
+    );
+  }
 
   if (!response.ok) {
     throw new Error(
-      typeof result?.error === "string"
+      typeof result === "object" &&
+        result !== null &&
+        "error" in result &&
+        typeof result.error === "string"
         ? result.error
         : "Server prediction failed."
     );
   }
 
   if (
-    result?.authenticated !== true ||
-    typeof result.balance !== "string"
+    typeof result !== "object" ||
+    result === null ||
+    !("authenticated" in result) ||
+    result.authenticated !== true ||
+    !("balance" in result) ||
+    typeof result.balance !== "string" ||
+    !("prediction" in result) ||
+    typeof result.prediction !== "object" ||
+    result.prediction === null
   ) {
     throw new Error(
       "Server prediction returned an unexpected result."
@@ -63,7 +94,9 @@ export async function submitServerPrediction(input: {
   }
 
   const entryPrice = Number(
-    result.prediction?.entry_price
+    "entry_price" in result.prediction
+      ? result.prediction.entry_price
+      : Number.NaN
   );
 
   if (
@@ -77,7 +110,9 @@ export async function submitServerPrediction(input: {
 
   return {
     balance: result.balance,
-    replayed: result.replayed === true,
+    replayed:
+      "replayed" in result &&
+      result.replayed === true,
     entryPrice,
   };
 }

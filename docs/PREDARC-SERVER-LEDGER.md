@@ -83,10 +83,11 @@ Server ledger:
 - `GET /api/predictions`
   - Returns signed-in wallet server prediction history.
   - Adds `claimed: true/false` from `predarc_points_ledger` claim credits.
-- `POST /api/predictions/submit`
+- `POST /api/ledger-sync` (the legacy `/api/predictions/submit` alias remains available)
   - Fetches Binance price server-side.
   - Calls `predarc_submit_prediction_v1`.
   - Debits points atomically.
+  - Retries one transient session or RPC failure with the same idempotency key.
 - `POST /api/predictions/settle`
   - Fetches Binance price server-side.
   - Calls `predarc_settle_prediction_v1`.

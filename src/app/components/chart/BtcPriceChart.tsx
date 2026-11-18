@@ -205,6 +205,14 @@ export default function BtcPriceChart() {
             rightOffset: 4,
 
             barSpacing: 10,
+
+            /*
+             * Follow new candles only while the
+             * latest candle is still visible. Once
+             * a user pans away, keep their viewport.
+             */
+            shiftVisibleRangeOnNewBar:
+              true,
           },
 
           handleScroll: true,
@@ -483,18 +491,14 @@ export default function BtcPriceChart() {
       series.update(
         latestCandle
       );
-
-      chart
-        .timeScale()
-        .scrollToRealTime();
     } catch {
+      /*
+       * Recover the series without changing the
+       * user's manually selected visible range.
+       */
       series.setData(
         chartData
       );
-
-      chart
-        .timeScale()
-        .fitContent();
     }
   }, [
     candles,
